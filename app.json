@@ -8,6 +8,7 @@
     "scheme": "myapp",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "platforms": ["ios", "android"],
     "ios": {
       "supportsTablet": true,
       "userInterfaceStyle": "dark"
@@ -18,11 +19,6 @@
         "backgroundColor": "#ffffff"
       },
       "userInterfaceStyle":"dark"
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
     },
     "splash": {
       "image": "./assets/images/splash-icon.png",
