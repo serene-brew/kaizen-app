@@ -12,7 +12,7 @@ export default function Index() {
       }}
     >
       <Text style={{ color: Colors.dark.text }}>
-        Edit app/index.tsx to edit this screen.
+        NYAAA...
       </Text>
     </View>
   );
