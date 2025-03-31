@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { View } from 'react-native';
 import 'react-native-url-polyfill/auto';
 import { client } from '../lib/appwrite';
+import GlobalProvider from '../context/GlobalProvider';
 
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -19,7 +20,7 @@ export default function RootLayout() {
         // Initialize Appwrite
         client.setPlatform('react-native');
         // Add artificial delay to show splash screen
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 100));
       } catch (e) {
         console.warn(e);
       } finally {
@@ -32,19 +33,22 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ThemeProvider value={DarkTheme}>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: '#000000',
-          },
-          headerTintColor: '#FFFFFF',
-          contentStyle: {
-            backgroundColor: '#000000',
-          },
-        }}
-      />
-    </ThemeProvider>
+    <GlobalProvider>
+      <ThemeProvider value={DarkTheme}>
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            headerStyle: {
+              backgroundColor: '#000000',
+            },
+            headerTintColor: '#FFFFFF',
+            contentStyle: {
+              backgroundColor: '#000000',
+            },
+          }}
+        />
+      </ThemeProvider>
+    </GlobalProvider>
   );
 }
