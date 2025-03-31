@@ -1,19 +1,107 @@
-import { Text, View } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { Redirect, router } from "expo-router";
+import { View, Text, Image, ScrollView, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { CustomButton, Loader } from "../components";
 import Colors from "../constants/Colors";
+import { useGlobalContext } from "../context/GlobalProvider";
 
-export default function Index() {
+const Welcome = () => {
+  const { loading, isLogged } = useGlobalContext();
+  
+  if (!loading && isLogged) return <Redirect href="/(tabs)/explore" />;
+  
   return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: Colors.dark.background,
-      }}
-    >
-      <Text style={{ color: Colors.dark.text }}>
-        NYAAA...
-      </Text>
-    </View>
+    <SafeAreaView style={styles.container}>
+      <Loader isLoading={loading} />
+      <ScrollView contentContainerStyle={styles.scrollView}>
+        <View style={styles.content}>
+          {/* <Text style={styles.title}>
+            <Text style={styles.highlight}>Kaizen</Text>
+          </Text> */}
+          <Image
+            source={require('../assets/images/splash-icon.png')}
+            style={styles.image}
+            resizeMode="contain"
+          />
+          <View style={styles.textContainer}>
+            <Text style={styles.heading}>
+              Watch anime{"\n"}
+              in peace{" "}
+            </Text>
+          </View>
+          <Text style={styles.subtitle}>
+            For Absolutely Free{"\n"}No Ads, No Limits
+          </Text>
+          <CustomButton
+            title="Sign In"
+            handlePress={() => router.push("/(auth)/sign-in")}
+            containerStyles={styles.buttonContainer}
+          />
+          <CustomButton
+            title="Sign Up"
+            handlePress={() => router.push("/(auth)/sign-up")}
+            containerStyles={styles.buttonContainer}
+          />
+        </View>
+      </ScrollView>
+      <StatusBar backgroundColor="#161622" style="light" />
+    </SafeAreaView>
   );
-}
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.dark.background,
+  },
+  scrollView: {
+    height: '100%',
+  },
+  content: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  title: {
+    fontSize: 30,
+    color: '#fff',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  highlight: {
+    color: Colors.dark.tint,
+  },
+  image: {
+    maxWidth: 380,
+    width: '100%',
+    height: 298,
+  },
+  textContainer: {
+    marginTop: 20,
+  },
+  heading: {
+    fontSize: 30,
+    color: '#fff',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 28,
+    textAlign: 'center',
+  },
+  button: {
+    width: '100%',
+    marginTop: 28,
+  },
+  buttonContainer: {
+    width: '100%',
+    marginTop: 28,
+  },
+});
+
+export default Welcome;

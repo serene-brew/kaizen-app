@@ -20,15 +20,17 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: "",
+          headerShown: false,
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
-          title: "Explore",
+          title: "",
+          headerShown: false,
         }}
       />
     </Tabs>
-    );
+  );
 }
