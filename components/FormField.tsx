@@ -42,16 +42,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    fontSize: 16,
+    fontSize: 14,
     color: Colors.dark.text,
     fontWeight: '500',
   },
   inputContainer: {
     width: '100%',
-    height: 64,
+    height: 52,
     paddingHorizontal: 16,
     backgroundColor: Colors.dark.inputBackground,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: Colors.dark.inputBorder,
     flexDirection: 'row',
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     color: Colors.dark.text,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
   },
 });

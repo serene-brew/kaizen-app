@@ -32,8 +32,8 @@ const CustomButton = ({
 const styles = StyleSheet.create({
   button: {
     backgroundColor: Colors.dark.buttonBackground,
-    borderRadius: 12,
-    minHeight: 62,
+    borderRadius: 10, // Reduced from 12
+    minHeight: 48, // Reduced from 62
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: Colors.dark.text,
-    fontSize: 18,
+    fontSize: 16, // Reduced from 18
     fontWeight: '600',
   },
   loader: {
