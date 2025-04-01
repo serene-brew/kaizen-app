@@ -3,7 +3,7 @@ import { Link, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { View, Text, ScrollView, Dimensions, Alert, StyleSheet } from "react-native";
 import Colors from "../../constants/Colors";
-import { CustomButton, FormField } from "../../components";
+import { CustomButton, FormField, GoogleButton } from "../../components";
 import { useGlobalContext } from "../../context/GlobalProvider";
 
 const SignIn = () => {
@@ -13,6 +13,11 @@ const SignIn = () => {
     email: "",
     password: "",
   });
+
+  const handleGoogleSignIn = () => {
+    // OAuth logic will go here
+    console.log('Google Sign In');
+  };
 
   const submit = async () => {
     if (form.email === "" || form.password === "") {
@@ -42,8 +47,20 @@ const SignIn = () => {
       <ScrollView>
         <View style={styles.contentContainer}>
           <Text style={styles.title}>
-            Log in to Pocket-Tutor
+            Log in to Kaizen
           </Text>
+
+          <GoogleButton
+            title="Continue with Google"
+            handlePress={handleGoogleSignIn}
+            containerStyles={styles.googleButton}
+          />
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
           <FormField
             title="Email"
@@ -103,6 +120,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.dark.text,
     marginTop: 40,
+  },
+  googleButton: {
+    marginTop: 40,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.dark.border,
+  },
+  dividerText: {
+    color: Colors.dark.secondaryText,
+    paddingHorizontal: 16,
+    fontSize: 14,
   },
   fieldSpacing: {
     marginTop: 28,

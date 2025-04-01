@@ -3,7 +3,7 @@ import { Link, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { View, Text, ScrollView, Dimensions, Alert, StyleSheet } from "react-native";
 import Colors from "../../constants/Colors";
-import { CustomButton, FormField } from "../../components";
+import { CustomButton, FormField, GoogleButton } from "../../components";
 import { useGlobalContext } from "../../context/GlobalProvider";
 
 const SignUp = () => {
@@ -15,6 +15,11 @@ const SignUp = () => {
     email: "",
     password: "",
   });
+
+  const handleGoogleSignUp = () => {
+    // OAuth logic will go here
+    console.log('Google Sign Up');
+  };
 
   const submit = async () => {
     if (form.username === "" || form.email === "" || form.password === "") {
@@ -43,6 +48,18 @@ const SignUp = () => {
           <Text style={styles.title}>
             Sign Up to Kaizen
           </Text>
+
+          <GoogleButton
+            title="Continue with Google"
+            handlePress={handleGoogleSignUp}
+            containerStyles={styles.googleButton}
+          />
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
           <FormField
             title="Username"
@@ -106,6 +123,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.dark.text,
     marginTop: 40,
+  },
+  googleButton: {
+    marginTop: 40,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.dark.border,
+  },
+  dividerText: {
+    color: Colors.dark.secondaryText,
+    paddingHorizontal: 16,
+    fontSize: 14,
   },
   fieldSpacing: {
     marginTop: 28,
