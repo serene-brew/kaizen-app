@@ -1,9 +1,9 @@
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import { useEffect } from 'react';
 import { ThemeProvider, DarkTheme } from "@react-navigation/native";
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { View } from 'react-native';
+import { Alert } from 'react-native';
 import 'react-native-url-polyfill/auto';
 import { client } from '../lib/appwrite';
 import GlobalProvider from '../context/GlobalProvider';
@@ -17,12 +17,19 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepare() {
       try {
-        // Initialize Appwrite
-        client.setPlatform('react-native');
+        // Reset the navigator to ensure we're starting fresh
+        router.setParams({});
+        
+        console.log('Appwrite client initialized in _layout');
+        
         // Add artificial delay to show splash screen
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
       } catch (e) {
-        console.warn(e);
+        console.warn('Error initializing app:', e);
+        Alert.alert(
+          'Initialization Error',
+          'There was an error initializing the app. Please try again.'
+        );
       } finally {
         // Hide the splash screen
         await SplashScreen.hideAsync();
