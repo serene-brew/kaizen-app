@@ -7,7 +7,7 @@ import { CustomButton, FormField, GoogleButton } from "../../components";
 import { useGlobalContext } from "../../context/GlobalProvider";
 
 const SignUp = () => {
-  const { setUser, setIsLogged } = useGlobalContext();
+  const { signUp, signInWithGoogle } = useGlobalContext();
 
   const [isSubmitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -16,26 +16,37 @@ const SignUp = () => {
     password: "",
   });
 
-  const handleGoogleSignUp = () => {
-    // OAuth logic will go here
-    console.log('Google Sign Up');
+  const handleGoogleSignUp = async () => {
+    try {
+      setSubmitting(true);
+      await signInWithGoogle();
+      router.replace("/(tabs)/explore");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to sign up with Google";
+      Alert.alert("Error", message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const submit = async () => {
-    if (form.username === "" || form.email === "" || form.password === "") {
+    if (!form.email || !form.password || !form.username) {
       Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+
+    if (form.password.length < 8) {
+      Alert.alert("Error", "Password must be at least 8 characters long");
       return;
     }
 
     setSubmitting(true);
     try {
-      // Simulate user creation logic
-      const result = { username: form.username, email: form.email };
-      setUser(result);
-      setIsLogged(true);
+      await signUp(form.email, form.password, form.username);
       router.replace("/(tabs)/explore");
     } catch (error) {
-      Alert.alert("Error", error instanceof Error ? error.message : "An error occurred");
+      const message = error instanceof Error ? error.message : "Failed to create account";
+      Alert.alert("Error", message);
     } finally {
       setSubmitting(false);
     }
