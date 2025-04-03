@@ -7,16 +7,19 @@ import { CustomButton, FormField, GoogleButton } from "../../components";
 import { useGlobalContext } from "../../context/GlobalProvider";
 
 const SignIn = () => {
-  const { setUser, setIsLogged } = useGlobalContext();
+  const { signIn, signInWithGoogle } = useGlobalContext();
   const [isSubmitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     email: "",
     password: "",
   });
 
-  const handleGoogleSignIn = () => {
-    // OAuth logic will go here
-    console.log('Google Sign In');
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      Alert.alert("Error", "Failed to sign in with Google");
+    }
   };
 
   const submit = async () => {
@@ -26,16 +29,10 @@ const SignIn = () => {
     }
 
     setSubmitting(true);
-
     try {
-      // Simulate user sign-in logic
-      const result = { email: form.email };
-      setUser(result);
-      setIsLogged(true);
-
-      router.replace("/(tabs)/explore");
+      await signIn(form.email, form.password);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to sign in';
       Alert.alert("Error", errorMessage);
     } finally {
       setSubmitting(false);
