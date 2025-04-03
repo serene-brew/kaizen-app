@@ -7,7 +7,7 @@ export default {
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/images/splash-icon.png',
-    scheme: 'myapp',
+    scheme: 'kaizen',
     userInterfaceStyle: 'dark',
     newArchEnabled: true,
     platforms: ['ios', 'android'],
