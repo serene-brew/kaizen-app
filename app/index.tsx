@@ -5,20 +5,29 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { CustomButton, Loader } from "../components";
 import Colors from "../constants/Colors";
 import { useGlobalContext } from "../context/GlobalProvider";
+import { useEffect } from "react";
 
 const Welcome = () => {
-  const { loading, isLogged } = useGlobalContext();
+  const { loading, isLogged, user } = useGlobalContext();
   
-  if (!loading && isLogged) return <Redirect href="/(tabs)/explore" />;
+  useEffect(() => {
+    // Debug logging
+    console.log('Welcome screen - Auth state:', { isLogged, user });
+  }, [isLogged, user]);
+  
+  if (loading) {
+    return <Loader isLoading={true} />;
+  }
+  
+  if (isLogged && user) {
+    console.log('User is logged in, redirecting to explore');
+    return <Redirect href="/(tabs)/explore" />;
+  }
   
   return (
     <SafeAreaView style={styles.container}>
-      <Loader isLoading={loading} />
       <ScrollView contentContainerStyle={styles.scrollView}>
         <View style={styles.content}>
-          {/* <Text style={styles.title}>
-            <Text style={styles.highlight}>Kaizen</Text>
-          </Text> */}
           <Image
             source={require('../assets/images/splash-icon.png')}
             style={styles.image}
