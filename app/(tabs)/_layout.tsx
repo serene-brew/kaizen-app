@@ -79,6 +79,30 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="new"
+        options={{
+          href: null, // Hides from tab bar
+          headerShown: true,
+          headerTitle: "New Releases",
+        }}
+      />
+      <Tabs.Screen
+        name="trending"
+        options={{
+          href: null, // Hides from tab bar
+          headerShown: true,
+          headerTitle: "Trending Now",
+        }}
+      />
+      <Tabs.Screen
+        name="details"
+        options={{
+          href: null,
+          headerShown: true,
+          headerTitle: "Details",
+        }}
+      />
     </Tabs>
   );
 }
