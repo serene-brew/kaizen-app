@@ -1,8 +1,28 @@
 import { Tabs } from "expo-router";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Colors from "../../constants/Colors";
+import { useEffect, useState } from "react";
+import { Keyboard, Platform } from "react-native";
 
 export default function TabLayout() {
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
@@ -17,6 +37,7 @@ export default function TabLayout() {
           left: 0,
           right: 0,
           elevation: 0,
+          display: isKeyboardVisible ? 'none' : 'flex',
         },
         tabBarShowLabel: false,
         tabBarActiveTintColor: Colors.dark.buttonBackground,
