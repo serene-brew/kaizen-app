@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity } from
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from "expo-router"; // Add this import
 import Colors from "../../constants/Colors";
+import { useState } from "react";
 
 const { width } = Dimensions.get('window');
 // Adjusted calculations for better spacing
@@ -10,11 +11,22 @@ const GAP = 10;
 const CARD_WIDTH = (width - (PADDING * 2) - GAP) / 2;
 
 export default function NewPage() {
+  const [watchlist, setWatchlist] = useState<number[]>([]);
+
   const handlePressCard = (id: number, title: string) => {
     router.push({
       pathname: "/(tabs)/details",
       params: { id, title: `Anime Title ${id}` }
     });
+  };
+
+  const toggleWatchlist = (id: number, event: any) => {
+    event.stopPropagation();
+    setWatchlist(prev => 
+      prev.includes(id) 
+        ? prev.filter(itemId => itemId !== id)
+        : [...prev, id]
+    );
   };
 
   return (
@@ -32,6 +44,16 @@ export default function NewPage() {
           >
             <View style={styles.posterPlaceholder}>
               <MaterialCommunityIcons name="image" size={40} color={Colors.dark.secondaryText} />
+              <TouchableOpacity 
+                style={styles.watchlistIcon}
+                onPress={(e) => toggleWatchlist(item, e)}
+              >
+                <MaterialCommunityIcons 
+                  name={watchlist.includes(item) ? "bookmark" : "bookmark-outline"}
+                  size={24} 
+                  color={watchlist.includes(item) ? Colors.dark.buttonBackground : Colors.dark.text}
+                />
+              </TouchableOpacity>
             </View>
             <Text style={styles.cardTitle} numberOfLines={2}>
               Anime Title {item}
@@ -69,10 +91,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+    position: 'relative',
   },
   cardTitle: {
     color: Colors.dark.text,
     fontSize: 14,
     fontWeight: '500',
+  },
+  watchlistIcon: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    padding: 4,
   },
 });
