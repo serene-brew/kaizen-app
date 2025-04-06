@@ -13,6 +13,7 @@ const AUTO_SWIPE_INTERVAL = 3000; // 3 seconds between swipes
 export default function Explore() {
   const carouselRef = useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [watchlist, setWatchlist] = useState<number[]>([]);
 
   const handlePressCard = (id: number, title: string) => {
     router.push({
@@ -27,6 +28,40 @@ export default function Explore() {
       params: { id, title: `Featured Anime ${id}` }
     });
   };
+
+  const toggleWatchlist = (id: number, event: any) => {
+    event.stopPropagation();
+    setWatchlist(prev => 
+      prev.includes(id) 
+        ? prev.filter(itemId => itemId !== id)
+        : [...prev, id]
+    );
+  };
+
+  const renderCard = (item: number, type: 'new' | 'trending') => (
+    <TouchableOpacity 
+      key={`${type}-${item}`} 
+      style={styles.card}
+      onPress={() => handlePressCard(item, `Anime Title ${item}`)}
+    >
+      <View style={styles.posterPlaceholder}>
+        <MaterialCommunityIcons name="image" size={40} color={Colors.dark.secondaryText} />
+        <TouchableOpacity 
+          style={styles.watchlistIcon}
+          onPress={(e) => toggleWatchlist(item, e)}
+        >
+          <MaterialCommunityIcons 
+            name={watchlist.includes(item) ? "bookmark" : "bookmark-outline"}
+            size={24} 
+            color={watchlist.includes(item) ? Colors.dark.buttonBackground : Colors.dark.text}
+          />
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.cardTitle} numberOfLines={2}>
+        Anime Title {item}
+      </Text>
+    </TouchableOpacity>
+  );
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -107,20 +142,7 @@ export default function Explore() {
           showsHorizontalScrollIndicator={false}
           style={styles.scrollContainer}
         >
-          {[1, 2, 3, 4, 5].map((item) => (
-            <TouchableOpacity 
-              key={`new-${item}`} 
-              style={styles.card}
-              onPress={() => handlePressCard(item, `Anime Title ${item}`)}
-            >
-              <View style={styles.posterPlaceholder}>
-                <MaterialCommunityIcons name="image" size={40} color={Colors.dark.secondaryText} />
-              </View>
-              <Text style={styles.cardTitle} numberOfLines={2}>
-                Anime Title {item}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {[1, 2, 3, 4, 5].map((item) => renderCard(item, 'new'))}
         </ScrollView>
       </View>
 
@@ -145,20 +167,7 @@ export default function Explore() {
           showsHorizontalScrollIndicator={false}
           style={styles.scrollContainer}
         >
-          {[1, 2, 3, 4, 5].map((item) => (
-            <TouchableOpacity 
-              key={`trending-${item}`} 
-              style={styles.card}
-              onPress={() => handlePressCard(item, `Anime Title ${item}`)}
-            >
-              <View style={styles.posterPlaceholder}>
-                <MaterialCommunityIcons name="image" size={40} color={Colors.dark.secondaryText} />
-              </View>
-              <Text style={styles.cardTitle} numberOfLines={2}>
-                Anime Title {item}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {[1, 2, 3, 4, 5].map((item) => renderCard(item, 'trending'))}
         </ScrollView>
       </View>
     </ScrollView>
@@ -246,6 +255,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+    position: 'relative', // Added for absolute positioning of watchlist icon
+  },
+  watchlistIcon: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    padding: 4,
   },
   cardTitle: {
     color: Colors.dark.text,
