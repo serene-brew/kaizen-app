@@ -1,8 +1,8 @@
-import { Text, View, StyleSheet, Alert } from "react-native";
+import { Text, View, Alert } from "react-native";
 import { router } from "expo-router";
-import Colors from "../../constants/Colors";
 import { CustomButton } from "../../components";
 import { useGlobalContext } from "../../context/GlobalProvider";
+import { styles } from "../../styles/more.styles";
 
 export default function More() {
   const { deleteAccount, logout } = useGlobalContext();
@@ -66,25 +66,3 @@ export default function More() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.dark.background,
-  },
-  text: {
-    color: Colors.dark.text,
-    marginBottom: 20,
-  },
-  logoutButton: {
-    width: "80%",
-    marginBottom: 20,
-    backgroundColor: Colors.dark.tint, // Using the blue tint color
-  },
-  deleteButton: {
-    width: "80%",
-    backgroundColor: "#DC3545", // Red color for danger
-  }
-});
