@@ -1,14 +1,13 @@
-import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Dimensions } from "react-native";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from "expo-router"; // Add this import
+import { router } from "expo-router";
 import Colors from "../../constants/Colors";
 import { useState } from "react";
+import { styles } from "../../styles/new.styles";
 
 const { width } = Dimensions.get('window');
-// Adjusted calculations for better spacing
 const PADDING = 16;
 const GAP = 10;
-const CARD_WIDTH = (width - (PADDING * 2) - GAP) / 2;
 
 export default function NewPage() {
   const [watchlist, setWatchlist] = useState<number[]>([]);
@@ -37,7 +36,6 @@ export default function NewPage() {
             key={`new-${item}`} 
             style={[
               styles.card,
-              // Add margin to odd numbered items
               index % 2 === 0 ? { marginRight: GAP } : null
             ]}
             onPress={() => handlePressCard(item, `Anime Title ${item}`)}
@@ -64,46 +62,3 @@ export default function NewPage() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-  },
-  content: {
-    padding: PADDING,
-    paddingBottom: 100,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-  },
-  card: {
-    width: CARD_WIDTH,
-    marginBottom: GAP,
-  },
-  posterPlaceholder: {
-    width: '100%',
-    height: CARD_WIDTH * 1.5,
-    backgroundColor: Colors.dark.secondaryBackground,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-    position: 'relative',
-  },
-  cardTitle: {
-    color: Colors.dark.text,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  watchlistIcon: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-    padding: 4,
-  },
-});
