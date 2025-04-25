@@ -20,14 +20,14 @@ export default {
       package: 'com.serenebrew.kaizen',
       adaptiveIcon: {
         foregroundImage: './assets/images/adaptive-icon.png',
-        backgroundColor: '#000000'
+        backgroundColor: '#161622'
       },
       userInterfaceStyle: 'dark'
     },
     splash: {
       image: './assets/images/splash-icon.png',
       resizeMode: 'contain',
-      backgroundColor: '#000000',
+      backgroundColor: '#161622',
       imageWidth: 500,
       imageHeight: 500
     },
@@ -38,7 +38,7 @@ export default {
         {
           image: './assets/images/splash-icon.png',
           imageResizeMode: 'contain',
-          backgroundColor: '#000000',
+          backgroundColor: '#161622',
           imageWidth: 500,
           imageHeight: 500
         }
