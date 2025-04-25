@@ -9,13 +9,6 @@ if (!APPWRITE_PROJECT_ID || !APPWRITE_ENDPOINT) {
   throw new Error('Missing Appwrite configuration.');
 }
 
-// Log configuration for debugging
-console.log('Appwrite Config:', {
-  endpoint: APPWRITE_ENDPOINT,
-  projectId: APPWRITE_PROJECT_ID,
-  env: __DEV__ ? 'development' : 'production',
-});
-
 // Initialize client
 const client = new Client();
 
@@ -32,7 +25,6 @@ export const authService = {
   // Create account with email
   async createAccount(email: string, password: string, name: string) {
     try {
-      console.log('Creating account for:', email);
       // Validate email format
       if (!email.includes('@')) {
         throw new Error('Please enter a valid email address');
@@ -48,23 +40,20 @@ export const authService = {
         await account.deleteSession('current');
       } catch (error) {
         // Ignore error if no session exists
-        console.log('No existing session to clear');
       }
 
+      // Generate a unique ID using the ID utility from appwrite
+      const userId = ID.unique();
+      
+      // Create the user account
       const user = await account.create(
-        ID.unique(),
+        userId,
         email,
         password,
         name
       );
       
-      console.log('Account created successfully');
-      
-      // Create new session
-      const session = await account.createEmailPasswordSession(email, password);
-      console.log('Session created for new account');
-      
-      return { user, session };
+      return { user };
     } catch (error: any) {
       console.error('Account creation error:', error);
       // Handle specific Appwrite errors
@@ -78,17 +67,64 @@ export const authService = {
     }
   },
 
+  // Send verification code via email
+  async sendOTP(email: string) {
+    try {
+      // Generate a unique user ID for this token request
+      const userId = ID.unique();
+      
+      // Create the email verification token
+      const token = await account.createEmailToken(userId, email, true);
+      
+      // Return the token information for verification
+      return {
+        userId: token.userId,
+        secret: token.secret,
+        expires: token.expire
+      };
+    } catch (error) {
+      console.error('OTP sending error:', error);
+      throw error;
+    }
+  },  
+  
+  // Verify OTP code
+  async verifyEmailToken(userId: string, secret: string, code: string, name?: string) {
+    try {
+      // Create a session after successful verification
+      const session = await account.createSession(userId, code);
+      
+      // If name is provided, update the user's name
+      if (name) {
+        await account.updateName(name);
+      }
+      
+      // Get user info after verification
+      const user = await account.get();
+      
+      return { session, user };
+    } catch (error) {
+      console.error('Email token verification error:', error);
+      
+      if (typeof error === 'object' && error !== null && 'code' in error) {
+        if ((error as any).code === 401) {
+          throw new Error('Invalid or expired verification code');
+        }
+      }
+      
+      throw error;
+    }
+  },
+
   // Login with email
   async login(email: string, password: string) {
     try {
-      console.log('Logging in user:', email);
       const session = await account.createEmailPasswordSession(email, password);
       const user = await account.get();
-      console.log('Login successful');
       return { session, user };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
-      if (error.code === 401) {
+      if (typeof error === 'object' && error !== null && 'code' in error && (error as {code: number}).code === 401) {
         throw new Error('Invalid email or password');
       }
       throw error;
@@ -104,7 +140,6 @@ export const authService = {
       const user = await account.get();
       return { isValid: true, user };
     } catch (error) {
-      console.log('Session check failed:', error);
       return { isValid: false, user: null };
     }
   },
@@ -112,7 +147,6 @@ export const authService = {
   // OAuth2 login with Google
   async loginWithGoogle() {
     try {
-      console.log('Initiating Google OAuth login');
       return account.createOAuth2Session(
         OAuthProvider.Google,
         'kaizen://callback',
@@ -134,7 +168,6 @@ export const authService = {
       const user = await account.get();
       return user;
     } catch (error) {
-      console.log('No active session found');
       throw error;
     }
   },
@@ -149,21 +182,17 @@ export const authService = {
     }
   },
 
-  // Updated delete account method
+  // Delete account
   async deleteAccount() {
     try {
-      console.log('Deleting account...');
-      
-      // Get current user to verify permissions
+      // Get current user to verify permissions and get ID
       const user = await account.get();
-      console.log('Current user:', user.$id);
+
+      // Delete the user account itself
+      await account.deleteIdentity(user.$id);
 
       // Delete all sessions
       await account.deleteSessions();
-      console.log('All sessions deleted');
-
-      // Clean up local state
-      console.log('Account sessions cleared');
     } catch (error) {
       console.error('Delete account error:', error);
       throw error;
