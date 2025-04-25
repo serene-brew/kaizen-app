@@ -13,7 +13,6 @@ const SignUp = () => {
   const [form, setForm] = useState({
     username: "",
     email: "",
-    password: "",
   });
 
   const handleGoogleSignUp = async () => {
@@ -30,20 +29,21 @@ const SignUp = () => {
   };
 
   const submit = async () => {
-    if (!form.email || !form.password || !form.username) {
+    if (!form.email || !form.username) {
       Alert.alert("Error", "Please fill in all fields");
-      return;
-    }
-
-    if (form.password.length < 8) {
-      Alert.alert("Error", "Password must be at least 8 characters long");
       return;
     }
 
     setSubmitting(true);
     try {
-      await signUp(form.email, form.password, form.username);
-      router.replace("/(tabs)/explore");
+      // Create account and get OTP information
+      const otpData = await signUp(form.email, form.username);
+      
+      console.log('OTP data received:', JSON.stringify(otpData));
+      
+      // Navigate to OTP verification page
+      router.navigate("/(auth)/verify-otp");
+      
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to create account";
       Alert.alert("Error", message);
@@ -87,16 +87,12 @@ const SignUp = () => {
             keyboardType="email-address"
           />
 
-          <FormField
-            title="Password"
-            value={form.password}
-            handleChangeText={(e) => setForm({ ...form, password: e })}
-            otherStyles={styles.fieldSpacing}
-            secureTextEntry
-          />
+          <Text style={styles.infoText}>
+            We'll send a verification code to your email to complete signup.
+          </Text>
 
           <CustomButton
-            title="Sign Up"
+            title="Continue with Email"
             handlePress={submit}
             containerStyles={styles.button}
             isLoading={isSubmitting}
@@ -174,6 +170,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: Colors.dark.buttonBackground,
+  },
+  infoText: {
+    marginTop: 16,
+    color: Colors.dark.secondaryText,
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
 
