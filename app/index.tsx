@@ -5,22 +5,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { CustomButton, Loader } from "../components";
 import Colors from "../constants/Colors";
 import { useGlobalContext } from "../context/GlobalProvider";
-import { useEffect } from "react";
 
 const Welcome = () => {
   const { loading, isLogged, user } = useGlobalContext();
-  
-  useEffect(() => {
-    // Debug logging
-    console.log('Welcome screen - Auth state:', { isLogged, user });
-  }, [isLogged, user]);
   
   if (loading) {
     return <Loader isLoading={true} />;
   }
   
   if (isLogged && user) {
-    console.log('User is logged in, redirecting to explore');
     return <Redirect href="/(tabs)/explore" />;
   }
   
