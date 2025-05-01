@@ -1,21 +1,31 @@
 import { useState } from "react";
 import { Link, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { View, Text, ScrollView, Dimensions, Alert, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Alert } from "react-native";
 import Colors from "../../constants/Colors";
-import { CustomButton, FormField, GoogleButton } from "../../components";
+import { CustomButton, FormField, GoogleButton, Loader } from "../../components";
 import { useGlobalContext } from "../../context/GlobalProvider";
+import { styles } from "../../styles/sign-in.styles";
 
 const SignIn = () => {
-  const { signIn, signInWithGoogle } = useGlobalContext();
+  const { signIn, signInWithGoogle, loading } = useGlobalContext();
   const [isSubmitting, setSubmitting] = useState(false);
+  const [isGoogleSubmitting, setGoogleSubmitting] = useState(false);
   const [email, setEmail] = useState("");
 
   const handleGoogleSignIn = async () => {
+    if (isGoogleSubmitting || loading) return;
+
+    setGoogleSubmitting(true);
     try {
       await signInWithGoogle();
+      // Navigation will be handled by the deep link handler in _layout.tsx
     } catch (error) {
-      Alert.alert("Error", "Failed to sign in with Google");
+      console.error('Google signin error:', error);
+      const message = error instanceof Error ? error.message : 'Failed to sign in with Google';
+      Alert.alert("Authentication Failed", message);
+    } finally {
+      setGoogleSubmitting(false);
     }
   };
 
@@ -24,6 +34,7 @@ const SignIn = () => {
       Alert.alert("Error", "Please enter your email address");
       return;
     }
+    if (loading) return;
 
     setSubmitting(true);
     try {
@@ -47,7 +58,7 @@ const SignIn = () => {
           </Text>
 
           <GoogleButton
-            title="Continue with Google"
+            title={isGoogleSubmitting ? "Please wait..." : "Continue with Google"}
             handlePress={handleGoogleSignIn}
             containerStyles={styles.googleButton}
           />
@@ -74,7 +85,7 @@ const SignIn = () => {
             title="Continue with Email"
             handlePress={submit}
             containerStyles={styles.button}
-            isLoading={isSubmitting}
+            isLoading={loading || isSubmitting}
           />
 
           <View style={styles.footer}>
@@ -90,75 +101,9 @@ const SignIn = () => {
           </View>
         </View>
       </ScrollView>
+      <Loader isLoading={isGoogleSubmitting && loading} />
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-  },
-  contentContainer: {
-    width: '100%',
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    marginVertical: 24,
-    minHeight: Dimensions.get("window").height - 100,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: Colors.dark.text,
-    marginTop: 40,
-  },
-  googleButton: {
-    marginTop: 40,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.dark.border,
-  },
-  dividerText: {
-    color: Colors.dark.secondaryText,
-    paddingHorizontal: 16,
-    fontSize: 14,
-  },
-  fieldSpacing: {
-    marginTop: 28,
-  },
-  button: {
-    marginTop: 28,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingTop: 20,
-    gap: 8,
-  },
-  footerText: {
-    fontSize: 18,
-    color: Colors.dark.secondaryText,
-  },
-  footerLink: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.dark.buttonBackground,
-  },
-  infoText: {
-    marginTop: 16,
-    color: Colors.dark.secondaryText,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-});
 
 export default SignIn;
