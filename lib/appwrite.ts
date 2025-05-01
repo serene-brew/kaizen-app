@@ -1,12 +1,15 @@
-import { Client, Account, ID, OAuthProvider } from 'react-native-appwrite';
+import { Client, Account, ID, OAuthProvider, AppwriteException, Functions } from 'react-native-appwrite';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 
 const APPWRITE_PROJECT_ID = Constants.expoConfig?.extra?.appwriteProjectId;
 const APPWRITE_ENDPOINT = Constants.expoConfig?.extra?.appwriteEndpoint;
+const APPWRITE_GOOGLE_VERIFY_FUNCTION_ID = Constants.expoConfig?.extra?.appwriteGoogleVerifyFunctionId as string; // Read the function ID
 
-if (!APPWRITE_PROJECT_ID || !APPWRITE_ENDPOINT) {
-  throw new Error('Missing Appwrite configuration.');
+if (!APPWRITE_PROJECT_ID || !APPWRITE_ENDPOINT || !APPWRITE_GOOGLE_VERIFY_FUNCTION_ID) { // Check if function ID is loaded
+  throw new Error('Missing Appwrite configuration (Project ID, Endpoint, or Google Verify Function ID).');
 }
 
 // Initialize client
@@ -19,6 +22,9 @@ client
 
 // Initialize account
 const account = new Account(client);
+
+// Initialize Functions
+const functions = new Functions(client);
 
 // Auth service functions
 export const authService = {
@@ -144,23 +150,73 @@ export const authService = {
     }
   },
 
-  // OAuth2 login with Google
+  // --- COMMENT OUT the old loginWithGoogle ---
+  /*
   async loginWithGoogle() {
+    console.log('[Appwrite] Attempting Google OAuth...');
     try {
-      return account.createOAuth2Session(
-        OAuthProvider.Google,
-        'kaizen://callback',
-        'kaizen://failure',
-        ['profile', 'email']
+      const successUrl = Linking.createURL('/(tabs)/explore'); // Original deep link
+      const failureUrl = Linking.createURL('/(auth)/sign-in'); // Original deep link
+      
+      console.log(`[Appwrite] Success URL: ${successUrl}`);
+      console.log(`[Appwrite] Failure URL: ${failureUrl}`);
+
+      await account.createOAuth2Session(
+        OAuthProvider.Google, 
+        successUrl, // Redirect here on success
+        failureUrl, // Redirect here on failure
+        undefined,  // Scopes (optional, default is fine),
+        {
+          browserPackage: 'com.android.chrome' 
+        }
       );
-    } catch (error: any) {
-      console.error('Google OAuth error:', error);
-      if (error.type === 'user_invalid_credentials') {
-        throw new Error('Google authentication failed');
+      
+      console.log('[Appwrite] createOAuth2Session promise resolved. Browser launch initiated (or failed silently).');
+      
+    } catch (error) {
+      console.error('[Appwrite] Google OAuth initiation error:', error);
+      if (error instanceof Error && error.message.includes('canceled')) {
+        console.log('Google OAuth flow cancelled by user.');
+      } else if (error instanceof Error && error.message.includes('missing scope')) {
+         throw new Error('Authentication setup error. Please contact support or check server configuration (Guest scope).');
+      } else {
+        throw new Error('Failed to start Google authentication.');
       }
-      throw new Error('Failed to authenticate with Google');
     }
   },
+  */
+  // --- END COMMENT OUT ---
+
+  // --- UPDATE function to call the Appwrite Function ---
+  async verifyGoogleTokenAndGetSessionSecret(idToken: string): Promise<{ userId: string; secret: string }> {
+    console.log('[Appwrite] Calling verifyGoogleToken function to get session secret...');
+    try {
+      // Use the function ID from the environment variable
+      const result = await functions.createExecution(APPWRITE_GOOGLE_VERIFY_FUNCTION_ID, JSON.stringify({ idToken }), false);
+
+      if (result.status === 'completed' && result.responseBody) {
+        console.log('[Appwrite] Function execution successful.');
+        const response = JSON.parse(result.responseBody);
+        if (response.success && response.userId && response.secret) {
+          // The function returns the userId and secret
+          return { userId: response.userId, secret: response.secret };
+        } else {
+          throw new Error(response.error || 'Appwrite function failed to return userId and secret.');
+        }
+      } else {
+        console.error('[Appwrite] Function execution failed:', result);
+        const errorDetails = result.responseBody ? `: ${result.responseBody}` : '';
+        throw new Error(`Appwrite function execution failed with status: ${result.status}${errorDetails}`);
+      }
+    } catch (error) {
+      console.error('[Appwrite] Error calling verifyGoogleToken function:', error);
+      if (error instanceof AppwriteException) {
+         throw new Error(`Appwrite function error: ${error.message} (Code: ${error.code})`);
+      }
+      throw error;
+    }
+  },
+  // --- END UPDATE function ---
 
   // Get current user
   async getCurrentUser() {
@@ -200,4 +256,4 @@ export const authService = {
   },
 };
 
-export { client };
+export { client, account }; // Export account along with client
