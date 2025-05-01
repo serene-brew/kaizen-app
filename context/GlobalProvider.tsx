@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { authService } from '../lib/appwrite';
+import { authService, account } from '../lib/appwrite'; // Import account
 import { Models } from 'appwrite';
+import { Alert } from 'react-native'; // Import Alert
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
+import Constants from 'expo-constants'; // Import Constants
 
 interface User extends Models.User<Models.Preferences> {}
 
@@ -20,7 +25,7 @@ interface GlobalContextType {
   loading: boolean;
   signUp: (email: string, name: string) => Promise<OTPInfo>;
   signIn: (email: string) => Promise<OTPInfo>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>; // Changed return type
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   sendOTP: (email: string, name?: string) => Promise<OTPInfo>;
@@ -43,15 +48,104 @@ interface GlobalProviderProps {
   children: ReactNode;
 }
 
+// Ensure the browser closes after auth
+WebBrowser.maybeCompleteAuthSession();
+
 const GlobalProvider = ({ children }: GlobalProviderProps) => {
   const [isLogged, setIsLogged] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [otpInfo, setOtpInfo] = useState<OTPInfo | null>(null);
 
+  // --- ADD Google Auth Request Hook ---
+  // Read Google Client IDs from app config (loaded from .env)
+  const googleClientIdWeb = Constants.expoConfig?.extra?.googleClientIdWeb as string;
+  const googleClientIdAndroid = Constants.expoConfig?.extra?.googleClientIdAndroid as string;
+  const googleClientIdIos = Constants.expoConfig?.extra?.googleClientIdIos as string;
+
+  // Check if Client IDs are loaded
+  if (!googleClientIdWeb || !googleClientIdAndroid || !googleClientIdIos) {
+    console.error("Missing Google Client ID configuration in app.config.ts or .env");
+    // Optionally, throw an error or handle this case appropriately
+    // For now, we log an error. The useAuthRequest might fail later.
+  }
+
+  // Generate the redirect URI based on your app's scheme
+  const redirectUri = makeRedirectUri({
+    scheme: 'kaizen', // Your app's scheme from app.config.ts
+    path: 'auth/callback', // <-- CHANGE THIS LINE to match app.config.ts
+  });
+  console.log("Using Redirect URI:", redirectUri); // Log the URI to add it in Google Console
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: googleClientIdWeb,
+    androidClientId: googleClientIdAndroid,
+    iosClientId: googleClientIdIos,
+    scopes: ['profile', 'email'], // Request basic profile info and email
+//     // redirectUri: redirectUri, // <-- RE-ADD this line
+  });
+  // --- END Google Auth Request Hook ---
+
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // --- ADD useEffect to handle Google Auth Response ---
+  useEffect(() => {
+    const handleGoogleResponse = async () => {
+      if (response?.type === 'success') {
+        setLoading(true);
+        const { authentication } = response;
+        if (authentication?.idToken) {
+          console.log('Google Auth Success - Received ID Token.');
+          try {
+            // Call the Appwrite service function that triggers the backend function
+            // This function now returns { userId, secret }
+            const { userId, secret } = await authService.verifyGoogleTokenAndGetSessionSecret(authentication.idToken);
+
+            // Use the userId and secret to create a session on the client
+            console.log('[Appwrite] Creating session with token...');
+            const session = await account.createSession(userId, secret); // Use createSession instead
+            console.log('[Appwrite] Session created successfully with token.');
+
+            // Fetch user data after session creation
+            const appwriteUser = await account.get();
+
+            if (appwriteUser) {
+              console.log('Appwrite session verified/created successfully. User:', appwriteUser.$id);
+              setUser(appwriteUser);
+              setIsLogged(true);
+              console.log('GlobalProvider: setIsLogged(true) called. isLogged should now be true.'); // <-- Added log
+            } else {
+               throw new Error('Appwrite session created, but failed to get user data.');
+            }
+          } catch (error) {
+            console.error('Error verifying token/creating session with Appwrite:', error);
+            Alert.alert('Authentication Failed', error instanceof Error ? error.message : 'Could not link Google account to Appwrite.');
+            setUser(null);
+            setIsLogged(false);
+          } finally {
+            setLoading(false);
+          }
+        } else {
+          console.warn('Google Auth Success but no ID Token received.');
+          Alert.alert('Authentication Failed', 'Could not retrieve necessary information from Google.');
+          setLoading(false);
+        }
+      } else if (response?.type === 'error') {
+        console.error('Google Auth Error:', response.error);
+        Alert.alert('Authentication Failed', response.error?.message || 'Google authentication failed.');
+        setLoading(false);
+      } else if (response?.type === 'cancel') {
+         console.log('Google Auth Cancelled by user.');
+         // No need to show an error, user intentionally cancelled
+         setLoading(false);
+      }
+    };
+
+    handleGoogleResponse();
+  }, [response]); // Re-run when the auth response changes
+  // --- END useEffect for Google Auth Response ---
 
   const checkAuth = async () => {
     try {
@@ -207,18 +301,17 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
     }
   };
 
-  const signInWithGoogle = async () => {
-    setLoading(true);
+  const signInWithGoogle = async (): Promise<void> => { // Changed return type
+    setLoading(true); // Set loading true when starting the process
     try {
-      await authService.loginWithGoogle();
-      const user = await authService.getCurrentUser();
-      setUser(user);
-      setIsLogged(true);
+      // promptAsync initiates the browser flow
+      await promptAsync();
+      // The result is handled by the useEffect hook monitoring 'response'
+      // We set loading false within that hook after processing
     } catch (error) {
-      console.error('Google sign in error:', error);
-      throw error;
-    } finally {
-      setLoading(false);
+      console.error('Error initiating Google prompt:', error);
+      Alert.alert('Error', 'Could not start Google sign-in process.');
+      setLoading(false); // Ensure loading is false if prompt fails immediately
     }
   };
 
@@ -261,7 +354,7 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
         loading,
         signUp,
         signIn,
-        signInWithGoogle,
+        signInWithGoogle, // Pass the updated function
         logout,
         deleteAccount,
         sendOTP,
