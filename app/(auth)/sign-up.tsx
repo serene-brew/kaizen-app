@@ -1,30 +1,35 @@
 import { useState } from "react";
 import { Link, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { View, Text, ScrollView, Dimensions, Alert, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Alert } from "react-native";
 import Colors from "../../constants/Colors";
-import { CustomButton, FormField, GoogleButton } from "../../components";
+import { CustomButton, FormField, GoogleButton, Loader } from "../../components";
 import { useGlobalContext } from "../../context/GlobalProvider";
+import { styles } from "../../styles/sign-up.styles";
 
 const SignUp = () => {
-  const { signUp, signInWithGoogle } = useGlobalContext();
+  const { signUp, signInWithGoogle, loading } = useGlobalContext();
 
   const [isSubmitting, setSubmitting] = useState(false);
+  const [isGoogleSubmitting, setGoogleSubmitting] = useState(false);
   const [form, setForm] = useState({
     username: "",
     email: "",
   });
 
   const handleGoogleSignUp = async () => {
+    if (isGoogleSubmitting) return;
+    
+    setGoogleSubmitting(true);
     try {
-      setSubmitting(true);
       await signInWithGoogle();
-      router.replace("/(tabs)/explore");
+      // Navigation will be handled by the deep link handler in _layout.tsx
     } catch (error) {
+      console.error('Google signup error:', error);
       const message = error instanceof Error ? error.message : "Failed to sign up with Google";
-      Alert.alert("Error", message);
+      Alert.alert("Authentication Failed", message);
     } finally {
-      setSubmitting(false);
+      setGoogleSubmitting(false);
     }
   };
 
@@ -54,6 +59,7 @@ const SignUp = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Loader isLoading={loading && isGoogleSubmitting} />
       <ScrollView>
         <View style={styles.contentContainer}>
           <Text style={styles.title}>
@@ -61,7 +67,7 @@ const SignUp = () => {
           </Text>
 
           <GoogleButton
-            title="Continue with Google"
+            title={isGoogleSubmitting ? "Please wait..." : "Continue with Google"}
             handlePress={handleGoogleSignUp}
             containerStyles={styles.googleButton}
           />
@@ -111,72 +117,5 @@ const SignUp = () => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.dark.background,
-  },
-  contentContainer: {
-    width: '100%',
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    marginVertical: 24,
-    minHeight: Dimensions.get("window").height - 100,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: Colors.dark.text,
-    marginTop: 40,
-  },
-  googleButton: {
-    marginTop: 40,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.dark.border,
-  },
-  dividerText: {
-    color: Colors.dark.secondaryText,
-    paddingHorizontal: 16,
-    fontSize: 14,
-  },
-  fieldSpacing: {
-    marginTop: 28,
-  },
-  button: {
-    marginTop: 28,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingTop: 20,
-    gap: 8,
-  },
-  footerText: {
-    fontSize: 18,
-    color: Colors.dark.secondaryText,
-  },
-  footerLink: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.dark.buttonBackground,
-  },
-  infoText: {
-    marginTop: 16,
-    color: Colors.dark.secondaryText,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-});
 
 export default SignUp;
