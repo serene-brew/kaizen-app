@@ -4,9 +4,14 @@ import { ThemeProvider, DarkTheme } from "@react-navigation/native";
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { Alert } from 'react-native';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 import 'react-native-url-polyfill/auto';
-import { client } from '../lib/appwrite';
+import { client, authService } from '../lib/appwrite';
 import GlobalProvider from '../context/GlobalProvider';
+
+// Initialize web browser for OAuth sessions - critical for handling callbacks from Appwrite
+WebBrowser.maybeCompleteAuthSession();
 
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -14,6 +19,8 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 export default function RootLayout() {
+  const prefix = Linking.createURL('/');
+
   useEffect(() => {
     async function prepare() {
       try {
@@ -36,8 +43,48 @@ export default function RootLayout() {
       }
     }
 
+    // Set up deep link handling for the app
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    
+    // Check for initial URL that might have opened the app
+    Linking.getInitialURL().then(url => {
+      if (url) {
+        handleDeepLink({ url });
+      }
+    });
+
     prepare();
+
+    // Cleanup subscriptions
+    return () => {
+      subscription.remove();
+    };
   }, []);
+
+  // Handle deep links
+  const handleDeepLink = ({ url }: { url: string }) => {
+    console.log('Deep link detected:', url);
+    const { path, queryParams } = Linking.parse(url);
+    console.log('Parsed deep link path:', path);
+    console.log('Parsed query params:', queryParams);
+
+    // Immediately navigate to auth-callback for any authentication-related paths
+    if (path === 'auth/callback' || 
+        url.includes('auth/callback') || 
+        url.includes('session') || 
+        url.includes('token')) {
+      console.log('Auth callback deep link detected. Navigating to auth-callback loading screen immediately.');
+      
+      // Use immediate navigation without setTimeout to prevent "not found" flash
+      router.replace('/(auth)/auth-callback');
+      
+    } else if (path === '(tabs)/explore') {
+      router.replace('/(tabs)/explore');
+    } else if (path === '(auth)/sign-in') {
+      router.replace('/(auth)/sign-in');
+    }
+    // Add more specific path handling if needed
+  };
 
   return (
     <GlobalProvider>
