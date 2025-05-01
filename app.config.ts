@@ -14,7 +14,10 @@ export default {
     ios: {
       supportsTablet: true,
       userInterfaceStyle: 'dark',
-      bundleIdentifier: 'com.serenebrew.kaizen'
+      bundleIdentifier: 'com.serenebrew.kaizen',
+      config: {
+        usesNonExemptEncryption: false
+      }
     },
     android: {
       package: 'com.serenebrew.kaizen',
@@ -22,7 +25,20 @@ export default {
         foregroundImage: './assets/images/adaptive-icon.png',
         backgroundColor: '#161622'
       },
-      userInterfaceStyle: 'dark'
+      userInterfaceStyle: 'dark',
+      intentFilters: [
+        {
+          action: "VIEW",
+          autoVerify: true,
+          data: [
+            {
+              scheme: "kaizen",
+              host: "auth/callback"
+            }
+          ],
+          category: ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     splash: {
       image: './assets/images/splash-icon.png',
@@ -47,6 +63,13 @@ export default {
     extra: {
       appwriteProjectId: process.env.APPWRITE_PROJECT_ID,
       appwriteEndpoint: process.env.APPWRITE_ENDPOINT,
+      appwriteGoogleVerifyFunctionId: process.env.APPWRITE_GOOGLE_VERIFY_FUNCTION_ID,
+      googleClientIdWeb: process.env.GOOGLE_CLIENT_ID_WEB,
+      googleClientIdAndroid: process.env.GOOGLE_CLIENT_ID_ANDROID,
+      googleClientIdIos: process.env.GOOGLE_CLIENT_ID_IOS,
+      eas: {
+        projectId: process.env.EAS_PROJECT_ID
+      }
     },
     experiments: {
       typedRoutes: true
