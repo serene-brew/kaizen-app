@@ -7,15 +7,15 @@ import { useEffect } from "react"; // Import useEffect
 const AuthLayout = () => {
   const { loading, isLogged } = useGlobalContext();
   const pathname = usePathname(); // Get current path using the hook
-  console.log(`AuthLayout Render: path=${pathname}, loading=${loading}, isLogged=${isLogged}`);
+  // console.log(`AuthLayout Render: path=${pathname}, loading=${loading}, isLogged=${isLogged}`);
 
   // Use useEffect to handle redirection after state update
   useEffect(() => {
-    console.log(`AuthLayout useEffect: path=${pathname}, loading=${loading}, isLogged=${isLogged}`);
+    // console.log(`AuthLayout useEffect: path=${pathname}, loading=${loading}, isLogged=${isLogged}`);
 
     // If loading is finished and the user is logged in, redirect away from auth screens
     if (!loading && isLogged) {
-      console.log("AuthLayout useEffect: User is logged in, redirecting to /(tabs)/explore...");
+      // console.log("AuthLayout useEffect: User is logged in, redirecting to /(tabs)/explore...");
       // Use replace to prevent going back to the auth screen
       router.replace("/(tabs)/explore");
     }
@@ -24,7 +24,7 @@ const AuthLayout = () => {
 
   // If loading is finished and user is logged in, render nothing (or Redirect) while useEffect triggers navigation
   if (!loading && isLogged) {
-     console.log("AuthLayout: Rendering null while redirecting...");
+    //  console.log("AuthLayout: Rendering null while redirecting...");
      return null; // Or <Redirect href="/(tabs)/explore" />; useEffect should handle it
   }
 
