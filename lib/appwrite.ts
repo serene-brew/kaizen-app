@@ -28,51 +28,6 @@ const functions = new Functions(client);
 
 // Auth service functions
 export const authService = {
-  // Create account with email
-  async createAccount(email: string, password: string, name: string) {
-    try {
-      // Validate email format
-      if (!email.includes('@')) {
-        throw new Error('Please enter a valid email address');
-      }
-
-      // Validate password
-      if (password.length < 8) {
-        throw new Error('Password must be at least 8 characters long');
-      }
-
-      // Try to clear any existing session first
-      try {
-        await account.deleteSession('current');
-      } catch (error) {
-        // Ignore error if no session exists
-      }
-
-      // Generate a unique ID using the ID utility from appwrite
-      const userId = ID.unique();
-      
-      // Create the user account
-      const user = await account.create(
-        userId,
-        email,
-        password,
-        name
-      );
-      
-      return { user };
-    } catch (error: any) {
-      console.error('Account creation error:', error);
-      // Handle specific Appwrite errors
-      if (error.type === 'user_already_exists') {
-        throw new Error('An account with this email already exists');
-      }
-      if (error.code === 400) {
-        throw new Error('Invalid email or password format');
-      }
-      throw error;
-    }
-  },
-
   // Send verification code via email
   async sendOTP(email: string) {
     try {
@@ -99,12 +54,13 @@ export const authService = {
     try {
       // Create a session after successful verification
       const session = await account.createSession(userId, code);
+      console.log('Session created with ID:', session.$id); // Log the session ID
       
       // If name is provided, update the user's name
       if (name) {
         await account.updateName(name);
       }
-      
+
       // Get user info after verification
       const user = await account.get();
       
@@ -122,21 +78,6 @@ export const authService = {
     }
   },
 
-  // Login with email
-  async login(email: string, password: string) {
-    try {
-      const session = await account.createEmailPasswordSession(email, password);
-      const user = await account.get();
-      return { session, user };
-    } catch (error: unknown) {
-      console.error('Login error:', error);
-      if (typeof error === 'object' && error !== null && 'code' in error && (error as {code: number}).code === 401) {
-        throw new Error('Invalid email or password');
-      }
-      throw error;
-    }
-  },
-
   // Check if there's a valid session
   async checkSession() {
     try {
@@ -150,44 +91,7 @@ export const authService = {
     }
   },
 
-  // --- COMMENT OUT the old loginWithGoogle ---
-  /*
-  async loginWithGoogle() {
-    console.log('[Appwrite] Attempting Google OAuth...');
-    try {
-      const successUrl = Linking.createURL('/(tabs)/explore'); // Original deep link
-      const failureUrl = Linking.createURL('/(auth)/sign-in'); // Original deep link
-      
-      console.log(`[Appwrite] Success URL: ${successUrl}`);
-      console.log(`[Appwrite] Failure URL: ${failureUrl}`);
-
-      await account.createOAuth2Session(
-        OAuthProvider.Google, 
-        successUrl, // Redirect here on success
-        failureUrl, // Redirect here on failure
-        undefined,  // Scopes (optional, default is fine),
-        {
-          browserPackage: 'com.android.chrome' 
-        }
-      );
-      
-      console.log('[Appwrite] createOAuth2Session promise resolved. Browser launch initiated (or failed silently).');
-      
-    } catch (error) {
-      console.error('[Appwrite] Google OAuth initiation error:', error);
-      if (error instanceof Error && error.message.includes('canceled')) {
-        console.log('Google OAuth flow cancelled by user.');
-      } else if (error instanceof Error && error.message.includes('missing scope')) {
-         throw new Error('Authentication setup error. Please contact support or check server configuration (Guest scope).');
-      } else {
-        throw new Error('Failed to start Google authentication.');
-      }
-    }
-  },
-  */
-  // --- END COMMENT OUT ---
-
-  // --- UPDATE function to call the Appwrite Function ---
+  // --- Function to call the Appwrite Function for Google Auth ---
   async verifyGoogleTokenAndGetSessionSecret(idToken: string): Promise<{ userId: string; secret: string }> {
     console.log('[Appwrite] Calling verifyGoogleToken function to get session secret...');
     try {
@@ -216,17 +120,7 @@ export const authService = {
       throw error;
     }
   },
-  // --- END UPDATE function ---
-
-  // Get current user
-  async getCurrentUser() {
-    try {
-      const user = await account.get();
-      return user;
-    } catch (error) {
-      throw error;
-    }
-  },
+  // --- END Function ---
 
   // Logout
   async logout() {
@@ -238,22 +132,6 @@ export const authService = {
     }
   },
 
-  // Delete account
-  async deleteAccount() {
-    try {
-      // Get current user to verify permissions and get ID
-      const user = await account.get();
-
-      // Delete the user account itself
-      await account.deleteIdentity(user.$id);
-
-      // Delete all sessions
-      await account.deleteSessions();
-    } catch (error) {
-      console.error('Delete account error:', error);
-      throw error;
-    }
-  },
 };
 
 export { client, account }; // Export account along with client
