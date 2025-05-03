@@ -27,7 +27,6 @@ interface GlobalContextType {
   signIn: (email: string) => Promise<OTPInfo>;
   signInWithGoogle: () => Promise<void>; // Changed return type
   logout: () => Promise<void>;
-  deleteAccount: () => Promise<void>;
   sendOTP: (email: string, name?: string) => Promise<OTPInfo>;
   verifyOTP: (code: string) => Promise<void>;
   otpInfo: OTPInfo | null;
@@ -329,21 +328,6 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
     }
   };
 
-  const deleteAccount = async () => {
-    setLoading(true);
-    try {
-      await authService.deleteAccount();
-      // After successful deletion, update local state
-      setUser(null);
-      setIsLogged(false);
-    } catch (error) {
-      console.error('Delete account error:', error);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <GlobalContext.Provider
       value={{
@@ -356,7 +340,6 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
         signIn,
         signInWithGoogle, // Pass the updated function
         logout,
-        deleteAccount,
         sendOTP,
         verifyOTP,
         otpInfo,
