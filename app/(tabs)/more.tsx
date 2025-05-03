@@ -18,31 +18,8 @@ const GITHUB_URL = "https://github.com/serene-brew/kaizen-app";
 const APP_VERSION = "1.0.0";
 
 export default function More() {
-  const { user, deleteAccount, logout } = useGlobalContext();
+  const { user, logout } = useGlobalContext();
   const [downloadSize, setDownloadSize] = useState("1.2 GB"); // Placeholder value
-
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      "Delete Account",
-      "Are you sure you want to delete your account? This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteAccount();
-              router.replace("/");
-            } catch (error) {
-              console.error('Delete account error:', error);
-              Alert.alert("Error", "Failed to delete account. Please try again.");
-            }
-          }
-        }
-      ]
-    );
-  };
 
   const handleLogout = async () => {
     try {
@@ -178,12 +155,6 @@ export default function More() {
           icon="logout"
           text="Logout"
           onPress={handleLogout}
-        />
-        <MenuItem
-          icon="delete"
-          text="Delete Account"
-          onPress={handleDeleteAccount}
-          danger
         />
       </View>
 
