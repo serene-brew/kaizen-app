@@ -4,6 +4,7 @@ import Colors from "../constants/Colors";
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.4;
 const CAROUSEL_HEIGHT = width * 0.6;
+const CONTENT_PADDING = 16;
 
 export const styles = StyleSheet.create({
   container: {
@@ -52,7 +53,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: CONTENT_PADDING,
     marginBottom: 12,
   },
   sectionTitle: {
@@ -72,11 +73,17 @@ export const styles = StyleSheet.create({
     marginRight: 4,
   },
   scrollContainer: {
-    paddingLeft: 16,
+    paddingLeft: CONTENT_PADDING,
+  },
+  scrollContentContainer: {
+    paddingRight: CONTENT_PADDING, // Add right padding to the content inside scroll
   },
   card: {
     width: CARD_WIDTH,
     marginRight: 12,
+  },
+  lastCard: {
+    marginRight: CONTENT_PADDING, // Extra margin for the last card
   },
   posterPlaceholder: {
     width: '100%',
@@ -87,6 +94,12 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
     position: 'relative',
+    overflow: 'hidden', // Add overflow hidden to contain the image
+  },
+  posterImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
   },
   watchlistIcon: {
     position: 'absolute',
@@ -100,5 +113,23 @@ export const styles = StyleSheet.create({
     color: Colors.dark.text,
     fontSize: 14,
     fontWeight: '500',
+  },
+  loadingTitle: {
+    height: 14,
+    width: '80%',
+    backgroundColor: Colors.dark.secondaryBackground,
+    borderRadius: 4,
+  },
+  errorContainer: {
+    width: CARD_WIDTH * 2,
+    height: CARD_WIDTH * 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  errorText: {
+    color: Colors.dark.buttonBackground,
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
