@@ -105,7 +105,7 @@ export default function TabLayout() {
         options={{
           href: null, // Hides from tab bar
           headerShown: true,
-          headerTitle: "New Releases",
+          headerTitle: "Trending",
         }}
       />
       <Tabs.Screen
@@ -113,7 +113,7 @@ export default function TabLayout() {
         options={{
           href: null, // Hides from tab bar
           headerShown: true,
-          headerTitle: "Trending Now",
+          headerTitle: "Top Anime",
         }}
       />
       <Tabs.Screen
