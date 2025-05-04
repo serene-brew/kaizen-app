@@ -33,6 +33,12 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
     position: 'relative',
+    overflow: 'hidden',  // Ensure images don't overflow the container
+  },
+  posterImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
   },
   watchlistIcon: {
     position: 'absolute',
@@ -46,5 +52,43 @@ export const styles = StyleSheet.create({
     color: Colors.dark.text,
     fontSize: 14,
     fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.dark.background,
+    paddingBottom: 50, // Adjust for tab bar
+  },
+  loadingText: {
+    marginTop: 16,
+    color: Colors.dark.text,
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.dark.background,
+    padding: 20,
+    paddingBottom: 70, // Adjust for tab bar
+  },
+  errorText: {
+    color: Colors.dark.text,
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: Colors.dark.buttonBackground,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: Colors.dark.text,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
