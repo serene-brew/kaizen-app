@@ -102,6 +102,71 @@ export const animeApi = {
   },
 
   /**
+   * Fetch carousel anime data
+   * @param count Number of random items to select from the response (default: 5)
+   * @returns Promise with randomly selected carousel anime data
+   */
+  async fetchCarouselAnime(count: number = 5): Promise<AnimeItem[]> {
+    try {
+      console.log('Fetching carousel anime from:', `${API_BASE_URL}/anime/carousel`);
+      
+      const response = await fetch(`${API_BASE_URL}/anime/carousel`);
+      
+      console.log('Carousel API Response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const rawData = await response.text();
+      console.log('Raw carousel API response:', rawData.substring(0, 500) + '...');
+      
+      const data: AnimeResponse = JSON.parse(rawData);
+      
+      console.log('Parsed carousel data structure:', 
+        data ? 'Valid data object' : 'Null data',
+        'Has result array:', data && Array.isArray(data.result),
+        'Array length:', data && data.result ? data.result.length : 0
+      );
+      
+      if (!data.result || data.result.length === 0) {
+        return [];
+      }
+      
+      // Select random items from the array
+      const result = [...data.result];
+      const randomItems: AnimeItem[] = [];
+      
+      // Get random items up to count or the length of result array
+      const itemsToSelect = Math.min(count, result.length);
+      
+      for (let i = 0; i < itemsToSelect; i++) {
+        const randomIndex = Math.floor(Math.random() * result.length);
+        randomItems.push(result[randomIndex]);
+        result.splice(randomIndex, 1); // Remove selected item to avoid duplicates
+      }
+      
+      console.log(`Selected ${randomItems.length} random items from carousel data`);
+      
+      return randomItems;
+    } catch (error) {
+      console.error('Error fetching carousel anime:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get random items from an array
+   * @param array The array to select from
+   * @param count Number of items to select
+   * @returns Array of randomly selected items
+   */
+  getRandomItems<T>(array: T[], count: number): T[] {
+    const shuffled = [...array].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+  },
+
+  /**
    * Fetch limited number of top anime
    * @param limit Number of items to return
    * @returns Promise with limited top anime data
