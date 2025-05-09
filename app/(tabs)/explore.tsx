@@ -3,12 +3,13 @@ import { View, Text, ScrollView, Dimensions, TouchableOpacity, Image, ActivityIn
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import Colors from "../../constants/Colors";
 import { styles } from "../../styles/explore.styles";
 import { animeApi, AnimeItem } from "../../lib/api";
 
 const { width } = Dimensions.get('window');
-const AUTO_SWIPE_INTERVAL = 3000;
+const AUTO_SWIPE_INTERVAL = 6000; // Changed from 3000ms to 6000ms (6 seconds)
 const CAROUSEL_COUNT = 5;
 
 // Helper function to map API response to our AnimeItem structure
@@ -247,18 +248,33 @@ export default function Explore() {
             </Text>
           </View>
         </View>
+        
+        <View style={styles.carouselActions}>
+          <TouchableOpacity 
+            style={styles.bookmarkButton}
+            onPress={(e) => toggleWatchlist(item.id, e)}
+          >
+            <MaterialCommunityIcons 
+              name={watchlist.includes(item.id) ? "bookmark" : "bookmark-outline"}
+              size={24} 
+              color={watchlist.includes(item.id) ? Colors.dark.buttonBackground : Colors.dark.text}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
       
-      <TouchableOpacity 
-        style={[styles.watchlistIcon, { top: 16, right: 16 }]}
-        onPress={(e) => toggleWatchlist(item.id, e)}
-      >
-        <MaterialCommunityIcons 
-          name={watchlist.includes(item.id) ? "bookmark" : "bookmark-outline"}
-          size={28} 
-          color={watchlist.includes(item.id) ? Colors.dark.buttonBackground : Colors.dark.text}
-        />
-      </TouchableOpacity>
+      {/* Pagination dots */}
+      <View style={styles.paginationDots}>
+        {carouselAnime.map((_, dotIndex) => (
+          <View
+            key={dotIndex}
+            style={[
+              styles.dot,
+              dotIndex === activeIndex && styles.activeDot
+            ]}
+          />
+        ))}
+      </View>
     </TouchableOpacity>
   );
 
@@ -268,6 +284,7 @@ export default function Explore() {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
+      <StatusBar style="light" translucent />
       {/* Carousel Section */}
       <View style={styles.carouselContainer}>
         {carouselLoading ? (
@@ -276,32 +293,18 @@ export default function Explore() {
             <Text style={[styles.placeholderText, { marginTop: 10 }]}>Loading featured anime...</Text>
           </View>
         ) : carouselAnime.length > 0 ? (
-          <>
-            <ScrollView
-              ref={carouselRef}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={(event) => {
-                const newIndex = Math.round(event.nativeEvent.contentOffset.x / width);
-                setActiveIndex(newIndex);
-              }}
-            >
-              {carouselAnime.map((item, index) => renderCarouselItem(item, index))}
-            </ScrollView>
-            
-            <View style={styles.paginationDots}>
-              {carouselAnime.map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.dot,
-                    index === activeIndex && styles.activeDot
-                  ]}
-                />
-              ))}
-            </View>
-          </>
+          <ScrollView
+            ref={carouselRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(event) => {
+              const newIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+              setActiveIndex(newIndex);
+            }}
+          >
+            {carouselAnime.map((item, index) => renderCarouselItem(item, index))}
+          </ScrollView>
         ) : (
           <View style={styles.carouselLoadingContainer}>
             <MaterialCommunityIcons name="alert-circle-outline" size={40} color={Colors.dark.buttonBackground} />
