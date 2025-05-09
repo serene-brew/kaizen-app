@@ -13,7 +13,8 @@
       "@components": [
         "./components"
       ]
-    }
+    },
+    "jsx": "react-native" // Allow JSX in .tsx files
   },
   "include": [
     "**/*.ts",
