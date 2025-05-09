@@ -2,28 +2,62 @@ import { StyleSheet, Dimensions } from "react-native";
 import Colors from "../constants/Colors";
 
 const { width } = Dimensions.get('window');
-const POSTER_WIDTH = width * 0.4;
+const POSTER_WIDTH = width * 0.35;
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.dark.background,
   },
+  
+  // Cover image container
+  coverContainer: {
+    height: 20, // Reduced height from 180px
+    width: width,
+    position: 'relative',
+  },
+  coverImage: {
+    width: '100%',
+    height: '100%',
+  },
+  coverGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  
+  // Header section with poster and main info
   header: {
     flexDirection: 'row',
     padding: 16,
     gap: 16,
+    marginTop: -20, // Reduced negative margin to bring content up (was -40)
   },
   posterContainer: {
     width: POSTER_WIDTH,
+    position: 'relative', // For positioning the watchlist button
   },
   poster: {
     width: '100%',
     height: POSTER_WIDTH * 1.5,
-    backgroundColor: Colors.dark.secondaryBackground,
     borderRadius: 8,
+    borderWidth: 2,
+    borderColor: Colors.dark.border,
+  },
+  watchlistButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
+    padding: 0,
   },
   infoContainer: {
     flex: 1,
@@ -31,18 +65,52 @@ export const styles = StyleSheet.create({
   title: {
     color: Colors.dark.text,
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 8,
   },
-  summary: {
-    color: Colors.dark.secondaryText,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 16,
+  
+  // Rating badge (star design)
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
   },
+  ratingText: {
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: '700',
+    marginLeft: 4,
+  },
+  
+  // Info badges (TV, PG-13, etc)
+  badges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  badge: {
+    backgroundColor: Colors.dark.secondaryBackground,
+    borderRadius: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  badgeText: {
+    color: Colors.dark.secondaryText,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  
+  // Sub/Dub toggle
   actions: {
     flexDirection: 'row',
     gap: 10,
+    marginTop: 4,
   },
   button: {
     paddingHorizontal: 16,
@@ -66,71 +134,68 @@ export const styles = StyleSheet.create({
     minWidth: 60,
     alignItems: 'center',
   },
-  ratingSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  
+  // Description section with expand/collapse
+  descriptionContainer: {
     padding: 16,
+    paddingTop: 8,
     borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: Colors.dark.border,
+    borderTopColor: Colors.dark.border,
   },
-  rightSection: {
+  description: {
+    color: Colors.dark.secondaryText,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  expandButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    marginTop: 8,
+    alignSelf: 'flex-start',
   },
-  rating: {
+  expandButtonText: {
+    color: Colors.dark.buttonBackground,
+    fontSize: 14,
+    fontWeight: '500',
+    marginRight: 4,
+  },
+  
+  // Genres section
+  genresContainer: {
+    padding: 16,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.dark.border,
+  },
+  genresList: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
+    marginTop: 8,
   },
-  ratingText: {
-    color: Colors.dark.text,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  watchlistButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  watchlistActive: {
-    backgroundColor: Colors.dark.buttonBackground,
-    borderColor: Colors.dark.buttonBackground,
-  },
-  actionButtonText: {
-    color: Colors.dark.secondaryText,
-    fontWeight: '500',
-  },
-  watchlistActiveText: {
-    color: Colors.dark.text,
-  },
-  reviewButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
+  genreChip: {
     backgroundColor: Colors.dark.secondaryBackground,
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
-  reviewButtonText: {
-    color: Colors.dark.secondaryText,
-    fontWeight: '500',
+  genreChipText: {
+    color: Colors.dark.text,
+    fontSize: 13,
   },
+  
+  // Episodes section
   episodesSection: {
     padding: 16,
-    paddingBottom: 70,
+    paddingBottom: 80,
+    borderTopWidth: 1,
+    borderTopColor: Colors.dark.border,
   },
   sectionTitle: {
     color: Colors.dark.text,
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   episodeGrid: {
     flexDirection: 'row',
@@ -148,9 +213,5 @@ export const styles = StyleSheet.create({
   episodeNumber: {
     color: Colors.dark.text,
     fontWeight: '500',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
 });
