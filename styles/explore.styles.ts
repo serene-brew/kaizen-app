@@ -14,11 +14,13 @@ export const styles = StyleSheet.create({
   scrollContent: {
     paddingVertical: 16,
     paddingBottom: 100, // Extra padding at bottom for better scrolling experience
+    paddingTop: 0, // Remove top padding to allow carousel to go to the edge
   },
   carouselContainer: {
     height: 250,
     width: width,
     marginBottom: 24,
+    marginTop: 0, // Ensure no margin at the top
   },
   carouselLoadingContainer: {
     height: 250,
@@ -104,15 +106,35 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'absolute',
-    bottom: 5,
+    bottom: 12,
     left: 0,
     right: 0,
+    zIndex: 3, // Ensure it's above the gradient
+  },
+  carouselActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  bookmarkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)', // Reduced opacity from 0.5 to 0.3
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 20, // Increased radius for a more circular look
+  },
+  bookmarkText: {
+    color: Colors.dark.text,
+    fontSize: 12,
+    marginLeft: 4,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
     margin: 4,
   },
   activeDot: {
