@@ -10,30 +10,12 @@ export const styles = StyleSheet.create({
     backgroundColor: Colors.dark.background,
   },
   
-  // Cover image container
-  coverContainer: {
-    height: 20, // Reduced height from 180px
-    width: width,
-    position: 'relative',
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-  },
-  coverGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  
   // Header section with poster and main info
   header: {
     flexDirection: 'row',
     padding: 16,
     gap: 16,
-    marginTop: -20, // Reduced negative margin to bring content up (was -40)
+    marginTop: 10, // Add top margin for status bar space
   },
   posterContainer: {
     width: POSTER_WIDTH,
