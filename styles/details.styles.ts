@@ -120,7 +120,8 @@ export const styles = StyleSheet.create({
   // Description section with expand/collapse
   descriptionContainer: {
     padding: 16,
-    paddingTop: 8,
+    paddingTop: 16, // Increased from 8 to 16 to add more space
+    marginTop: 8, // Added extra margin at the top
     borderTopWidth: 1,
     borderTopColor: Colors.dark.border,
   },
