@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, SafeAreaView, Text, TouchableOpacity, ScrollView } from "react-native";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from "expo-router";
 import Colors from "../../constants/Colors";
 import { SearchBar } from "../../components";
 import { styles } from "../../styles/search.styles";
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Define genre data with icons and labels based on the provided image
 const genres = [
@@ -54,33 +56,80 @@ const genres = [
   { id: "unknown", label: "Unknown", icon: "help-circle" }
 ];
 
+// Storage key for recent searches
+const RECENT_SEARCHES_KEY = 'recent_searches';
+
 export default function Search() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [recentSearches, setRecentSearches] = useState<string[]>([
-    "Attack on Titan",
-    "One Piece",
-    "Demon Slayer",
-    "Jujutsu Kaisen"
-  ]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  // Load recent searches from AsyncStorage on component mount
+  useEffect(() => {
+    const loadRecentSearches = async () => {
+      try {
+        const storedSearches = await AsyncStorage.getItem(RECENT_SEARCHES_KEY);
+        if (storedSearches) {
+          setRecentSearches(JSON.parse(storedSearches));
+        }
+      } catch (error) {
+        console.error('Error loading recent searches:', error);
+      }
+    };
+
+    loadRecentSearches();
+  }, []);
+
+  // Save recent searches to AsyncStorage whenever they change
+  useEffect(() => {
+    const saveRecentSearches = async () => {
+      try {
+        await AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recentSearches));
+      } catch (error) {
+        console.error('Error saving recent searches:', error);
+      }
+    };
+
+    saveRecentSearches();
+  }, [recentSearches]);
 
   const handleSearch = () => {
     if (searchQuery.trim() || selectedGenres.length > 0) {
       // Add to recent searches if text query is present and not already in the list
       if (searchQuery.trim() && !recentSearches.includes(searchQuery.trim())) {
-        setRecentSearches(prev => [searchQuery.trim(), ...prev]);
+        // Add to beginning of array, limit to 10 recent searches
+        const updatedSearches = [searchQuery.trim(), ...recentSearches].slice(0, 10);
+        setRecentSearches(updatedSearches);
       }
-      console.log('Searching for:', searchQuery);
-      console.log('Selected genres:', selectedGenres);
       
-      // Here we would call the appropriate API endpoint based on whether
-      // we have a text query, genre filters, or both
+      // Navigate to search results page with query and/or genre filters
+      const params: Record<string, string> = {};
+      
+      if (searchQuery.trim()) {
+        params.query = searchQuery.trim();
+      }
+      
+      if (selectedGenres.length > 0) {
+        // Format selected genres as comma-separated list
+        const formattedGenres = selectedGenres.map(genreId => {
+          // Convert genre IDs to labels for the API
+          const genre = genres.find(g => g.id === genreId);
+          return genre ? genre.label : genreId;
+        }).join(',');
+        
+        params.genres = formattedGenres;
+      }
+      
+      router.push({
+        pathname: "/searchResults",
+        params
+      });
     }
   };
 
   const toggleGenre = (genreId: string) => {
     setSelectedGenres(prev => 
-      prev.includes(genreId)
+      prev.includes(genreId) 
         ? prev.filter(id => id !== genreId)
         : [...prev, genreId]
     );
@@ -96,6 +145,15 @@ export default function Search() {
 
   const clearFilters = () => {
     setSelectedGenres([]);
+  };
+
+  const handleSearchItemPress = (search: string) => {
+    setSearchQuery(search);
+    
+    // Automatically perform search when clicking a recent search item
+    setTimeout(() => {
+      handleSearch();
+    }, 100);
   };
 
   return (
@@ -186,7 +244,7 @@ export default function Search() {
                 <TouchableOpacity
                   key={index}
                   style={styles.recentItem}
-                  onPress={() => setSearchQuery(search)}
+                  onPress={() => handleSearchItemPress(search)}
                 >
                   <View style={styles.recentItemContent}>
                     <MaterialCommunityIcons
@@ -201,7 +259,10 @@ export default function Search() {
                   </View>
                   <TouchableOpacity
                     style={styles.removeButton}
-                    onPress={() => removeSearch(index)}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      removeSearch(index);
+                    }}
                   >
                     <MaterialCommunityIcons
                       name="close"
