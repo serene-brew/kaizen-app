@@ -59,6 +59,18 @@ export default function SearchResults() {
           currentGenres: genresParam
         });
         
+        // Case 1: Empty query params - likely returning from details page
+        // Use the most recent search results regardless of parameters
+        if (!queryParam && genresParam.length === 0) {
+          console.log('No search parameters provided, using most recent search results');
+          setResults(savedResults);
+          setError(null);
+          setLoading(false);
+          setHasSearched(true);
+          return true;
+        }
+        
+        // Case 2: We have query params - check if they match the saved params
         // Check if current search parameters match the cached parameters
         const queriesMatch = savedParams.query === queryParam;
         const genresMatch = 
