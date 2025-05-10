@@ -1,28 +1,10 @@
 // filepath: /home/risersama/projects/kaizen-app/lib/api.ts
 // API service to fetch anime data
-
-export interface AnimeItem {
-  id: string;
-  englishName: string;
-  thumbnail: string;
-  score: number;
-  genres: string[];
-  format: string;
-  status: string;
-  episodes: number;
-  duration: number;
-  startDate: {
-    year: number;
-    month: number;
-    day: number;
-  };
-}
-
-export interface AnimeResponse {
-  result: AnimeItem[]; // Changed from "data" to "result" to match the actual API response
-}
+import { AnimeItem, AnimeResponse } from '../types/anime';
 
 const API_BASE_URL = 'https://hellscape.vercel.app/api';
+
+const SEARCH_API_URL = 'https://heavenscape.vercel.app/api';
 
 export const animeApi = {
   /**
@@ -56,7 +38,7 @@ export const animeApi = {
         console.log('First item sample:', JSON.stringify(data.result[0], null, 2));
       }
       
-      return data.result || []; // Changed from data.data to data.result
+      return data.result || [];
     } catch (error) {
       console.error('Error fetching top anime:', error);
       throw error;
@@ -177,6 +159,83 @@ export const animeApi = {
       return data.slice(0, limit);
     } catch (error) {
       console.error('Error fetching limited top anime:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Search anime by query string
+   * @param query Search query string
+   * @returns Promise with search results
+   */
+  async searchAnimeByQuery(query: string): Promise<AnimeItem[]> {
+    try {
+      const formattedQuery = encodeURIComponent(query.trim());
+      console.log('Searching anime by query:', `${SEARCH_API_URL}/anime/search/${formattedQuery}`);
+      
+      const response = await fetch(`${SEARCH_API_URL}/anime/search/${formattedQuery}`);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data: AnimeResponse = await response.json();
+      
+      return data.result || [];
+    } catch (error) {
+      console.error('Error searching anime by query:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Search anime by genre filters
+   * @param genres Array of genre strings
+   * @returns Promise with filtered results
+   */
+  async searchAnimeByFilters(genres: string[]): Promise<AnimeItem[]> {
+    try {
+      const formattedGenres = genres.join(',');
+      console.log('Searching anime by filters:', `${SEARCH_API_URL}/anime/filters/${formattedGenres}`);
+      
+      const response = await fetch(`${SEARCH_API_URL}/anime/filters/${formattedGenres}`);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data: AnimeResponse = await response.json();
+      
+      return data.result || [];
+    } catch (error) {
+      console.error('Error searching anime by filters:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Search anime by both query and filters
+   * @param query Search query string
+   * @param genres Array of genre strings
+   * @returns Promise with filtered search results
+   */
+  async searchAnimeByQueryAndFilters(query: string, genres: string[]): Promise<AnimeItem[]> {
+    try {
+      const formattedQuery = encodeURIComponent(query.trim());
+      const formattedGenres = genres.join(',');
+      console.log('Searching anime by query and filters:', `${SEARCH_API_URL}/anime/filters/${formattedGenres}/${formattedQuery}`);
+      
+      const response = await fetch(`${SEARCH_API_URL}/anime/filters/${formattedGenres}/${formattedQuery}`);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data: AnimeResponse = await response.json();
+      
+      return data.result || [];
+    } catch (error) {
+      console.error('Error searching anime by query and filters:', error);
       throw error;
     }
   }
