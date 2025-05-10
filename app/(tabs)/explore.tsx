@@ -6,7 +6,8 @@ import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import Colors from "../../constants/Colors";
 import { styles } from "../../styles/explore.styles";
-import { animeApi, AnimeItem } from "../../lib/api";
+import { animeApi } from "../../lib/api";
+import { AnimeItem } from "../../types/anime";
 
 const { width } = Dimensions.get('window');
 const AUTO_SWIPE_INTERVAL = 6000; // Changed from 3000ms to 6000ms (6 seconds)
@@ -120,14 +121,14 @@ export default function Explore() {
   const handlePressCard = (item: AnimeItem) => {
     router.push({
       pathname: "/(tabs)/details",
-      params: { id: item.id, title: item.englishName }
+      params: { id: item.id, title: item.englishName, source: 'explore' }
     });
   };
 
   const handlePressCarousel = (item: AnimeItem) => {
     router.push({
       pathname: "/(tabs)/details",
-      params: { id: item.id, title: item.englishName }
+      params: { id: item.id, title: item.englishName, source: 'explore' }
     });
   };
 
