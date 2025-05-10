@@ -1,10 +1,11 @@
-import { View, Text, ScrollView, TouchableOpacity, Dimensions, Image, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Dimensions, Image, ActivityIndicator, BackHandler } from "react-native";
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import Colors from "../../constants/Colors";
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { styles } from "../../styles/details.styles";
 import { StatusBar } from 'expo-status-bar';
+import { AnimeItem } from "../../types/anime";
 
 const { width } = Dimensions.get('window');
 const POSTER_WIDTH = width * 0.35;
@@ -32,7 +33,8 @@ interface AnimeDetailsResponse {
 }
 
 export default function DetailsPage() {
-  const { id, title } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const { id, title, source } = params;
   const router = useRouter();
   const [audioType, setAudioType] = useState<'sub' | 'dub'>('sub');
   const [isInWatchlist, setIsInWatchlist] = useState(false);
@@ -48,7 +50,44 @@ export default function DetailsPage() {
       setLoading(true);
       setError(null);
       
+      // Check if we have complete anime data in params
+      if (params.completeData) {
+        try {
+          // Parse the stringified complete data if available
+          const completeData = JSON.parse(decodeURIComponent(params.completeData as string));
+          if (completeData && completeData.id) {
+            console.log("Using complete anime data from params");
+            
+            // Format data to match our expected structure
+            const formattedData = {
+              id: completeData.id,
+              title: completeData.title || completeData.englishName,
+              englishName: completeData.englishName,
+              description: completeData.description || null,
+              thumbnail: completeData.thumbnail || null,
+              genres: completeData.genres || null,
+              status: completeData.status || null,
+              type: completeData.format || completeData.type || null,
+              rating: completeData.rating || null,
+              score: completeData.score || null,
+              subCount: completeData.subCount || null,
+              dubCount: completeData.dubCount || null,
+              episodes: completeData.episodes || { sub: null, dub: null }
+            };
+            
+            setAnimeData(formattedData);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.error("Error parsing complete anime data:", err);
+          // Continue to fetch data if parsing failed
+        }
+      }
+      
+      // If no complete data or parsing failed, fetch from API
       try {
+        console.log("Fetching anime details from API");
         const response = await fetch(`https://heavenscape.vercel.app/api/anime/id/${id}`);
         
         if (!response.ok) {
@@ -72,6 +111,32 @@ export default function DetailsPage() {
     
     fetchAnimeDetails();
   }, [id]);
+
+  // Add back button handling with Android hardware back button support
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleGoBack();
+      return true;
+    });
+
+    return () => backHandler.remove();
+  }, []);
+
+  const handleGoBack = useCallback(() => {
+    // Use the source param to determine where to go back to
+    if (source === 'search') {
+      router.push('/searchResults');
+    } else if (source === 'trending') {
+      router.push('/(tabs)/new');
+    } else if (source === 'top') {
+      router.push('/(tabs)/trending');
+    } else if (source === 'watchlist') {
+      router.push('/(tabs)/watchlist');
+    } else {
+      // Default to going back to explore page
+      router.push('/(tabs)/explore');
+    }
+  }, [router, source]);
 
   const toggleWatchlist = () => {
     setIsInWatchlist(!isInWatchlist);
@@ -116,6 +181,16 @@ export default function DetailsPage() {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <StatusBar style="light" translucent />
+      
+      {/* Back button at the top of the page */}
+      <View style={styles.backButtonContainer}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={handleGoBack}
+        >
+          <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.dark.text} />
+        </TouchableOpacity>
+      </View>
       
       <View style={styles.header}>
         <View style={styles.posterContainer}>
