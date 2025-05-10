@@ -9,8 +9,19 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.dark.background,
   },
-  
-  // Header section with poster and main info
+  backButtonContainer: {
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.dark.secondaryBackground,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   header: {
     flexDirection: 'row',
     padding: 16,
