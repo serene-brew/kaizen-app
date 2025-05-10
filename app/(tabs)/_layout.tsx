@@ -120,8 +120,7 @@ export default function TabLayout() {
         name="details"
         options={{
           href: null,
-          headerShown: true,
-          headerTitle: "Details",
+          headerShown: false, // Hide the header completely
         }}
       />
     </Tabs>
