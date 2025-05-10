@@ -4,7 +4,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from "expo-router";
 import Colors from "../../constants/Colors";
 import { styles } from "../../styles/trending.styles";
-import { animeApi, AnimeItem } from "../../lib/api";
+import { animeApi } from "../../lib/api";
+import { AnimeItem } from "../../types/anime";
 
 const { width } = Dimensions.get('window');
 const PADDING = 16;
@@ -65,7 +66,7 @@ export default function TopPage() {
   const handlePressCard = (item: AnimeItem) => {
     router.push({
       pathname: "/(tabs)/details",
-      params: { id: item.id, title: item.englishName }
+      params: { id: item.id, title: item.englishName, source: 'top' }
     });
   };
 
