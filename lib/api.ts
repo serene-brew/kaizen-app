@@ -13,30 +13,15 @@ export const animeApi = {
    */
   async fetchTopAnime(): Promise<AnimeItem[]> {
     try {
-      console.log('Fetching top anime from:', `${API_BASE_URL}/anime/top`);
-      
       const response = await fetch(`${API_BASE_URL}/anime/top`);
-      
-      console.log('API Response status:', response.status);
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
       }
       
       const rawData = await response.text();
-      console.log('Raw API response:', rawData.substring(0, 500) + '...');
       
       const data: AnimeResponse = JSON.parse(rawData);
-      
-      console.log('Parsed data structure:', 
-        data ? 'Valid data object' : 'Null data',
-        'Has result array:', data && Array.isArray(data.result),
-        'Array length:', data && data.result ? data.result.length : 0
-      );
-      
-      if (data && data.result && data.result.length > 0) {
-        console.log('First item sample:', JSON.stringify(data.result[0], null, 2));
-      }
       
       return data.result || [];
     } catch (error) {
@@ -51,30 +36,15 @@ export const animeApi = {
    */
   async fetchTrendingAnime(): Promise<AnimeItem[]> {
     try {
-      console.log('Fetching trending anime from:', `${API_BASE_URL}/anime/trending`);
-      
       const response = await fetch(`${API_BASE_URL}/anime/trending`);
-      
-      console.log('API Response status:', response.status);
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
       }
       
       const rawData = await response.text();
-      console.log('Raw trending API response:', rawData.substring(0, 500) + '...');
       
       const data: AnimeResponse = JSON.parse(rawData);
-      
-      console.log('Parsed trending data structure:', 
-        data ? 'Valid data object' : 'Null data',
-        'Has result array:', data && Array.isArray(data.result),
-        'Array length:', data && data.result ? data.result.length : 0
-      );
-      
-      if (data && data.result && data.result.length > 0) {
-        console.log('First trending item sample:', JSON.stringify(data.result[0], null, 2));
-      }
       
       return data.result || [];
     } catch (error) {
@@ -90,26 +60,15 @@ export const animeApi = {
    */
   async fetchCarouselAnime(count: number = 5): Promise<AnimeItem[]> {
     try {
-      console.log('Fetching carousel anime from:', `${API_BASE_URL}/anime/carousel`);
-      
       const response = await fetch(`${API_BASE_URL}/anime/carousel`);
-      
-      console.log('Carousel API Response status:', response.status);
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
       }
       
       const rawData = await response.text();
-      console.log('Raw carousel API response:', rawData.substring(0, 500) + '...');
       
       const data: AnimeResponse = JSON.parse(rawData);
-      
-      console.log('Parsed carousel data structure:', 
-        data ? 'Valid data object' : 'Null data',
-        'Has result array:', data && Array.isArray(data.result),
-        'Array length:', data && data.result ? data.result.length : 0
-      );
       
       if (!data.result || data.result.length === 0) {
         return [];
@@ -127,8 +86,6 @@ export const animeApi = {
         randomItems.push(result[randomIndex]);
         result.splice(randomIndex, 1); // Remove selected item to avoid duplicates
       }
-      
-      console.log(`Selected ${randomItems.length} random items from carousel data`);
       
       return randomItems;
     } catch (error) {
@@ -171,7 +128,6 @@ export const animeApi = {
   async searchAnimeByQuery(query: string): Promise<AnimeItem[]> {
     try {
       const formattedQuery = encodeURIComponent(query.trim());
-      console.log('Searching anime by query:', `${SEARCH_API_URL}/anime/search/${formattedQuery}`);
       
       const response = await fetch(`${SEARCH_API_URL}/anime/search/${formattedQuery}`);
       
@@ -196,7 +152,6 @@ export const animeApi = {
   async searchAnimeByFilters(genres: string[]): Promise<AnimeItem[]> {
     try {
       const formattedGenres = genres.join(',');
-      console.log('Searching anime by filters:', `${SEARCH_API_URL}/anime/filters/${formattedGenres}`);
       
       const response = await fetch(`${SEARCH_API_URL}/anime/filters/${formattedGenres}`);
       
@@ -223,7 +178,6 @@ export const animeApi = {
     try {
       const formattedQuery = encodeURIComponent(query.trim());
       const formattedGenres = genres.join(',');
-      console.log('Searching anime by query and filters:', `${SEARCH_API_URL}/anime/filters/${formattedGenres}/${formattedQuery}`);
       
       const response = await fetch(`${SEARCH_API_URL}/anime/filters/${formattedGenres}/${formattedQuery}`);
       
