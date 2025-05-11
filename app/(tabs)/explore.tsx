@@ -8,6 +8,7 @@ import Colors from "../../constants/Colors";
 import { styles } from "../../styles/explore.styles";
 import { animeApi } from "../../lib/api";
 import { AnimeItem } from "../../types/anime";
+import { useWatchlist } from '../../contexts/WatchlistContext';
 
 const { width } = Dimensions.get('window');
 const AUTO_SWIPE_INTERVAL = 6000; // Changed from 3000ms to 6000ms (6 seconds)
@@ -32,13 +33,15 @@ const mapAnimeData = (item: any): AnimeItem => {
 export default function Explore() {
   const carouselRef = useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [watchlist, setWatchlist] = useState<string[]>([]);
   const [topAnime, setTopAnime] = useState<AnimeItem[]>([]);
   const [trendingAnime, setTrendingAnime] = useState<AnimeItem[]>([]);
   const [carouselAnime, setCarouselAnime] = useState<AnimeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [carouselLoading, setCarouselLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Use watchlist context
+  const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
   // Fetch anime data
   useEffect(() => {
@@ -132,15 +135,6 @@ export default function Explore() {
     });
   };
 
-  const toggleWatchlist = (id: string, event: any) => {
-    event.stopPropagation();
-    setWatchlist(prev => 
-      prev.includes(id) 
-        ? prev.filter(itemId => itemId !== id)
-        : [...prev, id]
-    );
-  };
-
   const renderCard = (item: AnimeItem, type: 'trending' | 'top', index: number, array: AnimeItem[]) => (
     <TouchableOpacity 
       key={`${type}-${item.id}`} 
@@ -162,22 +156,28 @@ export default function Explore() {
         )}
         <TouchableOpacity 
           style={styles.watchlistIcon}
-          onPress={(e) => toggleWatchlist(item.id, e)}
+          onPress={(e) => {
+            e.stopPropagation();
+            toggleWatchlist(
+              item.id, 
+              item.englishName || item.title || 'Unknown Anime', 
+              item.thumbnail || ''
+            );
+          }}
         >
           <MaterialCommunityIcons 
-            name={watchlist.includes(item.id) ? "bookmark" : "bookmark-outline"}
+            name={isInWatchlist(item.id) ? "bookmark" : "bookmark-outline"}
             size={24} 
-            color={watchlist.includes(item.id) ? Colors.dark.buttonBackground : Colors.dark.text}
+            color={isInWatchlist(item.id) ? Colors.dark.buttonBackground : Colors.dark.text}
           />
         </TouchableOpacity>
       </View>
       <Text style={styles.cardTitle} numberOfLines={2}>
-        {item.englishName}
+        {item.englishName || item.title || 'Unknown Anime'}
       </Text>
     </TouchableOpacity>
   );
 
-  // Show a loading placeholder when data is loading
   const renderLoadingCard = (index: number, type: 'trending' | 'top', isLast: boolean = false) => (
     <View 
       key={`${type}-loading-${index}`} 
@@ -190,7 +190,6 @@ export default function Explore() {
     </View>
   );
 
-  // Render a carousel item with proper styling and image
   const renderCarouselItem = (item: AnimeItem, index: number) => (
     <TouchableOpacity 
       key={`carousel-${item.id}`} 
@@ -218,7 +217,7 @@ export default function Explore() {
       
       <View style={styles.carouselContent}>
         <Text style={styles.carouselTitle} numberOfLines={2}>
-          {item.englishName}
+          {item.englishName || item.title || 'Unknown Anime'}
         </Text>
         
         <View style={styles.carouselInfo}>
@@ -253,12 +252,19 @@ export default function Explore() {
         <View style={styles.carouselActions}>
           <TouchableOpacity 
             style={styles.bookmarkButton}
-            onPress={(e) => toggleWatchlist(item.id, e)}
+            onPress={(e) => {
+              e.stopPropagation();
+              toggleWatchlist(
+                item.id, 
+                item.englishName || item.title || 'Unknown Anime', 
+                item.thumbnail || ''
+              );
+            }}
           >
             <MaterialCommunityIcons 
-              name={watchlist.includes(item.id) ? "bookmark" : "bookmark-outline"}
+              name={isInWatchlist(item.id) ? "bookmark" : "bookmark-outline"}
               size={24} 
-              color={watchlist.includes(item.id) ? Colors.dark.buttonBackground : Colors.dark.text}
+              color={isInWatchlist(item.id) ? Colors.dark.buttonBackground : Colors.dark.text}
             />
           </TouchableOpacity>
         </View>
