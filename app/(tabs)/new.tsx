@@ -6,6 +6,8 @@ import Colors from "../../constants/Colors";
 import { styles } from "../../styles/new.styles";
 import { animeApi } from "../../lib/api";
 import { AnimeItem } from "../../types/anime";
+// Import the watchlist context
+import { useWatchlist } from '../../contexts/WatchlistContext';
 
 const { width } = Dimensions.get('window');
 const PADDING = 16;
@@ -29,9 +31,12 @@ const mapAnimeData = (item: any): AnimeItem => {
 
 export default function TrendingPage() {
   const [trendingAnime, setTrendingAnime] = useState<AnimeItem[]>([]);
-  const [watchlist, setWatchlist] = useState<string[]>([]);
+  const [watchlist, setWatchlist] = useState<string[]>([]); // Keep local state for compatibility
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Use the watchlist context
+  const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,13 +76,27 @@ export default function TrendingPage() {
     });
   };
 
-  const toggleWatchlist = (id: string, event: any) => {
+  // Update the toggleWatchlist function to use both local state and the context
+  const toggleWatchlistItem = (id: string, event: any) => {
     event.stopPropagation();
+    
+    // Update local state for compatibility with existing code
     setWatchlist(prev => 
       prev.includes(id) 
         ? prev.filter(itemId => itemId !== id)
         : [...prev, id]
     );
+    
+    // Find the anime item to get the details needed for the watchlist
+    const animeItem = trendingAnime.find(item => item.id === id);
+    if (animeItem) {
+      // Use the context function to update the global state
+      toggleWatchlist(
+        id,
+        animeItem.englishName || animeItem.title || 'Unknown Anime',
+        animeItem.thumbnail || ''
+      );
+    }
   };
 
   if (loading) {
@@ -152,12 +171,12 @@ export default function TrendingPage() {
               )}
               <TouchableOpacity 
                 style={styles.watchlistIcon}
-                onPress={(e) => toggleWatchlist(item.id, e)}
+                onPress={(e) => toggleWatchlistItem(item.id, e)}
               >
                 <MaterialCommunityIcons 
-                  name={watchlist.includes(item.id) ? "bookmark" : "bookmark-outline"}
+                  name={isInWatchlist(item.id) ? "bookmark" : "bookmark-outline"}
                   size={24} 
-                  color={watchlist.includes(item.id) ? Colors.dark.buttonBackground : Colors.dark.text}
+                  color={isInWatchlist(item.id) ? Colors.dark.buttonBackground : Colors.dark.text}
                 />
               </TouchableOpacity>
             </View>
