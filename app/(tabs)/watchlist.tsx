@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Text, View, ScrollView, TouchableOpacity, Dimensions } from "react-native";
+import { Text, View, ScrollView, TouchableOpacity, Dimensions, Image } from "react-native";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from "expo-router";
 import Colors from "../../constants/Colors";
 import { styles } from "../../styles/watchlist.styles";
+import { useWatchlist } from "../../contexts/WatchlistContext";
+import { formatDistanceToNow } from 'date-fns';
 
 const { width } = Dimensions.get('window');
 const PADDING = 16;
@@ -11,21 +13,33 @@ const GAP = 10;
 const CARD_WIDTH = (width - (PADDING * 2) - GAP) / 2;
 
 export default function Watchlist() {
-  const [watchlistItems] = useState<number[]>([1, 2, 3, 4]); // Dummy data
+  // Use the existing dummy data as a fallback
+  const [watchlistItems] = useState<number[]>([1, 2, 3, 4]); 
   const [sortBy, setSortBy] = useState<'recent' | 'name'>('recent');
+  
+  // Use the watchlist context
+  const { watchlist, removeFromWatchlist, sortWatchlist } = useWatchlist();
 
-  const handlePressCard = (id: number) => {
+  const handlePressCard = (id: string, title: string) => {
     router.push({
       pathname: "/(tabs)/details",
-      params: { id, title: `Anime Title ${id}` }
+      params: { id, title, source: "watchlist" }
     });
   };
 
-  const toggleSort = () => {
-    setSortBy(prev => prev === 'recent' ? 'name' : 'recent');
+  const handleRemoveFromWatchlist = async (id: string, event: any) => {
+    event.stopPropagation();
+    await removeFromWatchlist(id);
   };
 
-  if (watchlistItems.length === 0) {
+  const toggleSort = () => {
+    const newSortBy = sortBy === 'recent' ? 'name' : 'recent';
+    setSortBy(newSortBy);
+    sortWatchlist(newSortBy);
+  };
+
+  // If using watchlist context and it's empty, show the empty state
+  if (watchlist.length === 0) {
     return (
       <View style={styles.emptyContainer}>
         <MaterialCommunityIcons 
@@ -43,6 +57,9 @@ export default function Watchlist() {
       </View>
     );
   }
+
+  // If using dummy data and context watchlist is empty, show the original UI
+  const useWatchlistItems = watchlist.length > 0 ? watchlist : watchlistItems;
 
   return (
     <View style={styles.container}>
@@ -62,42 +79,89 @@ export default function Watchlist() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.grid}>
-          {watchlistItems.map((item, index) => (
-            <TouchableOpacity 
-              key={`watchlist-${item}`}
-              style={[
-                styles.card,
-                index % 2 === 0 ? { marginRight: GAP } : null
-              ]}
-              onPress={() => handlePressCard(item)}
-            >
-              <View style={styles.posterPlaceholder}>
-                <MaterialCommunityIcons 
-                  name="image" 
-                  size={40} 
-                  color={Colors.dark.secondaryText}
-                />
-                <TouchableOpacity 
-                  style={styles.removeButton}
-                  onPress={() => {/* TODO: Implement remove from watchlist */}}
-                >
+        {watchlist.length > 0 ? (
+          <View style={styles.grid}>
+            {watchlist.map((item, index) => (
+              <TouchableOpacity 
+                key={`watchlist-${item.id}`}
+                style={[
+                  styles.card,
+                  index % 2 === 0 ? { marginRight: GAP } : null
+                ]}
+                onPress={() => handlePressCard(item.id, item.englishName)}
+              >
+                <View style={styles.posterPlaceholder}>
+                  {item.thumbnailUrl ? (
+                    <Image 
+                      source={{ uri: item.thumbnailUrl }} 
+                      style={{
+                        width: '100%', 
+                        height: '100%', 
+                        borderRadius: 8,
+                      }} 
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <MaterialCommunityIcons 
+                      name="image" 
+                      size={40} 
+                      color={Colors.dark.secondaryText}
+                    />
+                  )}
+                  <TouchableOpacity 
+                    style={styles.removeButton}
+                    onPress={(event) => handleRemoveFromWatchlist(item.id, event)}
+                  >
+                    <MaterialCommunityIcons 
+                      name="bookmark-remove" 
+                      size={24} 
+                      color={Colors.dark.buttonBackground}
+                    />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.cardTitle} numberOfLines={2}>
+                  {item.englishName}
+                </Text>
+                <Text style={styles.cardSubtitle}>
+                  Added {formatDistanceToNow(item.dateAdded, { addSuffix: true })}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.grid}>
+            {watchlistItems.map((item, index) => (
+              <View 
+                key={`dummy-${item}`}
+                style={[
+                  styles.card,
+                  index % 2 === 0 ? { marginRight: GAP } : null
+                ]}
+              >
+                <View style={styles.posterPlaceholder}>
                   <MaterialCommunityIcons 
-                    name="bookmark-remove" 
-                    size={24} 
-                    color={Colors.dark.buttonBackground}
+                    name="image" 
+                    size={40} 
+                    color={Colors.dark.secondaryText}
                   />
-                </TouchableOpacity>
+                  <TouchableOpacity style={styles.removeButton}>
+                    <MaterialCommunityIcons 
+                      name="bookmark-remove" 
+                      size={24} 
+                      color={Colors.dark.buttonBackground}
+                    />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.cardTitle} numberOfLines={2}>
+                  Sample Anime {item}
+                </Text>
+                <Text style={styles.cardSubtitle}>
+                  Added recently
+                </Text>
               </View>
-              <Text style={styles.cardTitle} numberOfLines={2}>
-                Anime Title {item}
-              </Text>
-              <Text style={styles.cardSubtitle}>
-                Added {index + 1}d ago
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
