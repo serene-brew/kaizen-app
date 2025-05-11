@@ -8,6 +8,7 @@ import { AnimeItem } from "../types/anime";
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { styles } from "../styles/searchResults.styles";
+import { useWatchlist } from "../contexts/WatchlistContext";
 
 // Constants for AsyncStorage
 const SEARCH_RESULTS_STORAGE_KEY = 'search_results_cache';
@@ -22,8 +23,11 @@ export default function SearchResults() {
   const [results, setResults] = useState<AnimeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [watchlist, setWatchlist] = useState<string[]>([]);
+  const [watchlist, setWatchlist] = useState<string[]>([]); // Keep for compatibility
   const [hasSearched, setHasSearched] = useState(false);
+  
+  // Use watchlist context
+  const { isInWatchlist, toggleWatchlist } = useWatchlist();
   
   // Refs to keep track of mount state and prevent duplicate focus effects
   const initialMount = useRef(true);
@@ -236,13 +240,27 @@ export default function SearchResults() {
     });
   };
 
-  const toggleWatchlist = (id: string, event: any) => {
+  // Update toggleWatchlist function to use both local state and context
+  const handleToggleWatchlist = (id: string, event: any) => {
     event.stopPropagation();
+    
+    // Keep local state for compatibility
     setWatchlist(prev => 
       prev.includes(id) 
         ? prev.filter(itemId => itemId !== id)
         : [...prev, id]
     );
+    
+    // Find the item to get its details
+    const item = results.find(result => result.id === id);
+    if (item) {
+      // Use the context function to update global state
+      toggleWatchlist(
+        id, 
+        item.englishName || item.title || 'Unknown Anime', 
+        item.thumbnail || ''
+      );
+    }
   };
 
   const renderItem = ({ item }: { item: AnimeItem }) => (
@@ -293,12 +311,12 @@ export default function SearchResults() {
       <View style={styles.rightContainer}>
         <TouchableOpacity 
           style={styles.bookmarkButton}
-          onPress={(e) => toggleWatchlist(item.id, e)}
+          onPress={(e) => handleToggleWatchlist(item.id, e)}
         >
           <MaterialCommunityIcons 
-            name={watchlist.includes(item.id) ? "bookmark" : "bookmark-outline"}
+            name={isInWatchlist(item.id) ? "bookmark" : "bookmark-outline"}
             size={24} 
-            color={watchlist.includes(item.id) ? Colors.dark.buttonBackground : Colors.dark.text}
+            color={isInWatchlist(item.id) ? Colors.dark.buttonBackground : Colors.dark.text}
           />
         </TouchableOpacity>
         
