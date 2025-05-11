@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { styles } from "../../styles/details.styles";
 import { StatusBar } from 'expo-status-bar';
 import { AnimeItem } from "../../types/anime";
+import { useWatchlist } from '../../contexts/WatchlistContext';
 
 const { width } = Dimensions.get('window');
 const POSTER_WIDTH = width * 0.35;
@@ -37,11 +38,13 @@ export default function DetailsPage() {
   const { id, title, source } = params;
   const router = useRouter();
   const [audioType, setAudioType] = useState<'sub' | 'dub'>('sub');
-  const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [expandedDescription, setExpandedDescription] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [animeData, setAnimeData] = useState<AnimeDetailsResponse['result'] | null>(null);
+
+  // Use the watchlist context
+  const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
   useEffect(() => {
     const fetchAnimeDetails = async () => {
@@ -138,9 +141,14 @@ export default function DetailsPage() {
     }
   }, [router, source]);
 
-  const toggleWatchlist = () => {
-    setIsInWatchlist(!isInWatchlist);
-    // TODO: Implement actual watchlist functionality
+  const handleToggleWatchlist = () => {
+    if (!animeData) return;
+
+    toggleWatchlist(
+      animeData.id,
+      animeData.englishName || animeData.title || 'Unknown Anime',
+      animeData.thumbnail || ''
+    );
   };
 
   // Determine if SUB/DUB options should be available
@@ -178,6 +186,9 @@ export default function DetailsPage() {
     );
   }
 
+  // Check if the anime is in the watchlist using the context
+  const isInWatchlistCache = isInWatchlist(animeData.id);
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <StatusBar style="light" translucent />
@@ -201,12 +212,12 @@ export default function DetailsPage() {
           />
           <TouchableOpacity 
             style={styles.watchlistButton} 
-            onPress={toggleWatchlist}
+            onPress={handleToggleWatchlist}
           >
             <MaterialCommunityIcons 
-              name={isInWatchlist ? "bookmark" : "bookmark-outline"} 
+              name={isInWatchlistCache ? "bookmark" : "bookmark-outline"} 
               size={24} 
-              color={isInWatchlist ? Colors.dark.buttonBackground : Colors.dark.text} 
+              color={isInWatchlistCache ? Colors.dark.buttonBackground : Colors.dark.text} 
             />
           </TouchableOpacity>
         </View>
