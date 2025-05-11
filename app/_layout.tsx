@@ -9,6 +9,7 @@ import * as WebBrowser from 'expo-web-browser';
 import 'react-native-url-polyfill/auto';
 import { client, authService } from '../lib/appwrite';
 import GlobalProvider from '../context/GlobalProvider';
+import { WatchlistProvider } from '../contexts/WatchlistContext';
 
 // Initialize web browser for OAuth sessions - critical for handling callbacks from Appwrite
 WebBrowser.maybeCompleteAuthSession();
@@ -87,22 +88,24 @@ export default function RootLayout() {
   };
 
   return (
-    <GlobalProvider>
-      <ThemeProvider value={DarkTheme}>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            headerStyle: {
-              backgroundColor: '#000000',
-            },
-            headerTintColor: '#FFFFFF',
-            contentStyle: {
-              backgroundColor: '#000000',
-            },
-          }}
-        />
-      </ThemeProvider>
-    </GlobalProvider>
+    <WatchlistProvider>
+      <GlobalProvider>
+        <ThemeProvider value={DarkTheme}>
+          <StatusBar style="light" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              headerStyle: {
+                backgroundColor: '#000000',
+              },
+              headerTintColor: '#FFFFFF',
+              contentStyle: {
+                backgroundColor: '#000000',
+              },
+            }}
+          />
+        </ThemeProvider>
+      </GlobalProvider>
+    </WatchlistProvider>
   );
 }
