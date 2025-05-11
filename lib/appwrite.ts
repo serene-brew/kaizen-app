@@ -134,4 +134,4 @@ export const authService = {
 
 };
 
-export { client, account }; // Export account along with client
+export { client, account }; // Export account and storage along with client
