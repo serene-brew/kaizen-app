@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Dimensions, Image, ActivityIndicator } from "react-native";
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { View, FlatList, Text, ActivityIndicator, Image, TouchableOpacity } from "react-native";
 import { router } from "expo-router";
-import Colors from "../../constants/Colors";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles } from "../../styles/trending.styles";
+import Colors from "../../constants/Colors";
 import { animeApi } from "../../lib/api";
+import { useWatchlist } from "../../contexts/WatchlistContext";
 import { AnimeItem } from "../../types/anime";
 
-const { width } = Dimensions.get('window');
 const PADDING = 16;
 const GAP = 10;
 
@@ -28,10 +28,12 @@ const mapAnimeData = (item: any): AnimeItem => {
 };
 
 export default function TopPage() {
-  const [topAnime, setTopAnime] = useState<AnimeItem[]>([]);
-  const [watchlist, setWatchlist] = useState<string[]>([]);
+  const [animeList, setAnimeList] = useState<AnimeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [watchlist, setWatchlist] = useState<string[]>([]);
+
+  const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,18 +42,17 @@ export default function TopPage() {
       try {
         console.log("Starting to fetch top anime data...");
         const rawData = await animeApi.fetchTopAnime();
-        
+
         if (!rawData || rawData.length === 0) {
           console.warn("Received empty data from API");
           setError("No anime data available");
           return;
         }
-        
-        // Map the data to ensure we have all required properties
+
         const mappedData = rawData.map(mapAnimeData);
         console.log(`Successfully mapped ${mappedData.length} top anime items`);
-        
-        setTopAnime(mappedData);
+
+        setAnimeList(mappedData);
       } catch (err) {
         console.error("Error fetching top anime:", err);
         setError("Failed to load top anime data");
@@ -66,17 +67,23 @@ export default function TopPage() {
   const handlePressCard = (item: AnimeItem) => {
     router.push({
       pathname: "/(tabs)/details",
-      params: { id: item.id, title: item.englishName, source: 'top' }
+      params: { id: item.id, title: item.englishName, source: "top" }
     });
   };
 
-  const toggleWatchlist = (id: string, event: any) => {
+  const toggleWatchlistItem = (id: string, event: any) => {
     event.stopPropagation();
-    setWatchlist(prev => 
-      prev.includes(id) 
-        ? prev.filter(itemId => itemId !== id)
+
+    setWatchlist((prev) =>
+      prev.includes(id)
+        ? prev.filter((itemId) => itemId !== id)
         : [...prev, id]
     );
+
+    const animeItem = animeList.find((item) => item.id === id);
+    if (animeItem) {
+      toggleWatchlist(id, animeItem.englishName, animeItem.thumbnail);
+    }
   };
 
   if (loading) {
@@ -91,22 +98,27 @@ export default function TopPage() {
   if (error) {
     return (
       <View style={styles.errorContainer}>
-        <MaterialCommunityIcons name="alert-circle-outline" size={48} color={Colors.dark.buttonBackground} />
+        <MaterialCommunityIcons
+          name="alert-circle-outline"
+          size={48}
+          color={Colors.dark.buttonBackground}
+        />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity
           style={styles.retryButton}
           onPress={() => {
             setLoading(true);
-            animeApi.fetchTopAnime()
-              .then(data => {
+            animeApi
+              .fetchTopAnime()
+              .then((data) => {
                 if (data && data.length > 0) {
-                  setTopAnime(data.map(mapAnimeData));
+                  setAnimeList(data.map(mapAnimeData));
                   setError(null);
                 } else {
                   setError("No anime data available");
                 }
               })
-              .catch(err => {
+              .catch((err) => {
                 console.error("Error retrying fetch:", err);
                 setError("Failed to load top anime data");
               })
@@ -119,7 +131,7 @@ export default function TopPage() {
     );
   }
 
-  if (topAnime.length === 0) {
+  if (animeList.length === 0) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>No top anime available</Text>
@@ -128,35 +140,43 @@ export default function TopPage() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.grid}>
-        {topAnime.map((item, index) => (
-          <TouchableOpacity 
-            key={`top-${item.id}`} 
-            style={[
-              styles.card,
-              index % 2 === 0 ? { marginRight: GAP } : null
-            ]}
+    <View style={styles.container}>
+      <FlatList
+        data={animeList}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.card}
             onPress={() => handlePressCard(item)}
           >
             <View style={styles.posterPlaceholder}>
               {item.thumbnail ? (
-                <Image 
-                  source={{ uri: item.thumbnail }} 
+                <Image
+                  source={{ uri: item.thumbnail }}
                   style={styles.posterImage}
                   resizeMode="cover"
                 />
               ) : (
-                <MaterialCommunityIcons name="image" size={40} color={Colors.dark.secondaryText} />
+                <MaterialCommunityIcons
+                  name="image"
+                  size={40}
+                  color={Colors.dark.secondaryText}
+                />
               )}
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.watchlistIcon}
-                onPress={(e) => toggleWatchlist(item.id, e)}
+                onPress={(event) => toggleWatchlistItem(item.id, event)}
               >
-                <MaterialCommunityIcons 
-                  name={watchlist.includes(item.id) ? "bookmark" : "bookmark-outline"}
-                  size={24} 
-                  color={watchlist.includes(item.id) ? Colors.dark.buttonBackground : Colors.dark.text}
+                <MaterialCommunityIcons
+                  name={
+                    isInWatchlist(item.id) ? "bookmark" : "bookmark-outline"
+                  }
+                  size={24}
+                  color={
+                    isInWatchlist(item.id)
+                      ? Colors.dark.buttonBackground
+                      : Colors.dark.text
+                  }
                 />
               </TouchableOpacity>
             </View>
@@ -164,8 +184,10 @@ export default function TopPage() {
               {item.englishName || "Unknown Anime"}
             </Text>
           </TouchableOpacity>
-        ))}
-      </View>
-    </ScrollView>
+        )}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      />
+    </View>
   );
 }
