@@ -326,7 +326,7 @@ export default function Explore() {
           <Text style={styles.sectionTitle}>Trending</Text>
           <TouchableOpacity 
             style={styles.moreButton}
-            onPress={() => router.push("/(tabs)/new")}
+            onPress={() => router.push("/(tabs)/trending")}
           >
             <Text style={styles.moreButtonText}>More</Text>
             <MaterialCommunityIcons 
@@ -365,7 +365,7 @@ export default function Explore() {
           <Text style={styles.sectionTitle}>Top</Text>
           <TouchableOpacity 
             style={styles.moreButton}
-            onPress={() => router.push("/(tabs)/trending")}
+            onPress={() => router.push("/(tabs)/top")}
           >
             <Text style={styles.moreButtonText}>More</Text>
             <MaterialCommunityIcons 
