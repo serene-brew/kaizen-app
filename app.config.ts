@@ -67,6 +67,8 @@ export default {
       googleClientIdWeb: process.env.GOOGLE_CLIENT_ID_WEB,
       googleClientIdAndroid: process.env.GOOGLE_CLIENT_ID_ANDROID,
       googleClientIdIos: process.env.GOOGLE_CLIENT_ID_IOS,
+      appwriteDatabaseId: process.env.APPWRITE_DATABASE_ID, // Added database ID
+      appwriteWatchlistCollectionId: process.env.APPWRITE_WATCHLIST_COLLECTION_ID, // Added watchlist collection ID
       eas: {
         projectId: process.env.EAS_PROJECT_ID
       }
