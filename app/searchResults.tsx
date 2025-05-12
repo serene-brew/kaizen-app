@@ -32,6 +32,7 @@ export default function SearchResults() {
   // Refs to keep track of mount state and prevent duplicate focus effects
   const initialMount = useRef(true);
   const lastFocusTime = useRef<number>(0);
+  const noResultsFound = useRef(false); // Add a ref to track when we've confirmed no results exist
 
   // Save search results to AsyncStorage
   const saveSearchResults = async (searchResults: AnimeItem[], query: string, genres: string[]) => {
@@ -134,16 +135,19 @@ export default function SearchResults() {
       if (!searchResults || searchResults.length === 0) {
         setError('No results found. Try different search terms or filters.');
         setResults([]);
+        noResultsFound.current = true; // Mark that we've confirmed no results exist
       } else {
         // Save the successful search results to AsyncStorage
         await saveSearchResults(searchResults, queryParam, genresParam);
         setResults(searchResults);
         setError(null);
+        noResultsFound.current = false; // Reset flag since we found results
       }
     } catch (err) {
       console.error('Search error:', err);
       setError('Failed to load search results. Please try again.');
       setResults([]);
+      noResultsFound.current = true; // Mark error state as no results
     } finally {
       setLoading(false);
       setHasSearched(true);
@@ -193,23 +197,27 @@ export default function SearchResults() {
           
           // Don't show loading state when returning from details page
           // This prevents the flickering of loading indicator
-          if (results.length === 0) {
+          if (results.length === 0 && !noResultsFound.current) {
             setLoading(true);
           }
           
-          const loaded = await loadSearchResults();
-          
-          if (!loaded && (queryParam || genresParam.length > 0)) {
-            // If we couldn't load from storage but have search parameters, do a new search
-            console.log('Could not restore from cache, performing new search');
-            await performSearch();
+          // Only try to restore or search if we haven't explicitly confirmed no results
+          if (!noResultsFound.current) {
+            const loaded = await loadSearchResults();
+            
+            if (!loaded && (queryParam || genresParam.length > 0) && !noResultsFound.current) {
+              // If we couldn't load from storage but have search parameters, do a new search
+              // but only if we haven't already confirmed no results exist
+              console.log('Could not restore from cache, performing new search');
+              await performSearch();
+            }
           }
           setLoading(false);
         }
       };
       
       restoreResults();
-    }, [queryParam, genresParam, performSearch])
+    }, [queryParam, genresParam, performSearch, results.length, noResultsFound.current])
   );
 
   // Handle Android hardware back button to navigate to search page
