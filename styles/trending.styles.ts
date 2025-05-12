@@ -1,10 +1,10 @@
-import { StyleSheet, Dimensions } from "react-native";
-import Colors from "../constants/Colors";
+import { StyleSheet, Dimensions } from 'react-native';
+import Colors from '../constants/Colors';
 
 const { width } = Dimensions.get('window');
 const PADDING = 16;
 const GAP = 10;
-const CARD_WIDTH = (width - (PADDING * 2) - GAP) / 2;
+const CARD_WIDTH = (width - PADDING * 2 - GAP) / 2;
 
 export const styles = StyleSheet.create({
   container: {
@@ -13,27 +13,27 @@ export const styles = StyleSheet.create({
   },
   content: {
     padding: PADDING,
-    paddingBottom: 100,
+    paddingBottom: 70, // For tab bar
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
   },
   card: {
     width: CARD_WIDTH,
-    marginBottom: GAP,
+    marginBottom: 16,
   },
   posterPlaceholder: {
     width: '100%',
     height: CARD_WIDTH * 1.5,
-    backgroundColor: Colors.dark.secondaryBackground,
+    backgroundColor: Colors.dark.background,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+    overflow: 'hidden',
     position: 'relative',
-    overflow: 'hidden',  // Ensure images don't overflow the container
   },
   posterImage: {
     width: '100%',
@@ -44,21 +44,23 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardTitle: {
-    color: Colors.dark.text,
     fontSize: 14,
     fontWeight: '500',
+    color: Colors.dark.text,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.dark.background,
-    paddingBottom: 50, // Adjust for tab bar
   },
   loadingText: {
     marginTop: 16,
@@ -67,10 +69,10 @@ export const styles = StyleSheet.create({
   },
   errorContainer: {
     flex: 1,
+    backgroundColor: Colors.dark.background,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.dark.background,
-    padding: 20,
+    padding: PADDING,
     paddingBottom: 70, // Adjust for tab bar
   },
   errorText: {
