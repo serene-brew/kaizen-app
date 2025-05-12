@@ -31,7 +31,6 @@ const mapAnimeData = (item: any): AnimeItem => {
 
 export default function TrendingPage() {
   const [trendingAnime, setTrendingAnime] = useState<AnimeItem[]>([]);
-  const [watchlist, setWatchlist] = useState<string[]>([]); // Keep local state for compatibility
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -76,21 +75,14 @@ export default function TrendingPage() {
     });
   };
 
-  // Update the toggleWatchlist function to use both local state and the context
+  // Update the toggleWatchlist function to use only the context
   const toggleWatchlistItem = (id: string, event: any) => {
     event.stopPropagation();
-    
-    // Update local state for compatibility with existing code
-    setWatchlist(prev => 
-      prev.includes(id) 
-        ? prev.filter(itemId => itemId !== id)
-        : [...prev, id]
-    );
     
     // Find the anime item to get the details needed for the watchlist
     const animeItem = trendingAnime.find(item => item.id === id);
     if (animeItem) {
-      // Use the context function to update the global state
+      // Use the context function to update the watchlist in Appwrite
       toggleWatchlist(
         id,
         animeItem.englishName || animeItem.title || 'Unknown Anime',
