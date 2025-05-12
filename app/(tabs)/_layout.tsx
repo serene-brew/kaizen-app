@@ -101,11 +101,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="new"
+        name="top"
         options={{
           href: null, // Hides from tab bar
           headerShown: true,
-          headerTitle: "Trending",
+          headerTitle: "Top Anime",
         }}
       />
       <Tabs.Screen
@@ -113,7 +113,7 @@ export default function TabLayout() {
         options={{
           href: null, // Hides from tab bar
           headerShown: true,
-          headerTitle: "Top Anime",
+          headerTitle: "Trending Now",
         }}
       />
       <Tabs.Screen
