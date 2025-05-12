@@ -1,4 +1,4 @@
-import { Client, Account, ID, OAuthProvider, AppwriteException, Functions } from 'react-native-appwrite';
+import { Client, Account, ID, OAuthProvider, AppwriteException, Functions, Databases } from 'react-native-appwrite';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
@@ -25,6 +25,9 @@ const account = new Account(client);
 
 // Initialize Functions
 const functions = new Functions(client);
+
+// Initialize Databases
+const databases = new Databases(client);
 
 // Auth service functions
 export const authService = {
@@ -134,4 +137,4 @@ export const authService = {
 
 };
 
-export { client, account }; // Export account and storage along with client
+export { client, account, databases }; // Export account, databases and client
