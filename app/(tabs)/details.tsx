@@ -130,9 +130,9 @@ export default function DetailsPage() {
     if (source === 'search') {
       router.push('/searchResults');
     } else if (source === 'trending') {
-      router.push('/(tabs)/new');
-    } else if (source === 'top') {
       router.push('/(tabs)/trending');
+    } else if (source === 'top') {
+      router.push('/(tabs)/top');
     } else if (source === 'watchlist') {
       router.push('/(tabs)/watchlist');
     } else {
