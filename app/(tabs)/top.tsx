@@ -33,8 +33,8 @@ export default function TopPage() {
   const [animeList, setAnimeList] = useState<AnimeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [watchlist, setWatchlist] = useState<string[]>([]);
 
+  // Use the watchlist context
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
   useEffect(() => {
@@ -75,12 +75,6 @@ export default function TopPage() {
 
   const toggleWatchlistItem = (id: string, event: any) => {
     event.stopPropagation();
-
-    setWatchlist((prev) =>
-      prev.includes(id)
-        ? prev.filter((itemId) => itemId !== id)
-        : [...prev, id]
-    );
 
     const animeItem = animeList.find((item) => item.id === id);
     if (animeItem) {
