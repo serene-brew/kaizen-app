@@ -15,23 +15,42 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: PADDING,
     padding: PADDING,
-    paddingTop: 60,
+    paddingTop: 55,
+    paddingBottom: 12,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   title: {
     fontSize: 24,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.dark.text,
   },
   sortButton: {
     padding: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.dark.secondaryBackground,
+  },
+  iconButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.dark.secondaryBackground,
+    marginLeft: 8,
+  },
+  disabledButton: {
+    backgroundColor: Colors.dark.background,
+    borderWidth: 1,
+    borderColor: Colors.dark.secondaryBackground,
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: PADDING,
-    paddingBottom: 100,
+    paddingHorizontal: PADDING,
+    paddingBottom: PADDING,
   },
   grid: {
     flexDirection: 'row',
@@ -55,6 +74,14 @@ export const styles = StyleSheet.create({
   removeButton: {
     position: 'absolute',
     top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    padding: 4,
+  },
+  notSyncedIndicator: {
+    position: 'absolute',
+    bottom: 8,
     right: 8,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 20,
@@ -93,5 +120,18 @@ export const styles = StyleSheet.create({
     color: Colors.dark.text,
     fontSize: 16,
     fontWeight: '600',
+  },
+  // New loading container styles
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: Colors.dark.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: PADDING,
+  },
+  loadingText: {
+    color: Colors.dark.secondaryText,
+    fontSize: 16,
+    marginTop: 16,
   },
 });
