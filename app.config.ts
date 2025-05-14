@@ -49,6 +49,7 @@ export default {
     },
     plugins: [
       'expo-router',
+      'expo-video',
       [
         'expo-splash-screen',
         {
@@ -69,6 +70,7 @@ export default {
       googleClientIdIos: process.env.GOOGLE_CLIENT_ID_IOS,
       appwriteDatabaseId: process.env.APPWRITE_DATABASE_ID, // Added database ID
       appwriteWatchlistCollectionId: process.env.APPWRITE_WATCHLIST_COLLECTION_ID, // Added watchlist collection ID
+      appwriteWatchHistoryCollectionId: process.env.APPWRITE_WATCHHISTORY_COLLECTION_ID, // Added watch history collection ID
       eas: {
         projectId: process.env.EAS_PROJECT_ID
       }
