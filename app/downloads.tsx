@@ -324,11 +324,14 @@ export default function DownloadsPage() {
           <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.dark.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Downloads</Text>
-        {downloads.length > 0 && (
-          <TouchableOpacity style={styles.clearButton} onPress={handleClearAllDownloads}>
-            <MaterialCommunityIcons name="delete" size={24} color={Colors.dark.text} />
-          </TouchableOpacity>
-        )}
+        {/* Always render the clear button container, but conditionally show the button */}
+        <View style={{width: 40}}>
+          {downloads.length > 0 && (
+            <TouchableOpacity style={styles.clearButton} onPress={handleClearAllDownloads}>
+              <MaterialCommunityIcons name="delete" size={24} color={Colors.dark.text} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
       
       {/* Storage info */}
