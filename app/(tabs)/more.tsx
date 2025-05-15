@@ -7,6 +7,8 @@ import { useGlobalContext } from "../../context/GlobalProvider";
 import { styles } from "../../styles/more.styles";
 import { account } from "../../lib/appwrite";
 import Constants from 'expo-constants';
+import { useDownloads } from '../../contexts/DownloadsContext';
+import { useWatchHistory } from '../../contexts/WatchHistoryContext';
 
 interface MenuItemProps {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
@@ -24,12 +26,34 @@ const DEFAULT_AVATAR_ICON = 'account-circle';
 
 export default function More() {
   const { user, logout, setUser } = useGlobalContext();
-  const [downloadSize, setDownloadSize] = useState("1.2 GB"); // Placeholder value
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [username, setUsername] = useState(user?.name || 'User');
   const [isLoading, setIsLoading] = useState(false);
-  
+
+  // Use downloads context
+  const { downloads, totalStorageUsed } = useDownloads();
+
+  // Calculate download size and count
+  const downloadSize = formatBytes(totalStorageUsed);
+  const completedDownloads = downloads.filter(item => item.status === 'completed').length;
+  const inProgressDownloads = downloads.filter(item => 
+    ['downloading', 'pending', 'paused'].includes(item.status)
+  ).length;
+
+  // Format bytes to human-readable size
+  function formatBytes(bytes: number, decimals = 2) {
+    if (bytes === 0) return '0 B';
+    
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+    
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  }
+
   // Update local state when user changes
   useEffect(() => {
     if (user) {
@@ -63,11 +87,17 @@ export default function More() {
         {
           text: "Clear",
           style: "destructive",
-          onPress: () => setDownloadSize("0 B")
+          onPress: () => router.push('/downloads')
         }
       ]
     );
   };
+
+  const navigateToDownloads = () => {
+    router.push('/downloads');
+  };
+
+  const { clearHistory: clearWatchHistory } = useWatchHistory();
 
   const clearHistory = () => {
     Alert.alert(
@@ -75,7 +105,7 @@ export default function More() {
       "Are you sure you want to clear your watch history?",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Clear", style: "destructive", onPress: () => {} }
+        { text: "Clear", style: "destructive", onPress: clearWatchHistory }
       ]
     );
   };
@@ -166,8 +196,14 @@ export default function More() {
         <MenuItem
           icon="folder-download"
           text="Downloads"
+          value={inProgressDownloads > 0 ? `${completedDownloads} + ${inProgressDownloads} in progress` : `${completedDownloads}`}
+          onPress={navigateToDownloads}
+        />
+        <MenuItem
+          icon="harddisk"
+          text="Storage Used"
           value={downloadSize}
-          onPress={() => {}}
+          onPress={navigateToDownloads}
         />
         <MenuItem
           icon="trash-can-outline"
@@ -181,7 +217,7 @@ export default function More() {
         <MenuItem
           icon="history"
           text="Watch History"
-          onPress={() => {}}
+          onPress={() => router.push('/(tabs)/history')}
         />
         <MenuItem
           icon="trash-can-outline"
