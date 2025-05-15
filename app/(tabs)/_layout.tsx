@@ -123,6 +123,14 @@ export default function TabLayout() {
           headerShown: false, // Hide the header completely
         }}
       />
+      <Tabs.Screen
+        name="history"
+        options={{
+          href: null, // Hides from tab bar
+          headerShown: true,
+          headerTitle: "Watch History",
+        }}
+      />
     </Tabs>
   );
 }
