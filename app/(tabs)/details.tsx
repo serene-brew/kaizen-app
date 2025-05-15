@@ -7,6 +7,8 @@ import { styles } from "../../styles/details.styles";
 import { StatusBar } from 'expo-status-bar';
 import { AnimeItem } from "../../types/anime";
 import { useWatchlist } from '../../contexts/WatchlistContext';
+import { useWatchHistory } from '../../contexts/WatchHistoryContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 const POSTER_WIDTH = width * 0.35;
@@ -42,6 +44,7 @@ export default function DetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [animeData, setAnimeData] = useState<AnimeDetailsResponse['result'] | null>(null);
+  const [watchedEpisode, setWatchedEpisode] = useState<string>('');
 
   // Use the watchlist context
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
@@ -114,6 +117,52 @@ export default function DetailsPage() {
     
     fetchAnimeDetails();
   }, [id]);
+
+  // Load watched episodes from WatchHistoryContext
+  const { getWatchedEpisodes } = useWatchHistory();
+  
+  // For tracking all watched episodes
+  const [watchedEpisodes, setWatchedEpisodes] = useState<Set<string>>(new Set());
+  
+  // Load watched episode data
+  useEffect(() => {
+    const loadWatchHistory = () => {
+      if (id) {
+        try {
+          // Get all watched episodes for this anime
+          const historyEpisodes = getWatchedEpisodes(id as string);
+          
+          if (historyEpisodes.length > 0) {
+            // Create a set of all watched episode numbers
+            const episodeSet = new Set(historyEpisodes.map(ep => ep.episodeNumber));
+            setWatchedEpisodes(episodeSet);
+            
+            // Find the most recently watched episode for the main indicator
+            const mostRecentEpisode = historyEpisodes.reduce((latest, current) => 
+              current.watchedAt > latest.watchedAt ? current : latest
+            );
+            
+            // Set the most recently watched episode
+            setWatchedEpisode(mostRecentEpisode.episodeNumber);
+          } else {
+            // Clear the states if no history
+            setWatchedEpisodes(new Set());
+            setWatchedEpisode('');
+          }
+        } catch (err) {
+          console.error('Error loading watched episode data:', err);
+        }
+      }
+    };
+    
+    // Load watch history initially
+    loadWatchHistory();
+    
+    // Check for updates regularly while component is mounted
+    const refreshInterval = setInterval(loadWatchHistory, 3000);
+    
+    return () => clearInterval(refreshInterval);
+  }, [id, getWatchedEpisodes, router]);
 
   // Add back button handling with Android hardware back button support
   useEffect(() => {
@@ -337,10 +386,31 @@ export default function DetailsPage() {
             {animeData.episodes[audioType]?.map((episode, index) => (
               <TouchableOpacity 
                 key={`episode-${episode}`}
-                style={styles.episodeBox}
-                onPress={() => console.log(`Play episode ${episode} (${audioType})`)}
+                style={[
+                  styles.episodeBox,
+                  watchedEpisodes.has(episode) && styles.watchedEpisodeBox,
+                  episode === watchedEpisode && styles.currentEpisodeBox
+                ]}
+                onPress={() => router.push({
+                  pathname: "/streaming",
+                  params: { 
+                    id: animeData.id, 
+                    audioType: audioType,
+                    episode: episode,
+                    title: animeData.englishName || animeData.title,
+                    thumbnail: animeData.thumbnail
+                  }
+                })}
               >
-                <Text style={styles.episodeNumber}>{episode}</Text>
+                <Text style={[
+                  styles.episodeNumber,
+                  watchedEpisodes.has(episode) && styles.watchedEpisodeText
+                ]}>{episode}</Text>
+                {watchedEpisodes.has(episode) && (
+                  <View style={styles.watchedIndicator}>
+                    <MaterialCommunityIcons name="check" size={10} color="#fff" />
+                  </View>
+                )}
               </TouchableOpacity>
             ))}
           </View>
