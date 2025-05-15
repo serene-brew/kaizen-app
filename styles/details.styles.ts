@@ -203,9 +203,36 @@ export const styles = StyleSheet.create({
     borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  watchedEpisodeBox: {
+    backgroundColor: Colors.dark.buttonBackground + '80', // Adding transparency
+    borderColor: Colors.dark.buttonBackground,
+    borderWidth: 1,
+  },
+  currentEpisodeBox: {
+    backgroundColor: Colors.dark.buttonBackground, // Solid color for current episode
+    borderColor: Colors.dark.buttonBackground,
+    borderWidth: 2,
   },
   episodeNumber: {
     color: Colors.dark.text,
     fontWeight: '500',
+  },
+  watchedEpisodeText: {
+    color: 'white',
+    fontWeight: '700',
+  },
+  watchedIndicator: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
