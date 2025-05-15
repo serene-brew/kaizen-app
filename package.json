@@ -7,7 +7,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "test": "jest --watchAll",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:android:local": "eas build --platform android --local --profile local-prod"
   },
   "jest": {
     "preset": "jest-expo"
