@@ -12,3 +12,5 @@ app-example
 # environment variables
 .env*
 !.env.example
+
+**.apk
