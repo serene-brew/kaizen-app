@@ -1,3 +1,4 @@
+// filepath: /home/risersama/projects/kaizen-app/app/_layout.tsx
 import { Stack, router } from "expo-router";
 import { useEffect } from 'react';
 import { ThemeProvider, DarkTheme } from "@react-navigation/native";
@@ -6,10 +7,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Alert } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
+import Constants from 'expo-constants';
 import 'react-native-url-polyfill/auto';
 import { client, authService } from '../lib/appwrite';
 import GlobalProvider from '../context/GlobalProvider';
 import { WatchlistProvider } from '../contexts/WatchlistContext';
+import DownloadsProvider from '../contexts/DownloadsContext';
+import { WatchHistoryProvider } from '../contexts/WatchHistoryContext';
 
 // Initialize web browser for OAuth sessions - critical for handling callbacks from Appwrite
 WebBrowser.maybeCompleteAuthSession();
@@ -88,24 +92,28 @@ export default function RootLayout() {
   };
 
   return (
-    <WatchlistProvider>
-      <GlobalProvider>
-        <ThemeProvider value={DarkTheme}>
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              headerStyle: {
-                backgroundColor: '#000000',
-              },
-              headerTintColor: '#FFFFFF',
-              contentStyle: {
-                backgroundColor: '#000000',
-              },
-            }}
-          />
-        </ThemeProvider>
-      </GlobalProvider>
-    </WatchlistProvider>
+    <DownloadsProvider>
+      <WatchlistProvider>
+        <WatchHistoryProvider>
+          <GlobalProvider>
+            <ThemeProvider value={DarkTheme}>
+              <StatusBar style="light" />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  headerStyle: {
+                    backgroundColor: '#000000',
+                  },
+                  headerTintColor: '#FFFFFF',
+                  contentStyle: {
+                    backgroundColor: '#000000',
+                  },
+                }}
+              />
+            </ThemeProvider>
+          </GlobalProvider>
+        </WatchHistoryProvider>
+      </WatchlistProvider>
+    </DownloadsProvider>
   );
 }
