@@ -155,7 +155,15 @@ export default function More() {
         <Text style={[styles.menuText, danger && styles.dangerText]}>{text}</Text>
       </View>
       {value ? (
-        <Text style={styles.menuValue}>{value}</Text>
+        <TouchableOpacity onPress={onPress} style={{flexDirection: 'row', alignItems: 'center'}}>
+          <Text style={styles.menuValue}>{value}</Text>
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={20}
+            color={Colors.dark.secondaryText}
+            style={{marginLeft: 4}}
+          />
+        </TouchableOpacity>
       ) : (
         <MaterialCommunityIcons
           name="chevron-right"
