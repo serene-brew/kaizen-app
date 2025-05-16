@@ -39,6 +39,7 @@ interface WatchHistoryContextType {
   isEpisodeWatched: (animeId: string, episodeNumber: string) => boolean;
   getLastWatchedEpisode: (animeId: string) => WatchHistoryItem | null;
   isLoading: boolean;
+  refreshWatchHistory: () => Promise<WatchHistoryItem[] | undefined>;
   syncHistory: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -127,6 +128,21 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
       const migratedItems: WatchHistoryItem[] = [];
 
+      // Try to find anime info from existing history items
+      const storedHistory = await AsyncStorage.getItem(WATCH_HISTORY_STORAGE_KEY);
+      const existingHistory: WatchHistoryItem[] = storedHistory ? JSON.parse(storedHistory) : [];
+      const animeInfoMap: Record<string, {englishName: string, thumbnailUrl: string}> = {};
+      
+      // Create a map of anime IDs to their info
+      existingHistory.forEach(item => {
+        if (item.id && item.englishName && item.thumbnailUrl) {
+          animeInfoMap[item.id] = {
+            englishName: item.englishName,
+            thumbnailUrl: item.thumbnailUrl
+          };
+        }
+      });
+
       for (const key of playbackKeys) {
         // Parse the key to get animeId, episode, and audioType
         // Format: @kaizen_playback_position_${id}_${episode}_${audioType}
@@ -147,7 +163,7 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
               thumbnailUrl: '',             // Default value
               watchedAt: Date.now(),        // Current time as default
               position: parseInt(position, 10),
-              duration: 0                   // Unknown duration
+              duration: 0 // We still don't know the duration
             });
           }
         }
@@ -235,11 +251,14 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setIsLoading(true);
       try {
         // Get cloud history
+        console.log("Fetching cloud watch history...");
         const cloudItems = await fetchCloudHistory();
+        console.log(`Fetched ${cloudItems.length} items from cloud watch history`);
         
         // Load local history
         const storedHistory = await AsyncStorage.getItem(WATCH_HISTORY_STORAGE_KEY);
         const localItems: WatchHistoryItem[] = storedHistory ? JSON.parse(storedHistory) : [];
+        console.log(`Local watch history has ${localItems.length} items`);
         
         // Merge cloud and local history
         // If item exists in cloud, use cloud version
@@ -254,10 +273,14 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
         
         // Sort by most recently watched
         combined.sort((a, b) => b.watchedAt - a.watchedAt);
+        console.log(`Combined watch history has ${combined.length} items after merging cloud and local`);
         
-        // Update state and save locally
+        // Update state immediately to ensure UI reflects the changes
         setHistory(combined);
+        
+        // Save to local storage
         await saveLocalHistory(combined);
+        console.log("Watch history load from cloud complete");
       } catch (error) {
         console.error('Error loading watch history:', error);
       } finally {
@@ -501,6 +524,75 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return animeHistory[0];
   };
 
+  // Function to refresh cloud history (to be called after login)
+  const refreshWatchHistory = async () => {
+    try {
+      setIsLoading(true);
+      console.log("Refreshing watch history from cloud...");
+      
+      // Explicitly check auth status from Appwrite to ensure we have the latest info
+      try {
+        const session = await account.getSession('current');
+        if (session) {
+          // Update userId if needed
+          if (!userId || userId !== session.userId) {
+            console.log(`Setting userId to ${session.userId}`);
+            setUserId(session.userId);
+            setIsAuthenticated(true);
+          }
+        }
+      } catch (err) {
+        console.log("Not authenticated in refreshWatchHistory:", err);
+        setIsAuthenticated(false);
+        setUserId(null);
+      }
+      
+      if (!userId) {
+        console.log("User not authenticated, skipping cloud history refresh");
+        setIsLoading(false);
+        return [];
+      }
+      
+      console.log(`Fetching cloud history for user ${userId}`);
+      // Get cloud history
+      const cloudItems = await fetchCloudHistory();
+      console.log(`Fetched ${cloudItems.length} items from cloud watch history`);
+      
+      // Load local history
+      const storedHistory = await AsyncStorage.getItem(WATCH_HISTORY_STORAGE_KEY);
+      const localItems: WatchHistoryItem[] = storedHistory ? JSON.parse(storedHistory) : [];
+      console.log(`Local history has ${localItems.length} items`);
+      
+      // Merge cloud and local history
+      const cloudKeys = new Set(cloudItems.map(item => `${item.id}_${item.episodeNumber}`));
+      const uniqueLocalItems = localItems.filter(
+        item => !cloudKeys.has(`${item.id}_${item.episodeNumber}`)
+      );
+      
+      // Combined history prioritizes cloud items but keeps unique local ones
+      const combined = [...cloudItems, ...uniqueLocalItems];
+      
+      // Sort by most recently watched
+      combined.sort((a, b) => b.watchedAt - a.watchedAt);
+      
+      console.log(`Combined history has ${combined.length} items after merging cloud and local`);
+      
+      // Always update the state to ensure we have the latest data
+      setHistory(combined);
+      
+      // Then save to local storage
+      await saveLocalHistory(combined);
+      console.log(`Refreshed watch history with ${combined.length} total items`);
+      
+      return combined;
+    } catch (error) {
+      console.error('Error refreshing watch history:', error);
+      return history; // Return current history on error
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Function to sync local history to cloud
   const syncHistory = async () => {
     if (!userId) {
@@ -509,6 +601,9 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
     
     try {
+      // First refresh from cloud to make sure we have the latest data
+      await refreshWatchHistory();
+      
       // Get existing cloud history
       const cloudItems = await fetchCloudHistory();
       const cloudMap = new Map(
@@ -524,6 +619,8 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
         Alert.alert("Sync Complete", "Your watch history is already up to date.");
         return;
       }
+      
+      console.log(`Syncing ${itemsToSync.length} items to cloud`);
       
       // Add each item to cloud
       for (const item of itemsToSync) {
@@ -582,6 +679,7 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
         isEpisodeWatched,
         getLastWatchedEpisode,
         isLoading,
+        refreshWatchHistory,
         syncHistory,
         isAuthenticated
       }}
