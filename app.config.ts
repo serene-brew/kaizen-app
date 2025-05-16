@@ -40,8 +40,25 @@ export default {
         }
       ]
     },
+    splash: {
+      image: './assets/images/splash-icon.png',
+      resizeMode: 'contain',
+      backgroundColor: '#161622',
+      imageWidth: 500,
+      imageHeight: 500
+    },
     plugins: [
       'expo-router',
+      [
+        'expo-splash-screen',
+        {
+          image: './assets/images/splash-icon.png',
+          imageResizeMode: 'contain',
+          backgroundColor: '#161622',
+          imageWidth: 500,
+          imageHeight: 500
+        }
+      ]
     ],
     extra: {
       appwriteProjectId: process.env.APPWRITE_PROJECT_ID,

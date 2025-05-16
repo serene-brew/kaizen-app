@@ -3,6 +3,7 @@ import { Stack, router } from "expo-router";
 import { useEffect } from 'react';
 import { ThemeProvider, DarkTheme } from "@react-navigation/native";
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { Alert } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
@@ -17,6 +18,11 @@ import { WatchHistoryProvider } from '../contexts/WatchHistoryContext';
 // Initialize web browser for OAuth sessions - critical for handling callbacks from Appwrite
 WebBrowser.maybeCompleteAuthSession();
 
+// Prevent the splash screen from auto-hiding
+SplashScreen.preventAutoHideAsync().catch(() => {
+  /* reloading the app might trigger some race conditions, ignore them */
+});
+
 export default function RootLayout() {
   const prefix = Linking.createURL('/');
 
@@ -28,13 +34,20 @@ export default function RootLayout() {
         
         console.log('Appwrite client initialized in _layout');
         
+        // Add artificial delay to improve initial rendering
+        await new Promise(resolve => setTimeout(resolve, 300));
         
+        // Hide splash screen after initialization
+        await SplashScreen.hideAsync();
       } catch (e) {
         console.warn('Error initializing app:', e);
         Alert.alert(
           'Initialization Error',
           'There was an error initializing the app. Please try again.'
         );
+        
+        // Hide splash screen even if there's an error
+        await SplashScreen.hideAsync().catch(console.warn);
       }
     }
 
