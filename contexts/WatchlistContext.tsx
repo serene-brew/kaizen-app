@@ -164,13 +164,35 @@ export const WatchlistProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const refreshWatchlist = async () => {
     try {
       setIsLoading(true);
+      console.log("Refreshing watchlist data...");
+      
+      // Explicitly check auth status from Appwrite to ensure we have the latest info
+      try {
+        const session = await account.getSession('current');
+        if (session) {
+          // Update userId if needed
+          if (!userId || userId !== session.userId) {
+            console.log(`Setting userId to ${session.userId}`);
+            setUserId(session.userId);
+            setIsAuthenticated(true);
+          }
+        }
+      } catch (err) {
+        console.log("Not authenticated in refreshWatchlist:", err);
+        setIsAuthenticated(false);
+        setUserId(null);
+      }
+      
       // If user is authenticated, fetch from Appwrite and merge with local
       if (userId) {
+        console.log(`User authenticated (${userId}), fetching cloud watchlist...`);
         const cloudItems = await fetchCloudWatchlist();
+        console.log(`Fetched ${cloudItems.length} items from cloud watchlist`);
         
         // Load current local items
         const storedWatchlist = await AsyncStorage.getItem(WATCHLIST_STORAGE_KEY);
         const localItems: WatchlistItem[] = storedWatchlist ? JSON.parse(storedWatchlist) : [];
+        console.log(`Local watchlist has ${localItems.length} items`);
         
         // Find unique local items
         const cloudIds = new Set(cloudItems.map(item => item.id));
@@ -178,15 +200,21 @@ export const WatchlistProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         
         // Combined watchlist
         const combined = [...cloudItems, ...uniqueLocalItems];
+        console.log(`Combined watchlist has ${combined.length} items`);
         
+        // Always update state to ensure data is synced
         setWatchlist(combined);
+        
+        // Save to local storage
         await saveLocalWatchlist(combined);
+        console.log("Watchlist refresh complete");
       } else {
         // Otherwise, just load from AsyncStorage
         const storedWatchlist = await AsyncStorage.getItem(WATCHLIST_STORAGE_KEY);
         if (storedWatchlist) {
           setWatchlist(JSON.parse(storedWatchlist));
         }
+        console.log("Loaded watchlist from local storage only (user not authenticated)");
       }
     } catch (error) {
       console.error('Error refreshing watchlist:', error);
