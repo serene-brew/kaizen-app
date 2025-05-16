@@ -245,37 +245,59 @@ export default function StreamingPage() {
     return () => backHandler.remove();
   }, [router, isFullscreen, currentTime]);
 
-  // Load saved playback position from AsyncStorage
+  // Get the watch history context
+  const { getWatchedEpisodes } = useWatchHistory();
+  
+  // Load saved playback position from cloud history first, then fallback to AsyncStorage
   const loadPlaybackPosition = async () => {
     try {
-      const key = `${PLAYBACK_POSITION_KEY_PREFIX}${id}_${episode}_${audioType}`;
-      const savedPosition = await AsyncStorage.getItem(key);
+      // First check if we have this episode in watch history (which includes cloud data)
+      const watchedEpisodes = getWatchedEpisodes(id as string);
+      const watchedEpisode = watchedEpisodes.find(ep => 
+        ep.episodeNumber === episode && 
+        ep.audioType === (audioType as 'sub' | 'dub')
+      );
       
-      if (savedPosition) {
-        const position = parseInt(savedPosition, 10);
+      let position = 0;
+      let foundPosition = false;
+      
+      // If found in watch history (cloud or local), use that position
+      if (watchedEpisode && watchedEpisode.position) {
+        position = watchedEpisode.position;
+        foundPosition = true;
+        console.log(`Found watch history position for ${id} episode ${episode}: ${position}ms`);
+      } else {
+        // Fallback to legacy storage method
+        const key = `${PLAYBACK_POSITION_KEY_PREFIX}${id}_${episode}_${audioType}`;
+        const savedPosition = await AsyncStorage.getItem(key);
         
-        // If the saved position exists and is less than the duration - 30s,
-        // ask user if they want to resume
-        if (position > 30000) { // Only ask if more than 30 seconds in
-          Alert.alert(
-            "Resume Playback",
-            "Do you want to continue where you left off?",
-            [
-              {
-                text: "Start Over",
-                style: "cancel"
-              },
-              {
-                text: "Resume",
-                onPress: async () => {
-                  if (videoRef.current) {
-                    await videoRef.current.setPositionAsync(position);
-                  }
+        if (savedPosition) {
+          position = parseInt(savedPosition, 10);
+          foundPosition = true;
+          console.log(`Found legacy position for ${id} episode ${episode}: ${position}ms`);
+        }
+      }
+      
+      // If we found a position and it's significant enough, ask to resume
+      if (foundPosition && position > 30000) { // Only ask if more than 30 seconds in
+        Alert.alert(
+          "Resume Playback",
+          "Do you want to continue where you left off?",
+          [
+            {
+              text: "Start Over",
+              style: "cancel"
+            },
+            {
+              text: "Resume",
+              onPress: async () => {
+                if (videoRef.current) {
+                  await videoRef.current.setPositionAsync(position);
                 }
               }
-            ]
-          );
-        }
+            }
+          ]
+        );
       }
     } catch (err) {
       console.error('Error loading playback position:', err);
