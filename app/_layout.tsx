@@ -14,6 +14,8 @@ import GlobalProvider from '../context/GlobalProvider';
 import { WatchlistProvider } from '../contexts/WatchlistContext';
 import DownloadsProvider from '../contexts/DownloadsContext';
 import { WatchHistoryProvider } from '../contexts/WatchHistoryContext';
+import { AuthSyncService } from '../context/AuthSyncService';
+import SyncManager from '../context/SyncManager';
 
 // Initialize web browser for OAuth sessions - critical for handling callbacks from Appwrite
 WebBrowser.maybeCompleteAuthSession();
@@ -99,6 +101,9 @@ export default function RootLayout() {
       <WatchlistProvider>
         <WatchHistoryProvider>
           <GlobalProvider>
+            {/* Include both sync services for redundancy */}
+            <AuthSyncService />
+            <SyncManager />
             <ThemeProvider value={DarkTheme}>
               <StatusBar style="light" />
               <Stack
