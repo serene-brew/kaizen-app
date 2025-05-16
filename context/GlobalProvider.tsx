@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { authService, account } from '../lib/appwrite'; // Import account
 import { Models } from 'appwrite';
 import { Alert } from 'react-native'; // Import Alert
@@ -6,6 +6,8 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
 import Constants from 'expo-constants'; // Import Constants
+import { useWatchlist } from '../contexts/WatchlistContext';
+import { useWatchHistory } from '../contexts/WatchHistoryContext';
 
 interface User extends Models.User<Models.Preferences> {}
 
@@ -48,13 +50,20 @@ interface GlobalProviderProps {
 }
 
 // Ensure the browser closes after auth
-WebBrowser.maybeCompleteAuthSession();
-
 const GlobalProvider = ({ children }: GlobalProviderProps) => {
   const [isLogged, setIsLogged] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [otpInfo, setOtpInfo] = useState<OTPInfo | null>(null);
+  
+  // Access contexts for data synchronization
+  const watchlistContext = useWatchlist();
+  const watchHistoryContext = useWatchHistory();
+  
+  // We don't use these hooks directly in GlobalProvider to prevent circular dependencies
+  // Data sync is now handled by the SyncManager component
+  // We don't use these hooks directly in GlobalProvider to prevent circular dependencies
+  // Data sync is now handled by the SyncManager component
 
   // --- ADD Google Auth Request Hook ---
   // Read Google Client IDs from app config (loaded from .env)
@@ -86,10 +95,44 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
   // --- END Google Auth Request Hook ---
 
   useEffect(() => {
-    checkAuth();
+    // Check auth status only once on initial mount
+    if (!initialAuthCheckCompleted.current) {
+      checkAuth();
+    }
   }, []);
+  
+  // Effect to sync data when authentication state changes
+  useEffect(() => {
+    const syncDataAfterLogin = async () => {
+      if (isLogged && user && !userStateUpdateInProgress.current) {
+        console.log('GlobalProvider: User is logged in, syncing watchlist and watch history');
+        try {
+          // Refresh watchlist data
+          if (watchlistContext && watchlistContext.refreshWatchlist) {
+            console.log('GlobalProvider: Refreshing watchlist...');
+            await watchlistContext.refreshWatchlist();
+          }
+          
+          // Refresh watch history data
+          if (watchHistoryContext && watchHistoryContext.refreshWatchHistory) {
+            console.log('GlobalProvider: Refreshing watch history...');
+            await watchHistoryContext.refreshWatchHistory();
+          }
+          
+          console.log('GlobalProvider: Data sync complete');
+        } catch (error) {
+          console.error('GlobalProvider: Error syncing data:', error);
+        }
+      }
+    };
+    
+    syncDataAfterLogin();
+  }, [isLogged, user]);
 
   // --- ADD useEffect to handle Google Auth Response ---
+  // Track if user state update is in progress to prevent duplicate auth state changes
+  const userStateUpdateInProgress = useRef(false);
+
   useEffect(() => {
     const handleGoogleResponse = async () => {
       if (response?.type === 'success') {
@@ -98,6 +141,9 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
         if (authentication?.idToken) {
           console.log('Google Auth Success - Received ID Token.');
           try {
+            // Prevent duplicate state updates during the authentication process
+            userStateUpdateInProgress.current = true;
+            
             // Call the Appwrite service function that triggers the backend function
             // This function now returns { userId, secret }
             const { userId, secret } = await authService.verifyGoogleTokenAndGetSessionSecret(authentication.idToken);
@@ -112,9 +158,24 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
 
             if (appwriteUser) {
               console.log('Appwrite session verified/created successfully. User:', appwriteUser.$id);
+              // Update user first, then auth state
               setUser(appwriteUser);
+              // Update auth state last to trigger dependent effects just once
               setIsLogged(true);
-              console.log('GlobalProvider: setIsLogged(true) called. isLogged should now be true.'); // <-- Added log
+              console.log('GlobalProvider: setIsLogged(true) called. isLogged should now be true.');
+              
+              // Manually sync data after Google sign-in
+              console.log('Manually syncing data after Google sign-in');
+              try {
+                if (watchlistContext && watchlistContext.refreshWatchlist) {
+                  await watchlistContext.refreshWatchlist();
+                }
+                if (watchHistoryContext && watchHistoryContext.refreshWatchHistory) {
+                  await watchHistoryContext.refreshWatchHistory();
+                }
+              } catch (syncError) {
+                console.error('Error syncing data after Google sign-in:', syncError);
+              }
             } else {
                throw new Error('Appwrite session created, but failed to get user data.');
             }
@@ -125,6 +186,7 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
             setIsLogged(false);
           } finally {
             setLoading(false);
+            userStateUpdateInProgress.current = false;
           }
         } else {
           console.warn('Google Auth Success but no ID Token received.');
@@ -146,15 +208,26 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
   }, [response]); // Re-run when the auth response changes
   // --- END useEffect for Google Auth Response ---
 
+  // Use a ref to track initial auth check completion
+  const initialAuthCheckCompleted = useRef(false);
+  
   const checkAuth = async () => {
+    // Avoid duplicate auth checks
+    if (initialAuthCheckCompleted.current) return;
+    
     try {
+      console.log('Checking authentication status...');
       // Use improved session check that verifies both session and user
       const { isValid, user } = await authService.checkSession();
       
       if (isValid && user) {
+        console.log(`Authentication valid, user: ${user.$id}`);
+        // Set user first, then auth state to trigger effects in the right order
         setUser(user);
         setIsLogged(true);
+        console.log('GlobalProvider: Authentication complete, user is logged in');
       } else {
+        console.log('Authentication invalid or no user');
         setUser(null);
         setIsLogged(false);
       }
@@ -164,6 +237,7 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
       setIsLogged(false);
     } finally {
       setLoading(false);
+      initialAuthCheckCompleted.current = true;
     }
   };
 
@@ -248,12 +322,31 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
       // Extract token information for verification
       const { userId, secret, name } = otpInfo;
       
+      // Mark the auth process as in progress to avoid duplicate refreshes
+      userStateUpdateInProgress.current = true;
+      
       // Pass the verification code and name if available
       const { user } = await authService.verifyEmailToken(userId, secret, code, name);
       
-      // Update user state after successful verification
+      // First update user
       setUser(user);
+      
+      // Then update authentication state to trigger dependent effects just once
+      console.log('OTP verification successful, updating authentication state');
       setIsLogged(true);
+      
+      // Manually sync data after successful verification
+      console.log('Manually syncing data after OTP verification');
+      try {
+        if (watchlistContext && watchlistContext.refreshWatchlist) {
+          await watchlistContext.refreshWatchlist();
+        }
+        if (watchHistoryContext && watchHistoryContext.refreshWatchHistory) {
+          await watchHistoryContext.refreshWatchHistory();
+        }
+      } catch (syncError) {
+        console.error('Error syncing data after OTP verification:', syncError);
+      }
       
       // Clear OTP info now that it's been used
       setOtpInfo(null);
@@ -262,6 +355,7 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
       throw error;
     } finally {
       setLoading(false);
+      userStateUpdateInProgress.current = false;
     }
   };
 
@@ -318,13 +412,27 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
     setLoading(true);
     try {
       await authService.logout();
+      
+      // Mark user state update as in progress to prevent unnecessary sync operations
+      userStateUpdateInProgress.current = true;
+      
+      // Update user and auth state
       setUser(null);
       setIsLogged(false);
+      
+      // Refresh watchlist to handle offline/local data properly
+      if (watchlistContext && watchlistContext.refreshWatchlist) {
+        console.log('Refreshing watchlist after logout to switch to local data');
+        await watchlistContext.refreshWatchlist();
+      }
+      
+      console.log('Logout complete');
     } catch (error) {
       console.error('Logout error:', error);
       throw error;
     } finally {
       setLoading(false);
+      userStateUpdateInProgress.current = false;
     }
   };
 
