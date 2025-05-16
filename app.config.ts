@@ -72,10 +72,22 @@ export default {
       appwriteWatchHistoryCollectionId: process.env.APPWRITE_WATCHHISTORY_COLLECTION_ID, // Added watch history collection ID
       eas: {
         projectId: process.env.EAS_PROJECT_ID
-      }
+      },
+      // Development flag - true in dev builds, false in production
+      isDevelopment: process.env.APP_ENV === 'development'
     },
     experiments: {
       typedRoutes: true
+    },
+    // Add development specific configuration
+    development: {
+      developmentClient: true
+    },
+    runtimeVersion: {
+      policy: "sdkVersion"
+    },
+    updates: {
+      url: "https://u.expo.dev/" + process.env.EAS_PROJECT_ID
     }
   }
 };
