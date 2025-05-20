@@ -106,6 +106,7 @@ export default function Watchlist() {
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        bounces={true}
       >
         <View style={styles.grid}>
           {watchlist.map((item, index) => (
