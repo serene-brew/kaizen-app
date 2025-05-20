@@ -148,12 +148,25 @@ export default function Search() {
   };
 
   const handleSearchItemPress = (search: string) => {
+    // First set the search query
     setSearchQuery(search);
     
-    // Automatically perform search when clicking a recent search item
-    setTimeout(() => {
-      handleSearch();
-    }, 100);
+    // Use the search value directly instead of relying on state update
+    if (search.trim()) {
+      // Add to recent searches if not already in the list
+      if (!recentSearches.includes(search.trim())) {
+        const updatedSearches = [search.trim(), ...recentSearches].slice(0, 10);
+        setRecentSearches(updatedSearches);
+      }
+      
+      // Navigate directly to search results
+      router.push({
+        pathname: "/searchResults",
+        params: {
+          query: search.trim()
+        }
+      });
+    }
   };
 
   return (
