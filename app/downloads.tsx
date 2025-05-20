@@ -62,7 +62,7 @@ export default function DownloadsPage() {
 
   // Handle back button press
   const handleGoBack = () => {
-    router.back();
+    router.push('/(tabs)/more');
   };
   
   // Filtered and sorted downloads
