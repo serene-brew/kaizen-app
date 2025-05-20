@@ -129,6 +129,7 @@ export default function TabLayout() {
           href: null, // Hides from tab bar
           headerShown: true,
           headerTitle: "Watch History",
+          headerLeft: () => null, // Remove the default back button
         }}
       />
     </Tabs>
