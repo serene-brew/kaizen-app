@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, memo } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert, Dimensions, BackHandler } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -164,7 +164,6 @@ const AnimeGroup = memo(({ animeId, animeItems, onNavigateToDetails, onNavigateT
 // Header Component
 const Header = memo(({ onSync, onClear, isAuthenticated }: HeaderProps) => (
   <View style={styles.header}>
-    {/* <Text style={styles.headerTitle}>Watch History</Text> */}
     <View style={styles.headerButtons}>
       <TouchableOpacity 
         style={[styles.headerButton, !isAuthenticated && styles.disabledButton]} 
@@ -191,6 +190,21 @@ export default function HistoryPage() {
   const { history, isLoading, removeFromHistory, clearHistory, syncHistory, isAuthenticated } = useWatchHistory();
   const [groupedHistory, setGroupedHistory] = useState<Record<string, WatchHistoryItem[]>>({});
   const [sortedAnimeIds, setSortedAnimeIds] = useState<string[]>([]);
+  
+  // Handle back button to return to the More tab
+  const handleGoBack = () => {
+    router.navigate('/(tabs)/more');
+  };
+
+  //       Add hardware back button handler
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleGoBack();
+      return true;
+    });
+
+    return () => backHandler.remove();
+  }, []);
 
   // Group history by anime ID
   useEffect(() => {
