@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Text, View, ScrollView, TouchableOpacity, Alert, Linking, Modal, TextInput, Image } from "react-native";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from "expo-router";
@@ -31,15 +31,38 @@ export default function More() {
   const [username, setUsername] = useState(user?.name || 'User');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Use downloads context
+  // Use downloads context with optimizations to prevent UI freezing
   const { downloads, totalStorageUsed } = useDownloads();
-
-  // Calculate download size and count
-  const downloadSize = formatBytes(totalStorageUsed);
-  const completedDownloads = downloads.filter(item => item.status === 'completed').length;
-  const inProgressDownloads = downloads.filter(item => 
-    ['downloading', 'pending', 'paused'].includes(item.status)
-  ).length;
+  
+  // Use state to store derived values to decouple from downloads re-renders
+  const [downloadStats, setDownloadStats] = useState({
+    downloadSize: '0 B',
+    completedDownloads: 0,
+    inProgressDownloads: 0
+  });
+  
+  // Update derived stats in a non-blocking way using useEffect
+  useEffect(() => {
+    // Use requestAnimationFrame to ensure UI updates don't block the main thread
+    const updateFrame = requestAnimationFrame(() => {
+      // Calculate formatted size
+      const formattedSize = formatBytes(totalStorageUsed);
+      
+      // Calculate download counts
+      const completed = downloads.filter(item => item.status === 'completed').length;
+      const inProgress = downloads.filter(item => 
+        ['downloading', 'pending', 'paused'].includes(item.status)
+      ).length;
+      
+      setDownloadStats({
+        downloadSize: formattedSize,
+        completedDownloads: completed,
+        inProgressDownloads: inProgress
+      });
+    });
+    
+    return () => cancelAnimationFrame(updateFrame);
+  }, [downloads, totalStorageUsed]);
 
   // Format bytes to human-readable size
   function formatBytes(bytes: number, decimals = 2) {
@@ -61,7 +84,7 @@ export default function More() {
     }
   }, [user]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     try {
       await logout();
       router.replace("/");
@@ -69,16 +92,16 @@ export default function More() {
       console.error('Logout error:', error);
       Alert.alert("Error", "Failed to logout. Please try again.");
     }
-  };
+  }, [logout]);
 
-  const openGitHub = async () => {
+  const openGitHub = useCallback(async () => {
     const canOpen = await Linking.canOpenURL(GITHUB_URL);
     if (canOpen) {
       await Linking.openURL(GITHUB_URL);
     }
-  };
+  }, []);
 
-  const clearDownloads = () => {
+  const clearDownloads = useCallback(() => {
     Alert.alert(
       "Clear Downloads",
       "Are you sure you want to clear all downloads?",
@@ -91,15 +114,15 @@ export default function More() {
         }
       ]
     );
-  };
+  }, []);
 
-  const navigateToDownloads = () => {
+  const navigateToDownloads = useCallback(() => {
     router.push('/downloads');
-  };
+  }, []);
 
   const { clearHistory: clearWatchHistory } = useWatchHistory();
 
-  const clearHistory = () => {
+  const clearHistory = useCallback(() => {
     Alert.alert(
       "Clear History",
       "Are you sure you want to clear your watch history?",
@@ -108,15 +131,15 @@ export default function More() {
         { text: "Clear", style: "destructive", onPress: clearWatchHistory }
       ]
     );
-  };
+  }, [clearWatchHistory]);
   
-  const handleEditProfile = () => {
+  const handleEditProfile = useCallback(() => {
     setShowEditModal(true);
-  };
+  }, []);
   
-  const handleShowAbout = () => {
+  const handleShowAbout = useCallback(() => {
     setShowAboutModal(true);
-  };
+  }, []);
   
   const saveProfile = async () => {
     setIsLoading(true);
@@ -142,7 +165,8 @@ export default function More() {
     }
   };
 
-  const MenuItem = ({ icon, text, onPress, value, danger }: MenuItemProps) => (
+  // Memoize the MenuItem component to prevent unnecessary re-renders
+  const MenuItem = useCallback(({ icon, text, onPress, value, danger }: MenuItemProps) => (
     <TouchableOpacity style={styles.menuItem} onPress={onPress}>
       <View style={styles.menuItemContent}>
         <View style={styles.menuIcon}>
@@ -172,7 +196,7 @@ export default function More() {
         />
       )}
     </TouchableOpacity>
-  );
+  ), []);
 
   return (
     <ScrollView style={styles.container}>
@@ -204,13 +228,13 @@ export default function More() {
         <MenuItem
           icon="folder-download"
           text="Downloads"
-          value={inProgressDownloads > 0 ? `${completedDownloads} + ${inProgressDownloads} in progress` : `${completedDownloads}`}
+          value={downloadStats.inProgressDownloads > 0 ? `${downloadStats.completedDownloads} + ${downloadStats.inProgressDownloads} in progress` : `${downloadStats.completedDownloads}`}
           onPress={navigateToDownloads}
         />
         <MenuItem
           icon="harddisk"
           text="Storage Used"
-          value={downloadSize}
+          value={downloadStats.downloadSize}
           onPress={navigateToDownloads}
         />
         <MenuItem
