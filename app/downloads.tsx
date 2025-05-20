@@ -256,7 +256,12 @@ export default function DownloadsPage() {
               </Text>
             ) : (
               <Text style={styles.downloadMeta}>
-                {item.status === 'downloading' ? `${formatBytes(item.size * item.progress)} of ${formatBytes(item.size || 0)}` : 'Size unknown'} 
+                {item.status === 'downloading' ? 
+                  `${formatBytes(item.size * item.progress)} of ${formatBytes(item.size || 0)}` : 
+                  item.status === 'paused' && item.size ? 
+                    `${formatBytes(item.size * item.progress)} of ${formatBytes(item.size)}` : 
+                    'Size unknown'
+                } 
                 • Added {formatDistanceToNow(new Date(item.dateAdded), { addSuffix: true })}
               </Text>
             )}
