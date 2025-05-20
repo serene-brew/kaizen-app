@@ -54,6 +54,14 @@ export default {
           imageResizeMode: 'contain',
           backgroundColor: '#161622'
         }
+      ],
+      [
+        'expo-notifications',
+        {
+          icon: './assets/images/icon.png',
+          color: '#161622',
+          sounds: [],
+        }
       ]
     ],
     extra: {
