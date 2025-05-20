@@ -159,13 +159,14 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
   
   // Update a download's status
-  const updateDownloadStatus = (id: string, status: DownloadItem['status'], progress?: number) => {
+  const updateDownloadStatus = (id: string, status: DownloadItem['status'], progress?: number, size?: number) => {
     setDownloads(prevDownloads => 
       prevDownloads.map(download => 
         download.id === id ? { 
           ...download, 
           status, 
-          ...(progress !== undefined ? { progress } : {})
+          ...(progress !== undefined ? { progress } : {}),
+          ...(size !== undefined ? { size } : {})
         } : download
       )
     );
@@ -220,7 +221,8 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         {},
         (downloadProgress) => {
           const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-          updateDownloadStatus(downloadItem.id, 'downloading', progress);
+          const totalSize = downloadProgress.totalBytesExpectedToWrite;
+          updateDownloadStatus(downloadItem.id, 'downloading', progress, totalSize);
         }
       );
       
@@ -344,7 +346,8 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           {},
           (downloadProgress) => {
             const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-            updateDownloadStatus(id, 'downloading', progress);
+            const totalSize = downloadProgress.totalBytesExpectedToWrite;
+            updateDownloadStatus(id, 'downloading', progress, totalSize);
           },
           download.resumeData
         );
