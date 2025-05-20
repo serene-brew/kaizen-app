@@ -41,22 +41,18 @@ export default {
       ]
     },
     splash: {
-      image: './assets/images/splash-icon.png',
+      image: './assets/images/splash-img.png',
       resizeMode: 'contain',
-      backgroundColor: '#161622',
-      imageWidth: 500,
-      imageHeight: 500
+      backgroundColor: '#161622'
     },
     plugins: [
       'expo-router',
       [
         'expo-splash-screen',
         {
-          image: './assets/images/splash-icon.png',
+          image: './assets/images/splash-img.png',
           imageResizeMode: 'contain',
-          backgroundColor: '#161622',
-          imageWidth: 500,
-          imageHeight: 500
+          backgroundColor: '#161622'
         }
       ]
     ],
