@@ -50,7 +50,7 @@ export const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: PADDING,
-    paddingBottom: PADDING,
+    paddingBottom: 80, // Increased padding to ensure content isn't hidden by tab bar
   },
   grid: {
     flexDirection: 'row',
@@ -103,6 +103,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: PADDING,
+    paddingBottom: 80, // Ensure content isn't hidden behind tab bar
   },
   emptyText: {
     color: Colors.dark.secondaryText,
@@ -128,6 +129,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: PADDING,
+    paddingBottom: 80, // Ensure content isn't hidden behind tab bar
   },
   loadingText: {
     color: Colors.dark.secondaryText,
