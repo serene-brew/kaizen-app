@@ -8,6 +8,7 @@ import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
 import Constants from 'expo-constants'; // Import Constants
 import { useWatchlist } from '../contexts/WatchlistContext';
 import { useWatchHistory } from '../contexts/WatchHistoryContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface User extends Models.User<Models.Preferences> {}
 
@@ -411,28 +412,131 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
   const logout = async () => {
     setLoading(true);
     try {
-      await authService.logout();
-      
-      // Mark user state update as in progress to prevent unnecessary sync operations
+      console.log('Starting logout process...');
+      // Mark user state update as in progress to prevent redundant operations
       userStateUpdateInProgress.current = true;
       
-      // Update user and auth state
+      // 1. First, update UI state immediately for better perceived performance
       setUser(null);
       setIsLogged(false);
       
-      // Refresh watchlist to handle offline/local data properly
+      // 2. Start cache clearing immediately, in parallel with Appwrite logout
+      const cacheClearPromise = clearAppCache();
+      
+      // 3. Perform Appwrite logout
+      console.log('Calling Appwrite logout...');
+      const logoutPromise = authService.logout();
+      
+      // 4. Wait for both operations to complete
+      await Promise.all([cacheClearPromise, logoutPromise]);
+      
+      // 5. Final cleanup: ensure watchlist and watch history are refreshed after logout
       if (watchlistContext && watchlistContext.refreshWatchlist) {
-        console.log('Refreshing watchlist after logout to switch to local data');
+        console.log('Refreshing watchlist after logout to ensure clean state');
         await watchlistContext.refreshWatchlist();
       }
       
-      console.log('Logout complete');
+      if (watchHistoryContext && watchHistoryContext.refreshWatchHistory) {
+        console.log('Refreshing watch history after logout to ensure clean state');
+        await watchHistoryContext.refreshWatchHistory();
+      }
+      
+      console.log('Logout process complete');
     } catch (error) {
       console.error('Logout error:', error);
-      throw error;
+      // Even if there's an error, we still want to log the user out locally
+      // This ensures the UI updates appropriately
+      setUser(null);
+      setIsLogged(false);
     } finally {
       setLoading(false);
       userStateUpdateInProgress.current = false;
+    }
+  };
+  
+  // Function to clear app cache when logged out
+  const clearAppCache = async () => {
+    console.log('Clearing app cache data...');
+    try {
+      // First, ensure watchlist and watch history are cleared through their contexts
+      // This handles both local state and cloud data synchronization
+
+      // Clear watch history (if context is available)
+      if (watchHistoryContext && watchHistoryContext.refreshWatchHistory) {
+        console.log('Clearing watch history cache...');
+        await watchHistoryContext.refreshWatchHistory();
+      }
+      
+      // Clear watchlist (if context is available)
+      if (watchlistContext && watchlistContext.refreshWatchlist) {
+        console.log('Clearing watchlist cache...');
+        await watchlistContext.refreshWatchlist();
+      }
+      
+      // Clear search-related caches from AsyncStorage
+      const searchCacheKeys = [
+        'search_results_cache',     // Search results from API
+        'search_params_cache',      // Search parameters (query, genres)
+        'recent_searches'           // User's recent search terms
+      ];
+      
+      // Clear anime data-related caches
+      const animeDataCacheKeys = [
+        'anime_details_cache',      // Detailed anime information
+        'trending_anime_cache',     // Trending anime listings
+        'top_anime_cache',          // Top anime listings
+        'seasonal_anime_cache',     // Seasonal anime if implemented
+        'carousel_anime_cache',     // Featured/carousel anime
+        'related_anime_cache'       // Related anime recommendations
+      ];
+      
+      // Clear user-specific data
+      const userDataCacheKeys = [
+        'user_preferences',         // User preferences/settings
+        'last_view_position',       // Saved view positions outside of watch history
+        'playback_settings',        // Video player settings if stored separately
+        'filter_preferences',       // User's filter preferences for search/browse
+        'last_selected_tabs'        // Remember last selected tabs if implemented
+      ];
+      
+      // Get all storage keys for thorough cleaning
+      // Note: We exclude the downloads storage key to preserve downloaded files
+      try {
+        const allStorageKeys = await AsyncStorage.getAllKeys();
+        const additionalKeys = allStorageKeys.filter(key => 
+          // Keep the downloads key (preserve downloaded files)
+          key !== '@kaizen_downloads' && 
+          // Filter out keys already in our lists
+          !searchCacheKeys.includes(key) && 
+          !animeDataCacheKeys.includes(key) && 
+          !userDataCacheKeys.includes(key) &&
+          // Additional exclusions you might want to add
+          !key.includes('download') && // Skip anything download related
+          // Add more exclusions if needed
+          true
+        );
+        
+        // Combine all cache keys for removal
+        const allCacheKeys = [
+          ...searchCacheKeys, 
+          ...animeDataCacheKeys, 
+          ...userDataCacheKeys,
+          ...additionalKeys
+        ];
+        
+        console.log(`Clearing ${allCacheKeys.length} app cache items...`);
+        await Promise.all(allCacheKeys.map(key => AsyncStorage.removeItem(key)));
+        
+        console.log('App cache cleared successfully');
+      } catch (storageError) {
+        console.error('Error accessing all storage keys:', storageError);
+        // Fall back to clearing just our known keys
+        const fallbackKeys = [...searchCacheKeys, ...animeDataCacheKeys, ...userDataCacheKeys];
+        console.log(`Falling back to clearing ${fallbackKeys.length} known cache keys...`);
+        await Promise.all(fallbackKeys.map(key => AsyncStorage.removeItem(key)));
+      }
+    } catch (error) {
+      console.error('Error clearing app cache:', error);
     }
   };
 
