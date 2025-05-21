@@ -28,6 +28,7 @@ interface HeaderProps {
   onSync: () => void;
   onClear: () => void;
   isAuthenticated: boolean;
+  isSyncing: boolean;
 }
 
 // Create a unique key for each history item
@@ -162,15 +163,15 @@ const AnimeGroup = memo(({ animeId, animeItems, onNavigateToDetails, onNavigateT
 });
 
 // Header Component
-const Header = memo(({ onSync, onClear, isAuthenticated }: HeaderProps) => (
+const Header = memo(({ onSync, onClear, isAuthenticated, isSyncing }: HeaderProps) => (
   <View style={styles.header}>
     <View style={styles.headerButtons}>
       <TouchableOpacity 
-        style={[styles.headerButton, !isAuthenticated && styles.disabledButton]} 
+        style={[styles.headerButton, (!isAuthenticated || isSyncing) && styles.disabledButton]} 
         onPress={onSync}
-        disabled={!isAuthenticated}
+        disabled={!isAuthenticated || isSyncing}
       >
-        <MaterialCommunityIcons name="cloud-sync" size={18} color={Colors.dark.text} />
+        <MaterialCommunityIcons name="cloud-sync" size={18} color={isAuthenticated && !isSyncing ? Colors.dark.text : Colors.dark.secondaryText} />
         <Text style={styles.headerButtonText}>Sync</Text>
       </TouchableOpacity>
       <View style={styles.centerButtonSpacer} />
@@ -187,7 +188,7 @@ const Header = memo(({ onSync, onClear, isAuthenticated }: HeaderProps) => (
 
 export default function HistoryPage() {
   const router = useRouter();
-  const { history, isLoading, removeFromHistory, clearHistory, syncHistory, isAuthenticated } = useWatchHistory();
+  const { history, isLoading, isSyncing, removeFromHistory, clearHistory, syncHistory, isAuthenticated } = useWatchHistory();
   const [groupedHistory, setGroupedHistory] = useState<Record<string, WatchHistoryItem[]>>({});
   const [sortedAnimeIds, setSortedAnimeIds] = useState<string[]>([]);
   
@@ -329,6 +330,17 @@ export default function HistoryPage() {
       </View>
     );
   }
+  
+  // Show syncing indicator
+  if (isSyncing) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <StatusBar style="light" />
+        <ActivityIndicator size="large" color={Colors.dark.buttonBackground} />
+        <Text style={styles.loadingText}>Refreshing watch history data...</Text>
+      </View>
+    );
+  }
 
   // Show empty state
   if (history.length === 0) {
@@ -339,6 +351,7 @@ export default function HistoryPage() {
           onSync={handleSyncHistory}
           onClear={handleClearHistory}
           isAuthenticated={isAuthenticated}
+          isSyncing={isSyncing}
         />
         <View style={styles.emptyStateContainer}>
           <MaterialCommunityIcons 
@@ -376,6 +389,7 @@ export default function HistoryPage() {
             onSync={handleSyncHistory}
             onClear={handleClearHistory}
             isAuthenticated={isAuthenticated}
+            isSyncing={isSyncing}
           />
         }
       />
