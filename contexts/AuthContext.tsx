@@ -41,15 +41,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchUser();
   }, [refreshWatchlist]);
 
-  // When user logs out, we should also clear Appwrite-specific watchlist data
+  // When user logs out, we should clear watchlist data
   const handleLogout = async () => {
     try {
       setLoading(true);
       await account.deleteSession('current');
       setUser(null);
 
-      // We keep AsyncStorage watchlist for offline/guest mode
-      // But we will refresh the watchlist to ensure it shows local data only
+      // Refresh the watchlist to clear it (since we only use cloud storage now)
       await refreshWatchlist();
       
       // Update isAuthenticated state
