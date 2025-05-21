@@ -33,6 +33,7 @@ interface WatchHistoryContextType {
   isEpisodeWatched: (animeId: string, episodeNumber: string) => boolean;
   getLastWatchedEpisode: (animeId: string) => WatchHistoryItem | null;
   isLoading: boolean;
+  isSyncing: boolean;
   refreshWatchHistory: () => Promise<WatchHistoryItem[] | undefined>;
   syncHistory: () => Promise<void>;
   isAuthenticated: boolean;
@@ -44,6 +45,7 @@ const WatchHistoryContext = createContext<WatchHistoryContextType | undefined>(u
 export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [history, setHistory] = useState<WatchHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   // Track last cloud update time to limit Appwrite API calls
@@ -397,6 +399,7 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const refreshWatchHistory = async () => {
     try {
       setIsLoading(true);
+      setIsSyncing(true);
       console.log("Refreshing watch history from cloud...");
       
       // Explicitly check auth status from Appwrite to ensure we have the latest info
@@ -416,6 +419,7 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setUserId(null);
         setHistory([]);
         setIsLoading(false);
+        setIsSyncing(false);
         return [];
       }
       
@@ -423,6 +427,7 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
         console.log("User not authenticated, skipping cloud history refresh");
         setHistory([]);
         setIsLoading(false);
+        setIsSyncing(false);
         return [];
       }
       
@@ -445,6 +450,7 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return history; // Return current history on error
     } finally {
       setIsLoading(false);
+      setIsSyncing(false);
     }
   };
 
@@ -457,11 +463,14 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
     
     try {
+      setIsSyncing(true);
       await refreshWatchHistory();
       Alert.alert("Sync Complete", "Your watch history has been updated.");
     } catch (error) {
       console.error('Error syncing watch history:', error);
       Alert.alert("Sync Failed", "There was a problem syncing your watch history.");
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -476,6 +485,7 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
         isEpisodeWatched,
         getLastWatchedEpisode,
         isLoading,
+        isSyncing,
         refreshWatchHistory,
         syncHistory,
         isAuthenticated
