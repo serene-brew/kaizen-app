@@ -5,7 +5,7 @@ import { useWatchHistory } from '../contexts/WatchHistoryContext';
 
 /**
  * SyncManager is a dedicated component that handles data synchronization between 
- * cloud and local storage for watchlist and watch history when authentication state changes.
+ * cloud storage for watchlist and watch history when authentication state changes.
  * This component addresses the issue where data isn't immediately loaded after login.
  */
 export const SyncManager: React.FC = () => {
