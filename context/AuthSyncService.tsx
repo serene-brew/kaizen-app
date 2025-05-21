@@ -30,15 +30,17 @@ export const AuthSyncService: React.FC = () => {
       try {
         console.log('AuthSyncService: User logged in, performing one-time data refresh...');
         
-        // First refresh watchlist
-        console.log('AuthSyncService: Refreshing watchlist...');
-        await refreshWatchlist();
-        console.log('AuthSyncService: Watchlist refresh complete');
-        
-        // Then refresh watch history
-        console.log('AuthSyncService: Refreshing watch history...');
-        await refreshWatchHistory();
-        console.log('AuthSyncService: Watch history refresh complete');
+        // Refresh watchlist and watch history in parallel for better performance
+        console.log('AuthSyncService: Refreshing watchlist and watch history in parallel...');
+        await Promise.all([
+          refreshWatchlist().then(() => {
+            console.log('AuthSyncService: Watchlist refresh complete');
+          }),
+          refreshWatchHistory().then(() => {
+            console.log('AuthSyncService: Watch history refresh complete');
+          })
+        ]);
+        console.log('AuthSyncService: Both watchlist and watch history refresh complete');
         
         console.log('AuthSyncService: All data refresh complete');
         
