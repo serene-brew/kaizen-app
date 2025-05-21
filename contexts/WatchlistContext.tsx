@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { account, databases } from '../lib/appwrite'; // Import Appwrite services
-import { ID, Permission, Role } from 'appwrite'; // Import Appwrite helper methods
+import { ID, Permission, Role, Query } from 'appwrite'; // Import Appwrite helper methods
 import Constants from 'expo-constants'; // Import Constants for environment variables
 import { Alert } from 'react-native';
 
@@ -68,24 +68,60 @@ export const WatchlistProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!userId) return [];
     
     try {
-      // Fetch all documents for the current user
-      const response = await databases.listDocuments(
-        APPWRITE_DATABASE_ID,
-        APPWRITE_WATCHLIST_COLLECTION_ID
-      );
-
-      // Filter to only include documents for the current user
-      const cloudWatchlist: WatchlistItem[] = response.documents
-        .filter(doc => doc.userId === userId)
-        .map(doc => ({
+      let allResults: WatchlistItem[] = [];
+      let lastId: string | null = null;
+      const pageLimit = 100; // Fetch more items per request for efficiency
+      
+      // Use cursor-based pagination to fetch all documents
+      while (true) {
+        // Build the query
+        const queries = [
+          Query.equal('userId', userId),
+          Query.limit(pageLimit) // Set page size for better performance
+        ];
+        
+        // Add cursor pagination if we have a last ID
+        if (lastId) {
+          queries.push(Query.cursorAfter(lastId));
+        }
+        
+        console.log(`Fetching watchlist page${lastId ? ' after ' + lastId : ''}`);
+        
+        // Fetch the documents
+        const response = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_WATCHLIST_COLLECTION_ID,
+          queries
+        );
+        
+        // If no documents returned, break the loop
+        if (response.documents.length === 0) {
+          break;
+        }
+        
+        // Map to our watchlist item format
+        const batchResults: WatchlistItem[] = response.documents.map(doc => ({
           id: doc.animeId,
           englishName: doc.englishName,
           thumbnailUrl: doc.thumbnailUrl,
           dateAdded: doc.dateAdded,
           documentId: doc.$id
         }));
+        
+        // Add the current batch to our results
+        allResults = [...allResults, ...batchResults];
+        
+        // If we got fewer documents than the limit, we've reached the end
+        if (response.documents.length < pageLimit) {
+          break;
+        }
+        
+        // Update the cursor for the next page
+        lastId = response.documents[response.documents.length - 1].$id;
+      }
       
-      return cloudWatchlist;
+      console.log(`Fetched ${allResults.length} total watchlist items with pagination`);
+      return allResults;
     } catch (error) {
       console.error('Failed to fetch watchlist from Appwrite:', error);
       return [];
