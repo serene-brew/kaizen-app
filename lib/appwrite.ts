@@ -128,7 +128,17 @@ export const authService = {
   // Logout
   async logout() {
     try {
+      // Delete current session first for immediate logout
       await account.deleteSession('current');
+      
+      try {
+        // For a more thorough cleanup, attempt to delete all sessions
+        // This prevents stale sessions from existing on the server
+        // Wrapped in try-catch to avoid blocking logout if this fails
+        await account.deleteSessions();
+      } catch (sessionsError) {
+        console.log('Could not delete all sessions, but logout proceeded:', sessionsError);
+      }
     } catch (error) {
       console.error('Logout error:', error);
       throw error;
