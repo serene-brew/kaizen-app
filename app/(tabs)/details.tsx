@@ -184,6 +184,8 @@ export default function DetailsPage() {
       router.push('/(tabs)/top');
     } else if (source === 'watchlist') {
       router.push('/(tabs)/watchlist');
+    } else if (source === 'history') {
+      router.push('/(tabs)/history');
     } else {
       // Default to going back to explore page
       router.push('/(tabs)/explore');
