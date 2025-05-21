@@ -1,5 +1,4 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { account, databases } from '../lib/appwrite'; // Import Appwrite services
 import { ID, Query, Permission, Role } from 'appwrite'; // Import Appwrite helper methods
 import Constants from 'expo-constants'; // Import Constants for environment variables
@@ -24,11 +23,6 @@ export interface WatchHistoryItem {
   duration: number;            // total duration in milliseconds
   documentId?: string;         // Appwrite document ID
 }
-
-// Storage key for local history
-const WATCH_HISTORY_STORAGE_KEY = '@kaizen_watch_history';
-// Playback position storage key prefix (compatible with existing code)
-const PLAYBACK_POSITION_KEY_PREFIX = '@kaizen_playback_position_';
 
 interface WatchHistoryContextType {
   history: WatchHistoryItem[];
@@ -99,146 +93,72 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
     checkAuthStatus();
   }, []);
 
-  // Load watch history from AsyncStorage on component mount
-  useEffect(() => {
-    const loadHistory = async () => {
-      try {
-        const storedHistory = await AsyncStorage.getItem(WATCH_HISTORY_STORAGE_KEY);
-        if (storedHistory) {
-          setHistory(JSON.parse(storedHistory));
-        }
-
-        // Also load the old playback position keys to migrate them
-        await migrateOldPlaybackData();
-      } catch (error) {
-        console.error('Failed to load watch history from storage:', error);
-      }
-    };
-
-    loadHistory();
-  }, []);
-
-  // Migrate old playback position data to new format
-  const migrateOldPlaybackData = async () => {
-    try {
-      // Get all AsyncStorage keys
-      const allKeys = await AsyncStorage.getAllKeys();
-      // Filter keys that match the old pattern
-      const playbackKeys = allKeys.filter(key => key.startsWith(PLAYBACK_POSITION_KEY_PREFIX));
-
-      const migratedItems: WatchHistoryItem[] = [];
-
-      // Try to find anime info from existing history items
-      const storedHistory = await AsyncStorage.getItem(WATCH_HISTORY_STORAGE_KEY);
-      const existingHistory: WatchHistoryItem[] = storedHistory ? JSON.parse(storedHistory) : [];
-      const animeInfoMap: Record<string, {englishName: string, thumbnailUrl: string}> = {};
-      
-      // Create a map of anime IDs to their info
-      existingHistory.forEach(item => {
-        if (item.id && item.englishName && item.thumbnailUrl) {
-          animeInfoMap[item.id] = {
-            englishName: item.englishName,
-            thumbnailUrl: item.thumbnailUrl
-          };
-        }
-      });
-
-      for (const key of playbackKeys) {
-        // Parse the key to get animeId, episode, and audioType
-        // Format: @kaizen_playback_position_${id}_${episode}_${audioType}
-        const keyParts = key.split('_');
-        if (keyParts.length >= 6) {
-          const animeId = keyParts[3];
-          const episodeNumber = keyParts[4];
-          const audioType = keyParts[5] as 'sub' | 'dub';
-          
-          const position = await AsyncStorage.getItem(key);
-          if (position) {
-            // Create a new history item with basic info
-            migratedItems.push({
-              id: animeId,
-              episodeNumber,
-              audioType,
-              englishName: 'Unknown Anime', // Default value
-              thumbnailUrl: '',             // Default value
-              watchedAt: Date.now(),        // Current time as default
-              position: parseInt(position, 10),
-              duration: 0 // We still don't know the duration
-            });
-          }
-        }
-      }
-
-      if (migratedItems.length > 0) {
-        // Merge with existing history items
-        const updatedHistory = [...history];
-        
-        for (const item of migratedItems) {
-          // Check if this item already exists
-          const existingIndex = updatedHistory.findIndex(
-            h => h.id === item.id && h.episodeNumber === item.episodeNumber
-          );
-          
-          if (existingIndex === -1) {
-            // Add if it doesn't exist
-            updatedHistory.push(item);
-          } else if (updatedHistory[existingIndex].position < item.position) {
-            // Update if new position is greater
-            updatedHistory[existingIndex] = {
-              ...updatedHistory[existingIndex],
-              position: item.position,
-              watchedAt: Date.now()
-            };
-          }
-        }
-        
-        // Save the updated history
-        setHistory(updatedHistory);
-        await AsyncStorage.setItem(WATCH_HISTORY_STORAGE_KEY, JSON.stringify(updatedHistory));
-      }
-    } catch (error) {
-      console.error('Failed to migrate playback data:', error);
-    }
-  };
-
-  // Function to save local history
-  const saveLocalHistory = async (items: WatchHistoryItem[]) => {
-    try {
-      await AsyncStorage.setItem(WATCH_HISTORY_STORAGE_KEY, JSON.stringify(items));
-    } catch (error) {
-      console.error('Failed to save watch history to local storage:', error);
-    }
-  };
-
   // Function to fetch history from Appwrite
   const fetchCloudHistory = async (): Promise<WatchHistoryItem[]> => {
     if (!userId) return [];
     
     try {
-      // Try to list all documents for the current user
-      const response = await databases.listDocuments(
-        safeDbId,
-        safeCollectionId,
-        [Query.equal('userId', userId)]
-      );
-
-      // Map to our history item format
-      const cloudHistory: WatchHistoryItem[] = response.documents.map(doc => ({
-        id: doc.animeId,
-        episodeNumber: doc.episodeNumber,
-        audioType: doc.audioType,
-        englishName: doc.englishName,
-        thumbnailUrl: doc.thumbnailUrl,
-        watchedAt: doc.watchedAt,
-        position: doc.position,
-        duration: doc.duration,
-        documentId: doc.$id
-      }));
+      let allResults: WatchHistoryItem[] = [];
+      let lastId: string | null = null;
+      const pageLimit = 100; // Fetch more items per request for efficiency
       
-      return cloudHistory;
+      // Use cursor-based pagination to fetch all documents
+      while (true) {
+        // Build the query
+        const queries = [
+          Query.equal('userId', userId),
+          Query.limit(pageLimit) // Set page size for better performance
+        ];
+        
+        // Add cursor pagination if we have a last ID
+        if (lastId) {
+          queries.push(Query.cursorAfter(lastId));
+        }
+        
+        console.log(`Fetching history page${lastId ? ' after ' + lastId : ''}`);
+        
+        // Fetch the documents
+        const response = await databases.listDocuments(
+          safeDbId,
+          safeCollectionId,
+          queries
+        );
+
+        // If no documents returned, break the loop
+        if (response.documents.length === 0) {
+          break;
+        }
+        
+        // Map to our history item format
+        const cloudHistory: WatchHistoryItem[] = response.documents.map(doc => ({
+          id: doc.animeId,
+          episodeNumber: doc.episodeNumber,
+          audioType: doc.audioType,
+          englishName: doc.englishName,
+          thumbnailUrl: doc.thumbnailUrl,
+          watchedAt: doc.watchedAt,
+          position: doc.position,
+          duration: doc.duration,
+          documentId: doc.$id
+        }));
+        
+        // Add the current batch to our results
+        allResults = [...allResults, ...cloudHistory];
+        
+        // If we got fewer documents than the limit, we've reached the end
+        if (response.documents.length < pageLimit) {
+          break;
+        }
+        
+        // Update the cursor for the next page
+        lastId = response.documents[response.documents.length - 1].$id;
+      }
+      
+      console.log(`Fetched ${allResults.length} total history items with pagination`);
+      return allResults;
     } catch (error) {
       // Collection might not exist yet, which is okay
-      console.log('Something went wrong: ', error);
+      console.log('Something went wrong with pagination: ', error);
       return [];
     }
   };
@@ -246,7 +166,11 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Load history from Appwrite when authenticated
   useEffect(() => {
     const loadCloudHistory = async () => {
-      if (!userId) return;
+      if (!userId) {
+        setHistory([]);
+        setIsLoading(false);
+        return;
+      }
       
       setIsLoading(true);
       try {
@@ -255,31 +179,11 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const cloudItems = await fetchCloudHistory();
         console.log(`Fetched ${cloudItems.length} items from cloud watch history`);
         
-        // Load local history
-        const storedHistory = await AsyncStorage.getItem(WATCH_HISTORY_STORAGE_KEY);
-        const localItems: WatchHistoryItem[] = storedHistory ? JSON.parse(storedHistory) : [];
-        console.log(`Local watch history has ${localItems.length} items`);
-        
-        // Merge cloud and local history
-        // If item exists in cloud, use cloud version
-        // If item exists only locally, keep it
-        const cloudKeys = new Set(cloudItems.map(item => `${item.id}_${item.episodeNumber}`));
-        const uniqueLocalItems = localItems.filter(
-          item => !cloudKeys.has(`${item.id}_${item.episodeNumber}`)
-        );
-        
-        // Combined history prioritizes cloud items but keeps unique local ones
-        const combined = [...cloudItems, ...uniqueLocalItems];
-        
         // Sort by most recently watched
-        combined.sort((a, b) => b.watchedAt - a.watchedAt);
-        console.log(`Combined watch history has ${combined.length} items after merging cloud and local`);
+        cloudItems.sort((a, b) => b.watchedAt - a.watchedAt);
         
-        // Update state immediately to ensure UI reflects the changes
-        setHistory(combined);
-        
-        // Save to local storage
-        await saveLocalHistory(combined);
+        // Update state
+        setHistory(cloudItems);
         console.log("Watch history load from cloud complete");
       } catch (error) {
         console.error('Error loading watch history:', error);
@@ -293,6 +197,11 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Add an item to watch history
   const addToHistory = async (item: Omit<WatchHistoryItem, 'documentId' | 'watchedAt'>) => {
+    if (!userId) {
+      console.log('Cannot add to watch history: User not authenticated');
+      return;
+    }
+    
     try {
       const watchedAt = Date.now();
       
@@ -317,111 +226,71 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
         
         updatedHistory = [...history];
         updatedHistory[existingIndex] = newItem;
+        
+        // Only update cloud if enough time has passed since last update
+        if (shouldUpdateCloud(item.id, item.episodeNumber)) {
+          console.log(`Updating cloud position for ${item.id}, ep ${item.episodeNumber}`);
+          await databases.updateDocument(
+            safeDbId,
+            safeCollectionId,
+            history[existingIndex].documentId as string,
+            {
+              position: Math.floor(item.position), // Ensure integer
+              duration: Math.floor(item.duration), // Ensure integer
+              watchedAt: watchedAt,
+              audioType: item.audioType
+            }
+          );
+          markCloudUpdated(item.id, item.episodeNumber);
+        } else {
+          console.log(`Skipping cloud update for ${item.id}, ep ${item.episodeNumber} (too soon)`);
+        }
       } else {
         // Create new item
-        newItem = {
-          ...item,
-          watchedAt: watchedAt
-        };
-        
-        updatedHistory = [newItem, ...history];
+        try {
+          const response = await databases.createDocument(
+            safeDbId,
+            safeCollectionId,
+            ID.unique(),
+            {
+              userId: userId,
+              animeId: item.id,
+              episodeNumber: item.episodeNumber,
+              audioType: item.audioType,
+              englishName: item.englishName,
+              thumbnailUrl: item.thumbnailUrl,
+              watchedAt: watchedAt,
+              position: Math.floor(item.position), // Ensure integer
+              duration: Math.floor(item.duration)  // Ensure integer
+            },
+            // Add permissions
+            [
+              Permission.read(Role.user(userId)),
+              Permission.update(Role.user(userId)),
+              Permission.delete(Role.user(userId))
+            ]
+          );
+          
+          // Add the new item with document ID
+          newItem = {
+            ...item,
+            watchedAt: watchedAt,
+            documentId: response.$id
+          };
+          
+          updatedHistory = [newItem, ...history];
+          markCloudUpdated(item.id, item.episodeNumber);
+        } catch (error) {
+          console.error('Failed to create document in Appwrite:', error);
+          return;
+        }
       }
 
       // Sort by most recent
       updatedHistory.sort((a, b) => b.watchedAt - a.watchedAt);
       
-      // Update state and save locally
+      // Update state
       setHistory(updatedHistory);
-      await saveLocalHistory(updatedHistory);
-      
-      // Save to Appwrite if authenticated
-      if (userId) {
-        try {
-          const existingDocumentId = existingIndex !== -1 
-            ? history[existingIndex].documentId
-            : undefined;
-
-          // Only perform cloud operations if enough time has passed since last update
-          if (existingDocumentId) {
-            // Update existing document only if 10 seconds have passed since the last update
-            if (shouldUpdateCloud(item.id, item.episodeNumber)) {
-              console.log(`Updating cloud position for ${item.id}, ep ${item.episodeNumber} after throttle period`);
-              await databases.updateDocument(
-                safeDbId,
-                safeCollectionId,
-                existingDocumentId,
-                {
-                  position: Math.floor(item.position), // Ensure integer
-                  duration: Math.floor(item.duration), // Ensure integer
-                  watchedAt: watchedAt,
-                  audioType: item.audioType
-                }
-              );
-              markCloudUpdated(item.id, item.episodeNumber);
-            } else {
-              console.log(`Skipping cloud update for ${item.id}, ep ${item.episodeNumber} (too soon)`);
-            }
-          } else {
-            // Create new document
-            const response = await databases.createDocument(
-              safeDbId,
-              safeCollectionId,
-              ID.unique(),
-              {
-                userId: userId,
-                animeId: item.id,
-                episodeNumber: item.episodeNumber,
-                audioType: item.audioType,
-                englishName: item.englishName,
-                thumbnailUrl: item.thumbnailUrl,
-                watchedAt: watchedAt,
-                position: Math.floor(item.position), // Ensure integer
-                duration: Math.floor(item.duration)  // Ensure integer
-              },
-              // Add permissions
-              [
-                Permission.read(Role.user(userId)),
-                Permission.update(Role.user(userId)),
-                Permission.delete(Role.user(userId))
-              ]
-            );
-            
-            // Update the item with the document ID
-            if (existingIndex !== -1) {
-              const newHistory = [...updatedHistory];
-              newHistory[existingIndex] = {
-                ...newHistory[existingIndex],
-                documentId: response.$id
-              };
-              setHistory(newHistory);
-              await saveLocalHistory(newHistory);
-            } else {
-              const newItemWithDocId = {
-                ...newItem,
-                documentId: response.$id
-              };
-              
-              const newHistory = updatedHistory.map(h =>
-                h.id === item.id && h.episodeNumber === item.episodeNumber
-                  ? newItemWithDocId
-                  : h
-              );
-              
-              setHistory(newHistory);
-              await saveLocalHistory(newHistory);
-            }
-          }
-        } catch (error) {
-          console.error('Failed to save watch history to Appwrite:', error);
-          throw error; // Rethrow to handle in the calling function 
-          // Continue with local changes even if cloud sync fails
-        }
-      }
-
-      // Also save to the old playback position format for backward compatibility
-      const legacyKey = `${PLAYBACK_POSITION_KEY_PREFIX}${item.id}_${item.episodeNumber}_${item.audioType}`;
-      await AsyncStorage.setItem(legacyKey, item.position.toString());
-
     } catch (error) {
       console.error('Failed to add to watch history:', error);
     }
@@ -429,6 +298,11 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Remove an item from history
   const removeFromHistory = async (animeId: string, episodeNumber: string) => {
+    if (!userId) {
+      console.log('Cannot remove from watch history: User not authenticated');
+      return;
+    }
+    
     try {
       // Find the item
       const itemIndex = history.findIndex(
@@ -439,13 +313,8 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
       
       const item = history[itemIndex];
       
-      // Update local state
-      const updatedHistory = history.filter((_, index) => index !== itemIndex);
-      setHistory(updatedHistory);
-      await saveLocalHistory(updatedHistory);
-      
-      // Remove from Appwrite if authenticated and document ID exists
-      if (userId && item.documentId) {
+      // Remove from Appwrite if document ID exists
+      if (item.documentId) {
         try {
           await databases.deleteDocument(
             safeDbId,
@@ -454,13 +323,13 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
           );
         } catch (error) {
           console.error('Failed to delete watch history from Appwrite:', error);
+          return;
         }
       }
       
-      // Remove from old playback position format
-      const legacyKey = `${PLAYBACK_POSITION_KEY_PREFIX}${animeId}_${episodeNumber}_${item.audioType}`;
-      await AsyncStorage.removeItem(legacyKey);
-      
+      // Update local state
+      const updatedHistory = history.filter((_, index) => index !== itemIndex);
+      setHistory(updatedHistory);
     } catch (error) {
       console.error('Failed to remove from watch history:', error);
     }
@@ -468,38 +337,38 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Clear all history
   const clearHistory = async () => {
+    if (!userId) {
+      console.log('Cannot clear watch history: User not authenticated');
+      Alert.alert('Error', 'You must be logged in to clear your watch history');
+      return;
+    }
+    
     try {
-      setHistory([]);
-      await AsyncStorage.removeItem(WATCH_HISTORY_STORAGE_KEY);
+      setIsLoading(true);
       
-      // Clear from Appwrite if authenticated
-      if (userId) {
-        for (const item of history) {
-          if (item.documentId) {
-            try {
-              await databases.deleteDocument(
-                safeDbId,
-                safeCollectionId,
-                item.documentId
-              );
-            } catch (error) {
-              console.error(`Failed to delete document ${item.documentId}:`, error);
-            }
+      // Delete each item from Appwrite
+      for (const item of history) {
+        if (item.documentId) {
+          try {
+            await databases.deleteDocument(
+              safeDbId,
+              safeCollectionId,
+              item.documentId
+            );
+          } catch (error) {
+            console.error(`Failed to delete document ${item.documentId}:`, error);
           }
         }
       }
       
-      // Also clear old playback position format keys
-      const allKeys = await AsyncStorage.getAllKeys();
-      const playbackKeys = allKeys.filter(key => key.startsWith(PLAYBACK_POSITION_KEY_PREFIX));
-      if (playbackKeys.length > 0) {
-        await AsyncStorage.multiRemove(playbackKeys);
-      }
-      
+      // Clear local state
+      setHistory([]);
       Alert.alert('Success', 'Watch history cleared successfully');
     } catch (error) {
       console.error('Failed to clear watch history:', error);
       Alert.alert('Error', 'Failed to clear watch history');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -545,10 +414,14 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
         console.log("Not authenticated in refreshWatchHistory:", err);
         setIsAuthenticated(false);
         setUserId(null);
+        setHistory([]);
+        setIsLoading(false);
+        return [];
       }
       
       if (!userId) {
         console.log("User not authenticated, skipping cloud history refresh");
+        setHistory([]);
         setIsLoading(false);
         return [];
       }
@@ -558,33 +431,15 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const cloudItems = await fetchCloudHistory();
       console.log(`Fetched ${cloudItems.length} items from cloud watch history`);
       
-      // Load local history
-      const storedHistory = await AsyncStorage.getItem(WATCH_HISTORY_STORAGE_KEY);
-      const localItems: WatchHistoryItem[] = storedHistory ? JSON.parse(storedHistory) : [];
-      console.log(`Local history has ${localItems.length} items`);
-      
-      // Merge cloud and local history
-      const cloudKeys = new Set(cloudItems.map(item => `${item.id}_${item.episodeNumber}`));
-      const uniqueLocalItems = localItems.filter(
-        item => !cloudKeys.has(`${item.id}_${item.episodeNumber}`)
-      );
-      
-      // Combined history prioritizes cloud items but keeps unique local ones
-      const combined = [...cloudItems, ...uniqueLocalItems];
-      
       // Sort by most recently watched
-      combined.sort((a, b) => b.watchedAt - a.watchedAt);
-      
-      console.log(`Combined history has ${combined.length} items after merging cloud and local`);
+      cloudItems.sort((a, b) => b.watchedAt - a.watchedAt);
       
       // Always update the state to ensure we have the latest data
-      setHistory(combined);
+      setHistory(cloudItems);
       
-      // Then save to local storage
-      await saveLocalHistory(combined);
-      console.log(`Refreshed watch history with ${combined.length} total items`);
+      console.log(`Refreshed watch history with ${cloudItems.length} total items`);
       
-      return combined;
+      return cloudItems;
     } catch (error) {
       console.error('Error refreshing watch history:', error);
       return history; // Return current history on error
@@ -593,75 +448,17 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  // Function to sync local history to cloud
+  // Function to sync history with cloud storage
   const syncHistory = async () => {
+    // This implementation uses only cloud storage, so syncing is just refreshing data from cloud
     if (!userId) {
       Alert.alert("Not logged in", "Please log in to sync your watch history.");
       return;
     }
     
     try {
-      // First refresh from cloud to make sure we have the latest data
       await refreshWatchHistory();
-      
-      // Get existing cloud history
-      const cloudItems = await fetchCloudHistory();
-      const cloudMap = new Map(
-        cloudItems.map(item => [`${item.id}_${item.episodeNumber}`, item])
-      );
-      
-      // Items to add or update in cloud
-      const itemsToSync = history.filter(
-        item => !cloudMap.has(`${item.id}_${item.episodeNumber}`) || !item.documentId
-      );
-      
-      if (itemsToSync.length === 0) {
-        Alert.alert("Sync Complete", "Your watch history is already up to date.");
-        return;
-      }
-      
-      console.log(`Syncing ${itemsToSync.length} items to cloud`);
-      
-      // Add each item to cloud
-      for (const item of itemsToSync) {
-        try {
-          // Add a delay before each document creation to prevent rate limiting
-          await delayOperation(5000);
-          
-          const response = await databases.createDocument(
-            safeDbId,
-            safeCollectionId,
-            ID.unique(),
-            {
-              userId: userId,
-              animeId: item.id,
-              episodeNumber: item.episodeNumber,
-              audioType: item.audioType,
-              englishName: item.englishName,
-              thumbnailUrl: item.thumbnailUrl,
-              watchedAt: item.watchedAt,
-              position: item.position,
-              duration: item.duration
-            },
-            // Add permissions
-            [
-              Permission.read(Role.user(userId)),
-              Permission.update(Role.user(userId)),
-              Permission.delete(Role.user(userId))
-            ]
-          );
-          
-          // Update the item with document ID
-          item.documentId = response.$id;
-        } catch (error) {
-          console.error(`Failed to sync item ${item.id}_${item.episodeNumber} to cloud:`, error);
-        }
-      }
-      
-      // Update local storage with document IDs
-      await saveLocalHistory(history);
-      
-      Alert.alert("Sync Complete", "Your watch history has been synced to the cloud.");
+      Alert.alert("Sync Complete", "Your watch history has been updated.");
     } catch (error) {
       console.error('Error syncing watch history:', error);
       Alert.alert("Sync Failed", "There was a problem syncing your watch history.");
