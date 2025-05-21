@@ -25,15 +25,17 @@ export const SyncManager: React.FC = () => {
       syncInProgress.current = true;
       console.log('SyncManager: Starting data synchronization...');
       
-      // First refresh watchlist
-      console.log('SyncManager: Refreshing watchlist...');
-      await refreshWatchlist();
-      console.log('SyncManager: Watchlist refresh complete');
-      
-      // Then refresh watch history
-      console.log('SyncManager: Refreshing watch history...');
-      await refreshWatchHistory();
-      console.log('SyncManager: Watch history refresh complete');
+      // Refresh watchlist and watch history in parallel for better performance
+      console.log('SyncManager: Refreshing watchlist and watch history in parallel...');
+      const [watchlistResult, watchHistoryResult] = await Promise.all([
+        refreshWatchlist().then(() => {
+          console.log('SyncManager: Watchlist refresh complete');
+        }),
+        refreshWatchHistory().then(() => {
+          console.log('SyncManager: Watch history refresh complete');
+        })
+      ]);
+      console.log('SyncManager: Both watchlist and watch history refresh complete');
       
       console.log('SyncManager: All data synchronization complete');
       syncAttempted.current = true;
