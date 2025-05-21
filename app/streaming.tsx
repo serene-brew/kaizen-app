@@ -22,7 +22,6 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import Slider from '@react-native-community/slider';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDownloads } from '../contexts/DownloadsContext';
 import { useWatchHistory } from '../contexts/WatchHistoryContext';
 import { ID } from 'appwrite';
@@ -34,9 +33,6 @@ type QualityOption = {
   label: string;
   url: string;
 };
-
-// Storage key for last playback position
-const PLAYBACK_POSITION_KEY_PREFIX = '@kaizen_playback_position_';
 
 interface StreamingResponse {
   direct?: string;
@@ -248,10 +244,10 @@ export default function StreamingPage() {
   // Get the watch history context
   const { getWatchedEpisodes } = useWatchHistory();
   
-  // Load saved playback position from cloud history first, then fallback to AsyncStorage
+  // Load saved playback position from cloud history
   const loadPlaybackPosition = async () => {
     try {
-      // First check if we have this episode in watch history (which includes cloud data)
+      // Check if we have this episode in watch history
       const watchedEpisodes = getWatchedEpisodes(id as string);
       const watchedEpisode = watchedEpisodes.find(ep => 
         ep.episodeNumber === episode && 
@@ -266,17 +262,7 @@ export default function StreamingPage() {
         position = watchedEpisode.position;
         foundPosition = true;
         console.log(`Found watch history position for ${id} episode ${episode}: ${position}ms`);
-      } else {
-        // Fallback to legacy storage method
-        const key = `${PLAYBACK_POSITION_KEY_PREFIX}${id}_${episode}_${audioType}`;
-        const savedPosition = await AsyncStorage.getItem(key);
-        
-        if (savedPosition) {
-          position = parseInt(savedPosition, 10);
-          foundPosition = true;
-          console.log(`Found legacy position for ${id} episode ${episode}: ${position}ms`);
-        }
-      }
+      } 
       
       // If we found a position and it's significant enough, ask to resume
       if (foundPosition && position > 30000) { // Only ask if more than 30 seconds in
@@ -304,15 +290,11 @@ export default function StreamingPage() {
     }
   };
 
-  // Save current playback position to AsyncStorage and update watch history
+  // Save current playback position to cloud watch history
   const savePlaybackPosition = async () => {
     try {
       if (currentTime > 0 && duration > 0) {
-        // Save to AsyncStorage (legacy method - for backward compatibility)
-        const key = `${PLAYBACK_POSITION_KEY_PREFIX}${id}_${episode}_${audioType}`;
-        await AsyncStorage.setItem(key, currentTime.toString());
-        
-        // Update the watch history context
+        // Update the watch history in cloud storage
         // Lower the threshold to consider watched if at least 5% of the episode is watched
         // This ensures more consistent history recording
         const watchedThreshold = duration * 0.05;
