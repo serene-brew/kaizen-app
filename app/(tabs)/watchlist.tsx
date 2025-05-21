@@ -15,8 +15,8 @@ const CARD_WIDTH = (width - (PADDING * 2) - GAP) / 2;
 export default function Watchlist() {
   const [sortBy, setSortBy] = useState<'recent' | 'name'>('recent');
   
-  // Use the watchlist context with new syncing capabilities
-  const { watchlist, removeFromWatchlist, sortWatchlist, isLoading, isSyncing, syncWatchlist, isAuthenticated } = useWatchlist();
+  // Use the watchlist context
+  const { watchlist, removeFromWatchlist, sortWatchlist, isLoading, isSyncing, refreshWatchlist, isAuthenticated } = useWatchlist();
 
   const handlePressCard = (id: string, title: string) => {
     router.push({
@@ -51,7 +51,7 @@ export default function Watchlist() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.dark.buttonBackground} />
-        <Text style={styles.loadingText}>Syncing watchlist to cloud...</Text>
+        <Text style={styles.loadingText}>Refreshing watchlist data...</Text>
       </View>
     );
   }
@@ -83,7 +83,7 @@ export default function Watchlist() {
         <View style={styles.headerButtons}>
           <TouchableOpacity 
             style={[styles.iconButton, !isAuthenticated && styles.disabledButton]} 
-            onPress={syncWatchlist}
+            onPress={refreshWatchlist}
             disabled={!isAuthenticated || isSyncing}
           >
             <MaterialCommunityIcons 
@@ -146,15 +146,6 @@ export default function Watchlist() {
                     color={Colors.dark.buttonBackground}
                   />
                 </TouchableOpacity>
-                {!item.documentId && isAuthenticated && (
-                  <View style={styles.notSyncedIndicator}>
-                    <MaterialCommunityIcons 
-                      name="cloud-off-outline" 
-                      size={16} 
-                      color={Colors.dark.buttonBackground}
-                    />
-                  </View>
-                )}
               </View>
               <Text style={styles.cardTitle} numberOfLines={2}>
                 {item.englishName}
