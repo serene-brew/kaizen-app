@@ -42,7 +42,7 @@ export default {
     },
     splash: {
       image: './assets/images/splash-img.png',
-      resizeMode: 'contain',
+      resizeMode: 'cover',
       backgroundColor: '#161622'
     },
     plugins: [
@@ -51,7 +51,7 @@ export default {
         'expo-splash-screen',
         {
           image: './assets/images/splash-img.png',
-          imageResizeMode: 'contain',
+          imageResizeMode: 'cover',
           backgroundColor: '#161622'
         }
       ],
