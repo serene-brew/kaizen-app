@@ -44,7 +44,7 @@ export default {
       image: './assets/images/splash-img.png',
       resizeMode: 'contain',
       backgroundColor: '#161622',
-      imageWidth: 200
+      imageWidth: 500
     },
     plugins: [
       'expo-router',
@@ -54,7 +54,7 @@ export default {
           image: './assets/images/splash-img.png',
           imageResizeMode: 'contain',
           backgroundColor: '#161622',
-          imageWidth: 200
+          imageWidth: 500
         }
       ],
       [
