@@ -1,4 +1,9 @@
+// filepath: /home/risersama/projects/kaizen-app/app/downloads.tsx
+
+// React core for component creation and state management
 import React, { useState, useEffect } from 'react';
+
+// React Native core components for UI rendering and device interaction
 import { 
   View, 
   Text, 
@@ -9,15 +14,39 @@ import {
   ActivityIndicator,
   Platform
 } from 'react-native';
+
+// Status bar component for controlling appearance
 import { StatusBar } from 'expo-status-bar';
+
+// Expo Router for navigation
 import { useRouter } from 'expo-router';
+
+// Material Community Icons for visual elements
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+// Application color constants for consistent theming
 import Colors from '../constants/Colors';
+
+// Downloads context for managing offline content
 import { useDownloads } from '../contexts/DownloadsContext';
+
+// Expo file system utilities for file operations
 import * as FileSystem from 'expo-file-system';
+
+// Date formatting utilities for displaying timestamps
 import { formatDistanceToNow, format } from 'date-fns';
+
+// Component-specific styles
 import { styles } from '../styles/downloads.styles';
 
+/**
+ * Utility function to format bytes into human-readable file sizes
+ * Converts bytes to appropriate units (Bytes, KB, MB, GB, etc.)
+ * 
+ * @param bytes - Size in bytes
+ * @param decimals - Number of decimal places to show
+ * @returns Formatted size string with appropriate unit
+ */
 const formatBytes = (bytes: number, decimals = 2) => {
   if (bytes === 0) return '0 Bytes';
   
@@ -30,25 +59,48 @@ const formatBytes = (bytes: number, decimals = 2) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 };
 
+/**
+ * DownloadsPage Component
+ * 
+ * Comprehensive download management interface that provides:
+ * - Visual display of all downloaded anime episodes
+ * - Download queue management with pause/resume/cancel functionality
+ * - File size and storage usage tracking
+ * - Filtering by download status (all, completed, active)
+ * - Sorting by date, name, or file size
+ * - Playback of completed downloads
+ * - Permission handling for file system access
+ * - Bulk operations for clearing all downloads
+ */
 export default function DownloadsPage() {
   const router = useRouter();
+  
+  // Extract download management functionality from context
   const { 
-    downloads, 
-    currentDownloads, 
-    downloadQueue,
-    totalStorageUsed, 
-    removeDownload, 
-    pauseDownload, 
-    resumeDownload, 
-    cancelDownload,
-    clearAllDownloads,
-    downloadPermissionGranted,
-    requestDownloadPermissions
+    downloads, // Array of all download items
+    currentDownloads, // Currently active downloads
+    downloadQueue, // Queued downloads waiting to start
+    totalStorageUsed, // Total disk space used by downloads
+    removeDownload, // Function to delete a download
+    pauseDownload, // Function to pause an active download
+    resumeDownload, // Function to resume a paused download
+    cancelDownload, // Function to cancel a pending/active download
+    clearAllDownloads, // Function to remove all downloads
+    downloadPermissionGranted, // Permission status for file system
+    requestDownloadPermissions // Function to request file permissions
   } = useDownloads();
   
-  const [filter, setFilter] = useState<'all' | 'completed' | 'active'>('all');
-  const [sortBy, setSortBy] = useState<'date' | 'name' | 'size'>('date');
+  // Local state for UI filtering and sorting
+  const [filter, setFilter] = useState<'all' | 'completed' | 'active'>('all'); // Current filter mode
+  const [sortBy, setSortBy] = useState<'date' | 'name' | 'size'>('date'); // Current sort method
   
+  /**
+   * Permission Request Effect
+   * 
+   * Ensures the app has necessary file system permissions for download operations.
+   * Automatically requests permissions if not already granted.
+   * Critical for Android devices with storage permission requirements.
+   */
   // Request permissions if needed
   useEffect(() => {
     const checkPermissions = async () => {
@@ -60,11 +112,28 @@ export default function DownloadsPage() {
     checkPermissions();
   }, [downloadPermissionGranted]);
 
+  /**
+   * Back Navigation Handler
+   * 
+   * Returns user to the More tab when back button is pressed.
+   * Maintains proper navigation flow within the app.
+   */
   // Handle back button press
   const handleGoBack = () => {
     router.push('/(tabs)/more');
   };
   
+  /**
+   * Download Filtering and Sorting Logic
+   * 
+   * Memoized computation that processes the downloads array to:
+   * - Apply status-based filtering (all, completed, active)
+   * - Sort by user-selected criteria (date, name, size)
+   * - Maintain performance with large download lists
+   * 
+   * Active downloads include: downloading, pending, paused states
+   * Completed downloads include: successfully finished downloads
+   */
   // Filtered and sorted downloads
   const filteredDownloads = React.useMemo(() => {
     let items = [...downloads];
@@ -93,6 +162,17 @@ export default function DownloadsPage() {
     return items;
   }, [downloads, filter, sortBy]);
   
+  /**
+   * Download Playback Handler
+   * 
+   * Handles playing completed downloads with comprehensive error handling:
+   * - Verifies file exists on device storage
+   * - Navigates to streaming screen with local file path
+   * - Removes broken downloads from the list
+   * - Provides user feedback for errors
+   * 
+   * @param item - The download item to play
+   */
   // Play a downloaded episode
   const playDownload = async (item: typeof downloads[0]) => {
     try {
@@ -122,6 +202,13 @@ export default function DownloadsPage() {
     }
   };
   
+  /**
+   * Clear All Downloads Handler
+   * 
+   * Provides bulk deletion of all downloads with user confirmation.
+   * Shows destructive action dialog to prevent accidental data loss.
+   * Handles errors gracefully with user feedback.
+   */
   // Confirm and clear all downloads
   const handleClearAllDownloads = () => {
     Alert.alert(
@@ -145,6 +232,21 @@ export default function DownloadsPage() {
     );
   };
   
+  /**
+   * Download Action Handler
+   * 
+   * Centralized handler for all download-related actions:
+   * - play: Start playback of completed downloads
+   * - pause: Pause active downloads
+   * - resume: Resume paused downloads
+   * - cancel: Cancel pending/active downloads with confirmation
+   * - delete: Remove completed/failed downloads with confirmation
+   * 
+   * Includes comprehensive error handling and user confirmations for destructive actions.
+   * 
+   * @param item - The download item to act upon
+   * @param action - The action to perform
+   */
   // Handle download actions (play, pause, resume, cancel, delete)
   const handleAction = async (item: typeof downloads[0], action: string) => {
     try {
@@ -195,6 +297,19 @@ export default function DownloadsPage() {
     }
   };
   
+  /**
+   * Download Item Renderer
+   * 
+   * Renders individual download items with:
+   * - Thumbnail with status overlays
+   * - Progress indicators for active downloads
+   * - Episode and audio type information
+   * - File size and date metadata
+   * - Context-appropriate action buttons
+   * - Visual feedback for different download states
+   * 
+   * @param item - The download item to render
+   */
   // Render a download item
   const renderDownloadItem = ({ item }: { item: typeof downloads[0] }) => {
     return (
@@ -323,7 +438,7 @@ export default function DownloadsPage() {
     <View style={styles.container}>
       <StatusBar style="light" translucent />
       
-      {/* Header */}
+      {/* Header with navigation and bulk actions */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
           <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.dark.text} />
@@ -339,7 +454,7 @@ export default function DownloadsPage() {
         </View>
       </View>
       
-      {/* Storage info */}
+      {/* Storage usage information */}
       <View style={styles.storageInfo}>
         <MaterialCommunityIcons name="folder-download" size={20} color={Colors.dark.secondaryText} />
         <Text style={styles.storageText}>
@@ -347,7 +462,7 @@ export default function DownloadsPage() {
         </Text>
       </View>
       
-      {/* Filters */}
+      {/* Filtering and sorting controls */}
       <View style={styles.filtersContainer}>
         <View style={styles.filters}>
           <TouchableOpacity 
@@ -382,6 +497,7 @@ export default function DownloadsPage() {
           </TouchableOpacity>
         </View>
         
+        {/* Sort toggle button with cycling sort options */}
         <TouchableOpacity 
           style={styles.sortButton}
           onPress={() => {
@@ -408,7 +524,7 @@ export default function DownloadsPage() {
         </TouchableOpacity>
       </View>
       
-      {/* Download list */}
+      {/* Download list with conditional empty states */}
       {downloads.length === 0 ? (
         <View style={styles.emptyContainer}>
           <MaterialCommunityIcons 
@@ -437,7 +553,7 @@ export default function DownloadsPage() {
         />
       )}
       
-      {/* Download queue info */}
+      {/* Download queue status indicator */}
       {downloadQueue.length > 0 && (
         <View style={styles.queueInfoContainer}>
           <Text style={styles.queueInfoText}>
