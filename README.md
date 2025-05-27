@@ -1,4 +1,4 @@
-# Kaizen - Anime Streaming App
+<h1 align="center"> Kaizen - Anime Streaming App </h1>
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/491929ba-f857-4bb9-85c1-7a3ecd832231" width="400">
