@@ -1,8 +1,10 @@
-# Kaizen - Anime Streaming App 🍥
+# Kaizen - Anime Streaming App
 
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/491929ba-f857-4bb9-85c1-7a3ecd832231" width="400">
+</div>
 
-
-## 📱 Screenshots
+## Screenshots
 
 <!-- Add your app screenshots here -->
 <div align="center">
@@ -14,27 +16,21 @@
   <img src="https://github.com/user-attachments/assets/128fc30b-4903-4dad-9c45-3d3d5abaaee6" width="200"> 
 </div>
 
-## 🎬 Demo Videos
+## Features
 
-<!-- Add your demo videos here -->
-- 📹 **[App Overview](docs/videos/app-overview.mp4)** - Complete app walkthrough
-- 📹 **[Streaming Experience](docs/videos/streaming-demo.mp4)** - Video player features
+- High-quality anime streaming
+- Advanced search functionality
+- Personal watchlist management
+- Watch history tracking
+- Offline downloads
+- Beautiful dark theme
+- Secure authentication
 
-## ✨ Features
-
-- 🎮 High-quality anime streaming
-- 🔍 Advanced search functionality
-- 📚 Personal watchlist management
-- 📈 Watch history tracking
-- ⬇️ Offline downloads
-- 🌙 Beautiful dark theme
-- 🔐 Secure authentication
-
-## ⚠️ Important Notice
+## Important Notice
 
 **Content Disclaimer**: This application aggregates publicly available anime content from third-party sources and APIs. We do not host, store, or control any media files on our servers. All content is sourced from publicly accessible services, and we act solely as a content aggregator. We are not responsible for the availability, quality, or legality of the content provided by these third-party services. Users are advised to ensure compliance with local laws and regulations regarding content consumption.
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Node.js (v18+)
@@ -48,12 +44,12 @@ npm install
 npx expo start -c
 ```
 
-## 🛠️ Tech Stack
+## Tech Stack
 - React Native + Expo
 - TypeScript
 - Appwrite (Backend)
 
-## 📄 License
+## License
 MIT License
 
 ---
