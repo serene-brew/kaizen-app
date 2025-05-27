@@ -1,39 +1,95 @@
+// React hooks for state management, lifecycle, and performance optimization
 import { useEffect, useState, useRef, useCallback } from "react";
+
+// React Native core components for UI rendering and device interaction
 import { View, Text, FlatList, Image, TouchableOpacity, ActivityIndicator, BackHandler } from "react-native";
+
+// Material Community Icons for visual elements
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+// Expo Router hooks for navigation and parameter access
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+
+// Application color constants for consistent theming
 import Colors from "../constants/Colors";
+
+// API utilities for fetching anime search data
 import { animeApi } from "../lib/api";
+
+// TypeScript interfaces for type safety
 import { AnimeItem } from "../types/anime";
+
+// Status bar component for controlling appearance
 import { StatusBar } from 'expo-status-bar';
+
+// AsyncStorage for local data persistence and caching
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// Component-specific styles
 import { styles } from "../styles/searchResults.styles";
+
+// Watchlist context for managing user's saved anime
 import { useWatchlist } from "../contexts/WatchlistContext";
 
+/**
+ * AsyncStorage Constants
+ * 
+ * Keys for storing search results and parameters locally to provide:
+ * - Instant result restoration when returning from detail pages
+ * - Offline search result viewing
+ * - Reduced API calls for repeated searches
+ * - Improved user experience with faster navigation
+ */
 // Constants for AsyncStorage
 const SEARCH_RESULTS_STORAGE_KEY = 'search_results_cache';
 const SEARCH_PARAMS_STORAGE_KEY = 'search_params_cache';
 
+/**
+ * SearchResults Component
+ * 
+ * Comprehensive search results display that provides:
+ * - Multi-parameter search support (text query + genre filters)
+ * - Intelligent result caching with AsyncStorage
+ * - Automatic result restoration on screen focus
+ * - Loading, error, and empty states
+ * - Watchlist integration for quick bookmarking
+ * - Navigation to detailed anime information
+ * - Android hardware back button handling
+ * - Performance optimization with debounced focus events
+ */
 export default function SearchResults() {
+  // Extract search parameters from route
   const params = useLocalSearchParams();
   const queryParam = params.query as string || '';
   const genresParam = params.genres ? (params.genres as string).split(',') : [];
   
-  // State variables
-  const [results, setResults] = useState<AnimeItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [watchlist, setWatchlist] = useState<string[]>([]); // Keep for compatibility
-  const [hasSearched, setHasSearched] = useState(false);
+  // State variables for search results and UI
+  const [results, setResults] = useState<AnimeItem[]>([]); // Search result anime list
+  const [loading, setLoading] = useState(true); // Loading state for API calls
+  const [error, setError] = useState<string | null>(null); // Error state for failed requests
+  const [watchlist, setWatchlist] = useState<string[]>([]); // Legacy local watchlist state for compatibility
+  const [hasSearched, setHasSearched] = useState(false); // Flag to track if search has been performed
   
-  // Use watchlist context
+  // Use watchlist context for global state management
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
   
-  // Refs to keep track of mount state and prevent duplicate focus effects
-  const initialMount = useRef(true);
-  const lastFocusTime = useRef<number>(0);
-  const noResultsFound = useRef(false); // Add a ref to track when we've confirmed no results exist
+  // Refs for component lifecycle and performance optimization
+  const initialMount = useRef(true); // Track initial mount to prevent duplicate searches
+  const lastFocusTime = useRef<number>(0); // Debounce focus events to prevent loops
+  const noResultsFound = useRef(false); // Track when we've confirmed no results exist
 
+  /**
+   * Search Results Persistence - Save Function
+   * 
+   * Saves successful search results and parameters to AsyncStorage for:
+   * - Instant restoration when returning from detail pages
+   * - Offline viewing of previous search results
+   * - Reduced API calls for repeated identical searches
+   * 
+   * @param searchResults - Array of anime items to cache
+   * @param query - Text search query used
+   * @param genres - Genre filters applied
+   */
   // Save search results to AsyncStorage
   const saveSearchResults = async (searchResults: AnimeItem[], query: string, genres: string[]) => {
     try {
@@ -45,6 +101,16 @@ export default function SearchResults() {
     }
   };
 
+  /**
+   * Search Results Persistence - Load Function
+   * 
+   * Loads cached search results from AsyncStorage with intelligent parameter matching:
+   * - Returns most recent results if no current search parameters (returning from details)
+   * - Validates parameter matching for cached result relevance
+   * - Prevents unnecessary API calls for identical searches
+   * 
+   * @returns boolean indicating if cached results were successfully restored
+   */
   // Load search results from AsyncStorage
   const loadSearchResults = async () => {
     try {
@@ -102,6 +168,16 @@ export default function SearchResults() {
     }
   };
 
+  /**
+   * Primary Search Function
+   * 
+   * Performs API search based on provided parameters with intelligent endpoint selection:
+   * - Text only search: uses query-specific endpoint
+   * - Genre only search: uses filter-specific endpoint
+   * - Combined search: uses combined query and filter endpoint
+   * - Handles all error states and empty results
+   * - Caches successful results for future use
+   */
   // Perform a search with the given query and genres
   const performSearch = useCallback(async () => {
     setLoading(true);
@@ -154,6 +230,15 @@ export default function SearchResults() {
     }
   }, [queryParam, genresParam]);
 
+  /**
+   * Initial Search Effect
+   * 
+   * Handles component initialization with intelligent caching:
+   * - Attempts to load cached results first for performance
+   * - Falls back to new API search if cache miss or parameter mismatch
+   * - Prevents duplicate searches on mount
+   * - Handles edge cases with no search parameters
+   */
   // Initial search on component mount
   useEffect(() => {
     const initSearch = async () => {
@@ -178,6 +263,15 @@ export default function SearchResults() {
     initSearch();
   }, []);
 
+  /**
+   * Screen Focus Effect
+   * 
+   * Handles result restoration when returning from detail pages:
+   * - Debounces rapid successive focus events to prevent loops
+   * - Restores cached results without showing loading spinner
+   * - Performs new search only if necessary and no confirmed empty results
+   * - Optimizes user experience during navigation
+   */
   // Handle screen focus - restore search results but with debounce to prevent loops
   useFocusEffect(
     useCallback(() => {
@@ -220,6 +314,12 @@ export default function SearchResults() {
     }, [queryParam, genresParam, performSearch, results.length, noResultsFound.current])
   );
 
+  /**
+   * Android Hardware Back Button Handler
+   * 
+   * Ensures proper navigation flow on Android devices.
+   * Always returns to search page regardless of navigation stack state.
+   */
   // Handle Android hardware back button to navigate to search page
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -230,12 +330,27 @@ export default function SearchResults() {
     return () => backHandler.remove();
   }, []);
 
+  /**
+   * Back Navigation Handler
+   * 
+   * Provides consistent navigation back to search page.
+   * Maintains proper app flow and user expectations.
+   */
   // Modified back button handler to ensure we always go back to the search page
   const handleGoBack = () => {
     router.push('/(tabs)/search');
     return true;
   };
 
+  /**
+   * Anime Card Press Handler
+   * 
+   * Navigates to anime details with comprehensive data passing:
+   * - Passes anime ID and title for API calls
+   * - Includes source tracking for analytics
+   * - Encodes complete anime data for immediate display
+   * - Optimizes detail page loading experience
+   */
   const handlePressCard = (item: AnimeItem) => {
     router.push({
       pathname: "/(tabs)/details",
@@ -248,6 +363,15 @@ export default function SearchResults() {
     });
   };
 
+  /**
+   * Watchlist Toggle Handler
+   * 
+   * Manages adding/removing anime from user's watchlist:
+   * - Prevents event bubbling to avoid card navigation
+   * - Updates both local state (compatibility) and global context
+   * - Provides immediate UI feedback
+   * - Handles missing anime data gracefully
+   */
   // Update toggleWatchlist function to use both local state and context
   const handleToggleWatchlist = (id: string, event: any) => {
     event.stopPropagation();
@@ -271,8 +395,20 @@ export default function SearchResults() {
     }
   };
 
+  /**
+   * Search Result Item Renderer
+   * 
+   * Renders individual anime cards with comprehensive information:
+   * - Thumbnail with fallback placeholder
+   * - Title with line limiting for consistent layout
+   * - Status badges (type, status, rating)
+   * - Score with star icon
+   * - Watchlist toggle with visual state feedback
+   * - Proper touch handling for navigation and actions
+   */
   const renderItem = ({ item }: { item: AnimeItem }) => (
     <TouchableOpacity style={styles.card} onPress={() => handlePressCard(item)}>
+      {/* Thumbnail container with image or placeholder */}
       <View style={styles.thumbnailContainer}>
         {item.thumbnail ? (
           <Image 
@@ -287,11 +423,13 @@ export default function SearchResults() {
         )}
       </View>
       
+      {/* Content container with title and metadata */}
       <View style={styles.contentContainer}>
         <Text style={styles.title} numberOfLines={2}>
           {item.englishName || item.title || 'Unknown Anime'}
         </Text>
         
+        {/* Information badges container */}
         <View style={styles.infoContainer}>
           {/* Type Badge */}
           {item.type && (
@@ -316,6 +454,7 @@ export default function SearchResults() {
         </View>
       </View>
       
+      {/* Right container with bookmark and score */}
       <View style={styles.rightContainer}>
         <TouchableOpacity 
           style={styles.bookmarkButton}
@@ -339,6 +478,12 @@ export default function SearchResults() {
     </TouchableOpacity>
   );
 
+  /**
+   * Empty State Render
+   * 
+   * Displays helpful message when no search parameters are provided.
+   * Guides users to use search functionality.
+   */
   // Show empty state if no search parameters were provided and no results
   if (hasSearched && !loading && !error && results.length === 0 && (!queryParam && genresParam.length === 0)) {
     return (
@@ -360,10 +505,20 @@ export default function SearchResults() {
     );
   }
 
+  /**
+   * Main Search Results Render
+   * 
+   * Displays search results with proper state handling:
+   * - Loading state with spinner and message
+   * - Error state with icon and retry option
+   * - Results list with count and scrollable interface
+   * - Dynamic header showing search context
+   */
   return (
     <View style={styles.container}>
       <StatusBar style="light" translucent />
       
+      {/* Header with back button and dynamic title */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
           <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.dark.text} />
@@ -375,6 +530,7 @@ export default function SearchResults() {
         </Text>
       </View>
       
+      {/* Conditional content based on state */}
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.dark.buttonBackground} />
@@ -387,6 +543,7 @@ export default function SearchResults() {
         </View>
       ) : (
         <>
+          {/* Results count and list */}
           <Text style={styles.resultsCount}>{results.length} anime found</Text>
           <FlatList
             data={results}
