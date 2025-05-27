@@ -1,43 +1,82 @@
+// filepath: /home/risersama/projects/kaizen-app/context/GlobalProvider.tsx
+
+// React core hooks for state management and component lifecycle
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
+
+// Appwrite authentication services and models
 import { authService, account } from '../lib/appwrite'; // Import account
 import { Models } from 'appwrite';
+
+// React Native and Expo utilities for user interaction and authentication
 import { Alert } from 'react-native'; // Import Alert
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
 import Constants from 'expo-constants'; // Import Constants
+
+// Application contexts for data synchronization
 import { useWatchlist } from '../contexts/WatchlistContext';
 import { useWatchHistory } from '../contexts/WatchHistoryContext';
+
+// AsyncStorage for local cache management
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+/**
+ * TypeScript Interfaces
+ * 
+ * Type definitions for user data and authentication states to ensure
+ * type safety throughout the authentication system.
+ */
+// Extended user interface from Appwrite with preferences
 interface User extends Models.User<Models.Preferences> {}
 
+// OTP information structure for email verification workflow
 interface OTPInfo {
-  userId: string;
-  email: string;
-  secret: string;
-  expiresAt: Date;
-  name?: string; // Name field for user registration
+  userId: string;     // Appwrite user ID for verification
+  email: string;      // Email address where OTP was sent
+  secret: string;     // Secret token for OTP verification
+  expiresAt: Date;    // Expiration timestamp for security
+  name?: string;      // Optional name field for user registration
 }
 
+/**
+ * Global Context Interface
+ * 
+ * Comprehensive authentication context that provides:
+ * - Authentication state management (login/logout status)
+ * - User profile data and loading states
+ * - Multiple authentication methods (OTP, Google OAuth)
+ * - OTP workflow management for email verification
+ * - Centralized auth functions accessible app-wide
+ */
 interface GlobalContextType {
-  isLogged: boolean;
-  setIsLogged: (value: boolean) => void;
-  user: User | null;
-  setUser: (user: User | null) => void;
-  loading: boolean;
-  signUp: (email: string, name: string) => Promise<OTPInfo>;
-  signIn: (email: string) => Promise<OTPInfo>;
-  signInWithGoogle: () => Promise<void>; // Changed return type
-  logout: () => Promise<void>;
-  sendOTP: (email: string, name?: string) => Promise<OTPInfo>;
-  verifyOTP: (code: string) => Promise<void>;
-  otpInfo: OTPInfo | null;
-  setOtpInfo: (info: OTPInfo | null) => void;
+  isLogged: boolean;                        // Current authentication status
+  setIsLogged: (value: boolean) => void;    // Authentication state setter
+  user: User | null;                        // Current user profile data
+  setUser: (user: User | null) => void;     // User profile setter
+  loading: boolean;                         // Global loading state for auth operations
+  signUp: (email: string, name: string) => Promise<OTPInfo>;     // Registration with OTP
+  signIn: (email: string) => Promise<OTPInfo>;                   // Login with OTP
+  signInWithGoogle: () => Promise<void>;                         // Google OAuth authentication
+  logout: () => Promise<void>;                                   // Logout with cache clearing
+  sendOTP: (email: string, name?: string) => Promise<OTPInfo>;   // Send verification code
+  verifyOTP: (code: string) => Promise<void>;                    // Verify OTP code
+  otpInfo: OTPInfo | null;                                       // Current OTP session data
+  setOtpInfo: (info: OTPInfo | null) => void;                    // OTP session setter
 }
 
+// Create the global authentication context
 const GlobalContext = createContext<GlobalContextType | undefined>(undefined);
 
+/**
+ * Global Context Hook
+ * 
+ * Custom hook to access the global authentication context with error handling.
+ * Ensures the hook is only used within the GlobalProvider scope.
+ * 
+ * @returns GlobalContextType - The complete authentication context
+ * @throws Error if used outside of GlobalProvider
+ */
 export const useGlobalContext = () => {
   const context = useContext(GlobalContext);
   if (!context) {
@@ -46,26 +85,53 @@ export const useGlobalContext = () => {
   return context;
 };
 
+// Provider component props interface
 interface GlobalProviderProps {
   children: ReactNode;
 }
 
+/**
+ * GlobalProvider Component
+ * 
+ * The central authentication provider that manages:
+ * - User authentication state across the entire application
+ * - Multiple authentication methods (OTP via email, Google OAuth)
+ * - Automatic session validation and restoration on app startup
+ * - Data synchronization with watchlist and watch history contexts
+ * - Comprehensive cache management during login/logout operations
+ * - Google OAuth integration with proper token handling
+ * - OTP workflow management for secure email verification
+ * - Loading states and error handling for all auth operations
+ * 
+ * Architecture Benefits:
+ * - Centralized authentication logic prevents duplication
+ * - Automatic data sync ensures consistency across features
+ * - Robust session management with proper cleanup
+ * - Multiple auth methods provide user choice and flexibility
+ * - Comprehensive error handling and user feedback
+ */
 // Ensure the browser closes after auth
 const GlobalProvider = ({ children }: GlobalProviderProps) => {
-  const [isLogged, setIsLogged] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [otpInfo, setOtpInfo] = useState<OTPInfo | null>(null);
+  // Core authentication state management
+  const [isLogged, setIsLogged] = useState(false);        // Authentication status
+  const [user, setUser] = useState<User | null>(null);    // User profile data
+  const [loading, setLoading] = useState(true);           // Global loading state
+  const [otpInfo, setOtpInfo] = useState<OTPInfo | null>(null); // OTP session data
   
-  // Access contexts for data synchronization
+  // Access contexts for data synchronization after authentication
   const watchlistContext = useWatchlist();
   const watchHistoryContext = useWatchHistory();
   
-  // We don't use these hooks directly in GlobalProvider to prevent circular dependencies
-  // Data sync is now handled by the SyncManager component
-  // We don't use these hooks directly in GlobalProvider to prevent circular dependencies
-  // Data sync is now handled by the SyncManager component
+  // Note: Data sync is handled through manual calls to prevent circular dependencies
+  // between authentication and feature contexts
 
+  /**
+   * Google OAuth Configuration
+   * 
+   * Sets up Google authentication with proper client IDs for each platform.
+   * Reads configuration from environment variables through Expo Constants.
+   * Validates configuration and sets up redirect URI for OAuth flow.
+   */
   // --- ADD Google Auth Request Hook ---
   // Read Google Client IDs from app config (loaded from .env)
   const googleClientIdWeb = Constants.expoConfig?.extra?.googleClientIdWeb as string;
@@ -95,6 +161,13 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
   });
   // --- END Google Auth Request Hook ---
 
+  /**
+   * Initial Authentication Check Effect
+   * 
+   * Performs one-time authentication validation on app startup.
+   * Checks for existing valid sessions and restores user state.
+   * Uses ref to prevent duplicate checks during component lifecycle.
+   */
   useEffect(() => {
     // Check auth status only once on initial mount
     if (!initialAuthCheckCompleted.current) {
@@ -102,6 +175,13 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
     }
   }, []);
   
+  /**
+   * Data Synchronization Effect
+   * 
+   * Monitors authentication state changes and triggers data refresh.
+   * Syncs watchlist and watch history when user successfully logs in.
+   * Prevents duplicate sync operations during auth state transitions.
+   */
   // Effect to sync data when authentication state changes
   useEffect(() => {
     const syncDataAfterLogin = async () => {
@@ -130,6 +210,16 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
     syncDataAfterLogin();
   }, [isLogged, user]);
 
+  /**
+   * Google OAuth Response Handler Effect
+   * 
+   * Processes Google authentication responses and handles different scenarios:
+   * - Success: Verifies token with backend and creates Appwrite session
+   * - Error: Displays appropriate error messages to user
+   * - Cancel: Handles user cancellation gracefully without errors
+   * 
+   * Includes comprehensive error handling and user feedback.
+   */
   // --- ADD useEffect to handle Google Auth Response ---
   // Track if user state update is in progress to prevent duplicate auth state changes
   const userStateUpdateInProgress = useRef(false);
@@ -212,6 +302,13 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
   // Use a ref to track initial auth check completion
   const initialAuthCheckCompleted = useRef(false);
   
+  /**
+   * Authentication Status Check Function
+   * 
+   * Validates existing user sessions and restores authentication state.
+   * Uses improved session verification that checks both session validity and user data.
+   * Prevents duplicate checks during the app lifecycle.
+   */
   const checkAuth = async () => {
     // Avoid duplicate auth checks
     if (initialAuthCheckCompleted.current) return;
@@ -242,6 +339,17 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
     }
   };
 
+  /**
+   * User Registration Function
+   * 
+   * Initiates the sign-up process using email-based OTP verification.
+   * Sends verification code to user's email and stores session data.
+   * Includes name parameter for account creation during verification.
+   * 
+   * @param email - User's email address for account creation
+   * @param name - User's display name for the account
+   * @returns Promise<OTPInfo> - OTP session data for verification
+   */
   const signUp = async (email: string, name: string) => {
     setLoading(true);
     try {      
@@ -279,6 +387,17 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
     }
   };
 
+  /**
+   * OTP Sending Function
+   * 
+   * Sends one-time password to specified email address.
+   * Can be used for both sign-up and sign-in workflows.
+   * Stores OTP session data for subsequent verification.
+   * 
+   * @param email - Email address to send OTP to
+   * @param name - Optional name for registration context
+   * @returns Promise<OTPInfo> - OTP session data
+   */
   const sendOTP = async (email: string, name?: string) => {
     setLoading(true);
     try {
@@ -313,6 +432,16 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
     }
   };
 
+  /**
+   * OTP Verification Function
+   * 
+   * Verifies the user-provided OTP code and completes authentication.
+   * Handles both sign-up (with account creation) and sign-in scenarios.
+   * Triggers data synchronization after successful verification.
+   * Includes comprehensive error handling and state management.
+   * 
+   * @param code - User-provided verification code
+   */
   const verifyOTP = async (code: string) => {
     setLoading(true);
     try {
@@ -360,6 +489,16 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
     }
   };
 
+  /**
+   * User Sign-In Function
+   * 
+   * Initiates the login process for existing users using email-based OTP.
+   * Sends verification code to user's email for secure authentication.
+   * Similar to signUp but without account creation context.
+   * 
+   * @param email - User's registered email address
+   * @returns Promise<OTPInfo> - OTP session data for verification
+   */
   const signIn = async (email: string) => {
     setLoading(true);
     try {
@@ -395,6 +534,15 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
     }
   };
 
+  /**
+   * Google OAuth Sign-In Function
+   * 
+   * Initiates Google OAuth authentication flow.
+   * Uses Expo's authentication session to handle the OAuth dance.
+   * The actual response processing is handled by the useEffect hook.
+   * 
+   * @returns Promise<void> - Resolves when prompt is initiated
+   */
   const signInWithGoogle = async (): Promise<void> => { // Changed return type
     setLoading(true); // Set loading true when starting the process
     try {
@@ -409,6 +557,16 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
     }
   };
 
+  /**
+   * User Logout Function
+   * 
+   * Comprehensive logout process that includes:
+   * - Immediate UI state updates for better perceived performance
+   * - Parallel execution of cache clearing and Appwrite logout
+   * - Data context cleanup to ensure fresh state on next login
+   * - Robust error handling to ensure logout completion even on failures
+   * - Complete app cache clearing for security and privacy
+   */
   const logout = async () => {
     setLoading(true);
     try {
@@ -454,6 +612,17 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
     }
   };
   
+  /**
+   * App Cache Clearing Function
+   * 
+   * Comprehensive cache management for logout and privacy:
+   * - Clears all search-related cached data
+   * - Removes anime data caches (details, trending, top lists)
+   * - Cleans user-specific preferences and settings
+   * - Preserves download files for offline viewing
+   * - Handles AsyncStorage errors gracefully with fallback clearing
+   * - Coordinates with data contexts for complete cleanup
+   */
   // Function to clear app cache when logged out
   const clearAppCache = async () => {
     console.log('Clearing app cache data...');
