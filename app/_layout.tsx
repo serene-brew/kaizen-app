@@ -1,5 +1,3 @@
-// filepath: /home/risersama/projects/kaizen-app/app/_layout.tsx
-
 // Expo Router components for navigation structure and routing
 import { Stack, router } from "expo-router";
 

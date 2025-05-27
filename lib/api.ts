@@ -1,5 +1,3 @@
-// filepath: /home/risersama/projects/kaizen-app/lib/api.ts
-
 // TypeScript interfaces for anime data structures and API responses
 import { AnimeItem, AnimeResponse } from '../types/anime';
 

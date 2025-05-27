@@ -1,5 +1,3 @@
-// filepath: /home/risersama/projects/kaizen-app/app/streaming.tsx
-
 // React hooks for state management, lifecycle, and refs
 import { useEffect, useState, useRef } from 'react';
 

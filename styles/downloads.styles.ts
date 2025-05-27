@@ -1,4 +1,3 @@
-// filepath: /home/risersama/projects/kaizen-app/styles/downloads.styles.ts
 import { StyleSheet, Dimensions, Platform } from "react-native";
 import Colors from "../constants/Colors";
 

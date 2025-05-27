@@ -1,5 +1,3 @@
-// filepath: /home/risersama/projects/kaizen-app/components/GoogleButton.tsx
-
 // React Native core components for interactive UI elements
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 

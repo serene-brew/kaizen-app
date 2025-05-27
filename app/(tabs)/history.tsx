@@ -1,5 +1,3 @@
-// filepath: /home/risersama/projects/kaizen-app/app/(tabs)/history.tsx
-
 // React hooks for state management, side effects, and performance optimization
 import { useState, useEffect, useCallback, memo } from 'react';
 

@@ -1,5 +1,3 @@
-// filepath: /home/risersama/projects/kaizen-app/lib/appwrite.ts
-
 // Appwrite SDK imports for React Native authentication and database operations
 import { Client, Account, ID, OAuthProvider, AppwriteException, Functions, Databases } from 'react-native-appwrite';
 

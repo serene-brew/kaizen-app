@@ -1,5 +1,3 @@
-// filepath: /home/risersama/projects/kaizen-app/context/GlobalProvider.tsx
-
 // React core hooks for state management and component lifecycle
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 

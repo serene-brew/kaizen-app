@@ -1,5 +1,3 @@
-// filepath: /home/risersama/projects/kaizen-app/app/downloads.tsx
-
 // React core for component creation and state management
 import React, { useState, useEffect } from 'react';
 
