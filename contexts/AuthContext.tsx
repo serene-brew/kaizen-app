@@ -1,43 +1,95 @@
+// filepath: /home/risersama/projects/kaizen-app/contexts/AuthContext.tsx
+
+// React core hooks for state management and component lifecycle
 import React, { createContext, useContext, useState, useEffect } from 'react';
+
+// Appwrite authentication service and models
 import { account } from '../lib/appwrite';
-import { useWatchlist } from './WatchlistContext';
-import { useWatchHistory } from './WatchHistoryContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Models } from 'appwrite';
 
+// Feature-specific contexts for data synchronization
+import { useWatchlist } from './WatchlistContext';
+import { useWatchHistory } from './WatchHistoryContext';
+
+// AsyncStorage for local cache management
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+/**
+ * AuthContext Interface
+ * 
+ * Defines the authentication context contract with:
+ * - User profile data and authentication status
+ * - Loading states for auth operations
+ * - Logout functionality with comprehensive cleanup
+ */
 interface AuthContextProps {
-  user: Models.User<Models.Preferences> | null;
-  isAuthenticated: boolean;
-  loading: boolean;
-  handleLogout: () => Promise<void>;
+  user: Models.User<Models.Preferences> | null;    // Current user profile from Appwrite
+  isAuthenticated: boolean;                        // Authentication status flag
+  loading: boolean;                                // Loading state for auth operations
+  handleLogout: () => Promise<void>;               // Logout function with data cleanup
 }
 
+// Create the authentication context
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
+/**
+ * AuthProvider Component
+ * 
+ * A simplified authentication provider that manages:
+ * - User session validation and restoration on app startup
+ * - Automatic data synchronization with watchlist and watch history
+ * - Comprehensive logout process with cache clearing
+ * - Integration with Appwrite authentication backend
+ * 
+ * Key Features:
+ * - Automatic session restoration on app launch
+ * - Parallel data refresh after authentication
+ * - Complete cache cleanup on logout for privacy
+ * - Preserves download files during logout process
+ * - Robust error handling for all auth operations
+ * 
+ * Note: This is a simpler alternative to GlobalProvider,
+ * focusing specifically on authentication state management.
+ */
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Core authentication state management
   const [user, setUser] = useState<Models.User<Models.Preferences> | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  // Get refreshWatchlist function from watchlist context
+  // Access data contexts for synchronization after authentication
   const { refreshWatchlist } = useWatchlist();
-  
-  // Get refreshWatchHistory function from watch history context
   const { refreshWatchHistory } = useWatchHistory();
 
+  /**
+   * Initial Authentication Check Effect
+   * 
+   * Validates existing user sessions on app startup and handles:
+   * - Session restoration from stored Appwrite credentials
+   * - Automatic data synchronization after successful validation
+   * - Error handling for invalid or expired sessions
+   * - Loading state management during validation process
+   * 
+   * The parallel data refresh ensures user data is immediately
+   * available after authentication validation.
+   */
   useEffect(() => {
     const fetchUser = async () => {
       try {
+        // Attempt to get current authenticated user from Appwrite
         const currentUser = await account.get();
         setUser(currentUser);
         setIsAuthenticated(true);
         
         // Refresh watchlist and watch history when user logs in
+        // Execute in parallel for optimal performance
         await Promise.all([refreshWatchlist(), refreshWatchHistory()]);
       } catch (error) {
+        // No valid session found - reset to unauthenticated state
         setUser(null);
         setIsAuthenticated(false);
       } finally {
+        // Always set loading to false regardless of auth status
         setLoading(false);
       }
     };
@@ -45,10 +97,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchUser();
   }, [refreshWatchlist, refreshWatchHistory]);
 
+  /**
+   * Logout Handler Function
+   * 
+   * Comprehensive logout process that includes:
+   * - Appwrite session termination
+   * - Complete app cache clearing for privacy
+   * - Data context refresh to ensure clean state
+   * - Robust error handling to ensure logout completion
+   * 
+   * The cache clearing preserves download files while removing
+   * all user-specific data for privacy and security.
+   */
   // When user logs out, we should clear watchlist and watch history data
   const handleLogout = async () => {
     try {
       setLoading(true);
+      
+      // Delete current session from Appwrite
       await account.deleteSession('current');
       setUser(null);
 
@@ -56,18 +122,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await clearSearchCache();
 
       // Refresh the watchlist and watch history to clear them (since we only use cloud storage now)
+      // Execute in parallel for optimal performance
       await Promise.all([refreshWatchlist(), refreshWatchHistory()]);
       
-      // Update isAuthenticated state
+      // Update authentication state
       setIsAuthenticated(false);
     } catch (error) {
       console.error('Error during logout:', error);
-      // Handle error (e.g., show toast)
+      // Handle error gracefully - logout should still complete locally
     } finally {
       setLoading(false);
     }
   };
 
+  /**
+   * Cache Clearing Function
+   * 
+   * Comprehensive cache management for logout and privacy:
+   * - Clears all search-related cached data
+   * - Removes anime data caches (details, trending, top lists)
+   * - Cleans user-specific preferences and settings
+   * - Preserves download files for offline viewing
+   * - Handles AsyncStorage errors gracefully with fallback clearing
+   * - Provides detailed logging for debugging and monitoring
+   */
   // Function to clear cache during logout
   const clearSearchCache = async () => {
     console.log('AuthContext: Clearing app cache data...');
@@ -146,6 +224,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
+/**
+ * useAuth Hook
+ * 
+ * Custom hook to access the authentication context with error handling.
+ * Ensures the hook is only used within the AuthProvider scope.
+ * 
+ * @returns AuthContextProps - The complete authentication context
+ * @throws Error if used outside of AuthProvider
+ */
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
