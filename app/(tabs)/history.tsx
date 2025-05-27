@@ -1,35 +1,63 @@
+// filepath: /home/risersama/projects/kaizen-app/app/(tabs)/history.tsx
+
+// React hooks for state management, side effects, and performance optimization
 import { useState, useEffect, useCallback, memo } from 'react';
+
+// React Native core components for UI rendering and device interaction
 import { View, Text, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert, Dimensions, BackHandler } from 'react-native';
+
+// Expo Router for navigation
 import { useRouter } from 'expo-router';
+
+// Material Community Icons for visual elements
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+// Status bar component for controlling appearance
 import { StatusBar } from 'expo-status-bar';
+
+// Application color constants for consistent theming
 import Colors from '../../constants/Colors';
+
+// Watch history context for managing user's viewing history
 import { useWatchHistory, WatchHistoryItem } from '../../contexts/WatchHistoryContext';
+
+// Component-specific styles
 import { styles } from '../../styles/history.styles';
 
+// Get device screen width for responsive layout
 const { width } = Dimensions.get('window');
+
+/**
+ * TypeScript Interface Definitions
+ * Define prop structures for component type safety and better development experience
+ */
 
 // Type definitions
 interface EpisodeItemProps {
-  item: WatchHistoryItem;
-  onRemove: (animeId: string, episodeNumber: string) => void;
-  onNavigate: (item: WatchHistoryItem) => void;
+  item: WatchHistoryItem; // Individual episode watch data
+  onRemove: (animeId: string, episodeNumber: string) => void; // Callback for removing episode from history
+  onNavigate: (item: WatchHistoryItem) => void; // Callback for navigating to streaming screen
 }
 
 interface AnimeGroupProps {
-  animeId: string;
-  animeItems: WatchHistoryItem[];
-  onNavigateToDetails: (animeId: string, animeName: string, thumbnailUrl: string) => void;
-  onNavigateToStreaming: (item: WatchHistoryItem) => void;
-  onRemoveItem: (animeId: string, episodeNumber: string) => void;
+  animeId: string; // Unique anime identifier
+  animeItems: WatchHistoryItem[]; // Array of episodes watched for this anime
+  onNavigateToDetails: (animeId: string, animeName: string, thumbnailUrl: string) => void; // Navigate to anime details
+  onNavigateToStreaming: (item: WatchHistoryItem) => void; // Navigate to episode streaming
+  onRemoveItem: (animeId: string, episodeNumber: string) => void; // Remove specific episode
 }
 
 interface HeaderProps {
-  onSync: () => void;
-  onClear: () => void;
-  isAuthenticated: boolean;
-  isSyncing: boolean;
+  onSync: () => void; // Sync history with cloud storage
+  onClear: () => void; // Clear all watch history
+  isAuthenticated: boolean; // User authentication status
+  isSyncing: boolean; // Cloud sync operation status
 }
+
+/**
+ * Utility Functions
+ * Helper functions for data processing and formatting
+ */
 
 // Create a unique key for each history item
 const createUniqueKey = (item: WatchHistoryItem): string => {
@@ -55,6 +83,13 @@ const formatProgress = (position: number, duration: number): string => {
   return `${percentage}%`;
 };
 
+/**
+ * EpisodeItem Component
+ * 
+ * Memoized component that renders individual episode watch history entries.
+ * Displays episode number, audio type, watch progress, and watch date.
+ * Includes remove functionality and navigation to continue watching.
+ */
 // Memoized Episode Item Component for better performance
 const EpisodeItem = memo(({ item, onRemove, onNavigate }: EpisodeItemProps) => {
   return (
@@ -62,17 +97,21 @@ const EpisodeItem = memo(({ item, onRemove, onNavigate }: EpisodeItemProps) => {
       style={styles.episodeItem} 
       onPress={() => onNavigate(item)}
     >
+      {/* Episode header with number, audio type, and remove button */}
       <View style={styles.episodeHeader}>
         <View style={styles.episodeDetails}>
+          {/* Episode number display */}
           <Text style={styles.episodeNumber}>
             Episode {item.episodeNumber}
           </Text>
+          {/* Audio type badge (SUB/DUB) */}
           <View style={styles.audioBadge}>
             <Text style={styles.audioType}>
               {item.audioType.toUpperCase()}
             </Text>
           </View>
         </View>
+        {/* Remove episode button */}
         <TouchableOpacity
           style={styles.removeButton}
           onPress={() => onRemove(item.id, item.episodeNumber)}
@@ -86,6 +125,7 @@ const EpisodeItem = memo(({ item, onRemove, onNavigate }: EpisodeItemProps) => {
         </TouchableOpacity>
       </View>
       
+      {/* Progress bar showing watch completion percentage */}
       <View style={styles.progressContainer}>
         <View 
           style={[
@@ -95,6 +135,7 @@ const EpisodeItem = memo(({ item, onRemove, onNavigate }: EpisodeItemProps) => {
         />
       </View>
       
+      {/* Episode footer with progress percentage and watch date */}
       <View style={styles.episodeFooter}>
         <Text style={styles.progressText}>
           {formatProgress(item.position, item.duration)}
@@ -107,12 +148,21 @@ const EpisodeItem = memo(({ item, onRemove, onNavigate }: EpisodeItemProps) => {
   );
 });
 
+/**
+ * AnimeGroup Component
+ * 
+ * Memoized component that groups episodes by anime series.
+ * Displays anime header with thumbnail, title, and episode count.
+ * Contains horizontal scrolling list of episodes for this anime.
+ */
 // Memoized Anime Group Component for better performance
 const AnimeGroup = memo(({ animeId, animeItems, onNavigateToDetails, onNavigateToStreaming, onRemoveItem }: AnimeGroupProps) => {
+  // Use first item for anime information display
   const firstItem = animeItems[0];
   
   return (
     <View style={styles.animeGroup}>
+      {/* Anime header with thumbnail and basic info */}
       <TouchableOpacity 
         style={styles.animeHeader}
         onPress={() => onNavigateToDetails(
@@ -121,22 +171,28 @@ const AnimeGroup = memo(({ animeId, animeItems, onNavigateToDetails, onNavigateT
           firstItem.thumbnailUrl
         )}
       >
+        {/* Anime thumbnail image */}
         <Image 
           source={{ uri: firstItem.thumbnailUrl}} 
           style={styles.animeThumbnail} 
           defaultSource={require('../../assets/images/icon.png')}
         />
+        {/* Anime information display */}
         <View style={styles.animeInfo}>
+          {/* Anime title */}
           <Text style={styles.animeName} numberOfLines={1}>
             {firstItem.englishName}
           </Text>
+          {/* Episode count summary */}
           <Text style={styles.episodeCount}>
             {animeItems.length} episode{animeItems.length > 1 ? 's' : ''} watched
           </Text>
+          {/* Last watched timestamp */}
           <Text style={styles.lastWatched}>
             Last watched: {formatDate(firstItem.watchedAt)}
           </Text>
         </View>
+        {/* Navigation arrow */}
         <MaterialCommunityIcons 
           name="chevron-right" 
           size={24} 
@@ -144,6 +200,7 @@ const AnimeGroup = memo(({ animeId, animeItems, onNavigateToDetails, onNavigateT
         />
       </TouchableOpacity>
       
+      {/* Horizontal scrolling list of episodes for this anime */}
       <FlatList
         data={animeItems}
         horizontal
@@ -162,10 +219,18 @@ const AnimeGroup = memo(({ animeId, animeItems, onNavigateToDetails, onNavigateT
   );
 });
 
+/**
+ * Header Component
+ * 
+ * Memoized header component with sync and clear functionality.
+ * Provides cloud sync for authenticated users and clear all option.
+ * Handles disabled states based on authentication and sync status.
+ */
 // Header Component
 const Header = memo(({ onSync, onClear, isAuthenticated, isSyncing }: HeaderProps) => (
   <View style={styles.header}>
     <View style={styles.headerButtons}>
+      {/* Cloud sync button - disabled if not authenticated or syncing */}
       <TouchableOpacity 
         style={[styles.headerButton, (!isAuthenticated || isSyncing) && styles.disabledButton]} 
         onPress={onSync}
@@ -174,7 +239,9 @@ const Header = memo(({ onSync, onClear, isAuthenticated, isSyncing }: HeaderProp
         <MaterialCommunityIcons name="cloud-sync" size={18} color={isAuthenticated && !isSyncing ? Colors.dark.text : Colors.dark.secondaryText} />
         <Text style={styles.headerButtonText}>Sync</Text>
       </TouchableOpacity>
+      {/* Spacer for button alignment */}
       <View style={styles.centerButtonSpacer} />
+      {/* Clear all history button */}
       <TouchableOpacity 
         style={[styles.headerButton, styles.clearButton]} 
         onPress={onClear}
@@ -186,17 +253,43 @@ const Header = memo(({ onSync, onClear, isAuthenticated, isSyncing }: HeaderProp
   </View>
 ));
 
+/**
+ * HistoryPage Component
+ * 
+ * Main watch history screen that displays user's viewing history grouped by anime.
+ * Features:
+ * - Groups episodes by anime series
+ * - Shows watch progress for each episode
+ * - Provides sync functionality for authenticated users
+ * - Allows individual episode removal and bulk clear
+ * - Navigation to continue watching or view anime details
+ * - Hardware back button handling for Android
+ */
 export default function HistoryPage() {
   const router = useRouter();
+  
+  // Extract watch history functionality from context
   const { history, isLoading, isSyncing, removeFromHistory, clearHistory, syncHistory, isAuthenticated } = useWatchHistory();
+  
+  // Local state for organizing and displaying history data
   const [groupedHistory, setGroupedHistory] = useState<Record<string, WatchHistoryItem[]>>({});
   const [sortedAnimeIds, setSortedAnimeIds] = useState<string[]>([]);
   
+  /**
+   * Navigation handler for back button
+   * Returns to the More tab when back is pressed
+   */
   // Handle back button to return to the More tab
   const handleGoBack = () => {
     router.navigate('/(tabs)/more');
   };
 
+  /**
+   * Hardware Back Button Effect
+   * 
+   * Handles Android hardware back button press to ensure proper navigation
+   * Prevents default back behavior and uses custom navigation logic
+   */
   //       Add hardware back button handler
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -207,6 +300,15 @@ export default function HistoryPage() {
     return () => backHandler.remove();
   }, []);
 
+  /**
+   * History Grouping and Sorting Effect
+   * 
+   * Processes watch history data to:
+   * - Group episodes by anime ID
+   * - Remove duplicate episodes (keeping most recent)
+   * - Sort episodes within each anime by watch date
+   * - Sort anime groups by most recent activity
+   */
   // Group history by anime ID
   useEffect(() => {
     const grouped: Record<string, WatchHistoryItem[]> = history.reduce((acc: Record<string, WatchHistoryItem[]>, item) => {
@@ -247,6 +349,10 @@ export default function HistoryPage() {
     setSortedAnimeIds(sortedIds);
   }, [history]);
 
+  /**
+   * Episode Removal Handler
+   * Shows confirmation dialog before removing episode from history
+   */
   // Handle removal of history item
   const handleRemoveItem = useCallback((animeId: string, episodeNumber: string) => {
     Alert.alert(
@@ -263,6 +369,10 @@ export default function HistoryPage() {
     );
   }, [removeFromHistory]);
 
+  /**
+   * Clear All History Handler
+   * Shows confirmation dialog before clearing entire watch history
+   */
   // Handle clear all history
   const handleClearHistory = useCallback(() => {
     Alert.alert(
@@ -279,6 +389,10 @@ export default function HistoryPage() {
     );
   }, [clearHistory]);
 
+  /**
+   * Navigation to Anime Details
+   * Navigates to details page with proper source tracking
+   */
   // Navigate to anime details
   const navigateToDetails = useCallback((animeId: string, animeName: string, thumbnailUrl: string) => {
     router.push({
@@ -292,6 +406,10 @@ export default function HistoryPage() {
     });
   }, [router]);
 
+  /**
+   * Navigation to Streaming
+   * Navigates to streaming screen to continue watching episode
+   */
   // Navigate to streaming
   const navigateToStreaming = useCallback((item: WatchHistoryItem) => {
     router.push({
@@ -306,6 +424,11 @@ export default function HistoryPage() {
     });
   }, [router]);
 
+  /**
+   * Cloud Sync Handler
+   * Handles syncing watch history with cloud storage
+   * Shows authentication warning if user not logged in
+   */
   // Handle sync history with cloud
   const handleSyncHistory = useCallback(() => {
     if (!isAuthenticated) {
@@ -320,6 +443,10 @@ export default function HistoryPage() {
     syncHistory();
   }, [isAuthenticated, syncHistory]);
 
+  /**
+   * Loading State Render
+   * Displays loading spinner while history data is being fetched
+   */
   // Show loading state
   if (isLoading) {
     return (
@@ -331,6 +458,10 @@ export default function HistoryPage() {
     );
   }
   
+  /**
+   * Syncing State Render
+   * Displays syncing indicator during cloud sync operations
+   */
   // Show syncing indicator
   if (isSyncing) {
     return (
@@ -342,6 +473,10 @@ export default function HistoryPage() {
     );
   }
 
+  /**
+   * Empty State Render
+   * Displays empty state when user has no watch history
+   */
   // Show empty state
   if (history.length === 0) {
     return (
@@ -368,9 +503,14 @@ export default function HistoryPage() {
     );
   }
 
+  /**
+   * Main History List Render
+   * Displays grouped watch history with anime groups and episodes
+   */
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
+      {/* Main history list grouped by anime */}
       <FlatList
         data={sortedAnimeIds}
         renderItem={({ item: animeId }) => (
