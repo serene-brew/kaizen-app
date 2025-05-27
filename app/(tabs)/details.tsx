@@ -1,19 +1,42 @@
+// React Native core components for UI rendering and device interaction
 import { View, Text, ScrollView, TouchableOpacity, Dimensions, Image, ActivityIndicator, BackHandler } from "react-native";
+
+// Icon libraries for visual elements
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+
+// Application color constants for consistent theming
 import Colors from "../../constants/Colors";
+
+// Expo Router hooks for navigation and parameter handling
 import { useLocalSearchParams, useRouter } from 'expo-router';
+
+// React hooks for state management and side effects
 import { useState, useEffect, useCallback } from "react";
+
+// Component-specific styles
 import { styles } from "../../styles/details.styles";
+
+// Status bar component for controlling appearance
 import { StatusBar } from 'expo-status-bar';
+
+// TypeScript interfaces for type safety
 import { AnimeItem } from "../../types/anime";
+
+// Context hooks for watchlist and watch history management
 import { useWatchlist } from '../../contexts/WatchlistContext';
 import { useWatchHistory } from '../../contexts/WatchHistoryContext';
+
+// AsyncStorage for local data persistence
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Get device screen width for responsive poster sizing
 const { width } = Dimensions.get('window');
-const POSTER_WIDTH = width * 0.35;
+const POSTER_WIDTH = width * 0.35; // Poster takes 35% of screen width
 
-// Interface for the API response
+/**
+ * Interface for the API response structure
+ * Defines the expected format from the anime details API endpoint
+ */
 interface AnimeDetailsResponse {
   result: {
     id: string;
@@ -35,20 +58,41 @@ interface AnimeDetailsResponse {
   } | null;
 }
 
+/**
+ * DetailsPage Component
+ * 
+ * Displays comprehensive information about a specific anime including:
+ * - Poster image and basic information (title, rating, genres)
+ * - Description with expand/collapse functionality
+ * - Episode list with watch status tracking
+ * - Watchlist toggle functionality
+ * - SUB/DUB audio options when available
+ * - Navigation integration with proper back button handling
+ */
 export default function DetailsPage() {
+  // Extract route parameters for anime identification and navigation context
   const params = useLocalSearchParams();
   const { id, title, source } = params;
   const router = useRouter();
-  const [audioType, setAudioType] = useState<'sub' | 'dub'>('sub');
-  const [expandedDescription, setExpandedDescription] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [animeData, setAnimeData] = useState<AnimeDetailsResponse['result'] | null>(null);
-  const [watchedEpisode, setWatchedEpisode] = useState<string>('');
+  
+  // Local component state management
+  const [audioType, setAudioType] = useState<'sub' | 'dub'>('sub'); // Currently selected audio type
+  const [expandedDescription, setExpandedDescription] = useState(false); // Description expand state
+  const [loading, setLoading] = useState(true); // Data loading state
+  const [error, setError] = useState<string | null>(null); // Error state for API failures
+  const [animeData, setAnimeData] = useState<AnimeDetailsResponse['result'] | null>(null); // Main anime data
+  const [watchedEpisode, setWatchedEpisode] = useState<string>(''); // Most recently watched episode
 
-  // Use the watchlist context
+  // Context hooks for watchlist and watch history functionality
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
+  /**
+   * Anime Details Data Fetching Effect
+   * 
+   * Handles loading anime details with two data sources:
+   * 1. Complete data passed via navigation params (faster, no API call)
+   * 2. API fetch using anime ID (fallback or when no complete data available)
+   */
   useEffect(() => {
     const fetchAnimeDetails = async () => {
       if (!id) return;
@@ -118,13 +162,21 @@ export default function DetailsPage() {
     fetchAnimeDetails();
   }, [id]);
 
-  // Load watched episodes from WatchHistoryContext
+  // Get watch history functionality from context
   const { getWatchedEpisodes } = useWatchHistory();
   
-  // For tracking all watched episodes
+  // State for tracking all watched episodes (used for UI indicators)
   const [watchedEpisodes, setWatchedEpisodes] = useState<Set<string>>(new Set());
   
-  // Load watched episode data
+  /**
+   * Watch History Loading Effect
+   * 
+   * Loads and tracks user's watch history for this anime:
+   * - Gets all watched episodes from context
+   * - Updates UI indicators for watched episodes
+   * - Identifies most recently watched episode
+   * - Refreshes periodically to catch updates from streaming screen
+   */
   useEffect(() => {
     const loadWatchHistory = () => {
       if (id) {
@@ -164,16 +216,28 @@ export default function DetailsPage() {
     return () => clearInterval(refreshInterval);
   }, [id, getWatchedEpisodes, router]);
 
-  // Add back button handling with Android hardware back button support
+  /**
+   * Hardware Back Button Handling Effect
+   * 
+   * Handles Android hardware back button press to ensure proper navigation
+   * Prevents default back behavior and uses custom navigation logic
+   */
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
       handleGoBack();
-      return true;
+      return true; // Prevent default back behavior
     });
 
     return () => backHandler.remove();
   }, []);
 
+  /**
+   * Custom Back Navigation Handler
+   * 
+   * Navigates back to the appropriate screen based on source parameter:
+   * - Maintains navigation context from where user arrived
+   * - Provides smooth user experience by returning to correct screen
+   */
   const handleGoBack = useCallback(() => {
     // Use the source param to determine where to go back to
     if (source === 'search') {
@@ -192,6 +256,12 @@ export default function DetailsPage() {
     }
   }, [router, source]);
 
+  /**
+   * Watchlist Toggle Handler
+   * 
+   * Adds or removes anime from user's watchlist using context
+   * Provides immediate UI feedback through context state updates
+   */
   const handleToggleWatchlist = () => {
     if (!animeData) return;
 
@@ -202,11 +272,17 @@ export default function DetailsPage() {
     );
   };
 
-  // Determine if SUB/DUB options should be available
+  // Determine availability of SUB/DUB episodes for UI display
   const hasSubEpisodes = animeData?.episodes?.sub && animeData.episodes.sub.length > 0;
   const hasDubEpisodes = animeData?.episodes?.dub && animeData.episodes.dub.length > 0;
   
-  // Set default audio type based on availability
+  /**
+   * Audio Type Auto-Selection Effect
+   * 
+   * Automatically adjusts audio type selection based on episode availability:
+   * - Switches from DUB to SUB if DUB episodes unavailable
+   * - Switches from SUB to DUB if SUB episodes unavailable and DUB available
+   */
   useEffect(() => {
     if (animeData) {
       if (audioType === 'dub' && !hasDubEpisodes) {
@@ -217,7 +293,10 @@ export default function DetailsPage() {
     }
   }, [animeData]);
 
-  // Show loading state if data is being fetched
+  /**
+   * Loading State Render
+   * Displays loading spinner and text while fetching anime details
+   */
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -227,7 +306,10 @@ export default function DetailsPage() {
     );
   }
 
-  // Show error state if there was a problem
+  /**
+   * Error State Render
+   * Displays error message when API fetch fails or no data available
+   */
   if (error || !animeData) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -237,9 +319,19 @@ export default function DetailsPage() {
     );
   }
 
-  // Check if the anime is in the watchlist using the context
+  // Check watchlist status using context for real-time updates
   const isInWatchlistCache = isInWatchlist(animeData.id);
 
+  /**
+   * Main Details Page Render
+   * 
+   * Displays comprehensive anime information including:
+   * - Header with poster, title, rating, and action buttons
+   * - Expandable description section
+   * - Genre tags
+   * - Episode grid with watch status indicators
+   * - SUB/DUB selection when applicable
+   */
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <StatusBar style="light" translucent />
@@ -254,13 +346,16 @@ export default function DetailsPage() {
         </TouchableOpacity>
       </View>
       
+      {/* Header section with poster and main information */}
       <View style={styles.header}>
         <View style={styles.posterContainer}>
+          {/* Anime poster image with fallback */}
           <Image 
-            source={{ uri: animeData.thumbnail || 'https://via.placeholder.com/300x450?text=No+Image' }}
+            source={{ uri: animeData.thumbnail || 'https://via.placeholder.com/300x450?text=No+Image' }}  // Even the placeholder image doesnot exist, it will not break the app, thats why it is added, might change it later with something like a local image of 404 not found anime edition
             style={styles.poster}
             resizeMode="cover"
           />
+          {/* Watchlist toggle button overlaid on poster */}
           <TouchableOpacity 
             style={styles.watchlistButton} 
             onPress={handleToggleWatchlist}
@@ -273,8 +368,10 @@ export default function DetailsPage() {
           </TouchableOpacity>
         </View>
         
+        {/* Information container with title, rating, and controls */}
         <View style={styles.infoContainer}>
-          <Text style={styles.title} numberOfLines={2}>{animeData.englishName || animeData.title || 'Unknown Anime'}</Text>
+          {/* Anime title with line limit for clean layout */}
+          <Text style={styles.title} numberOfLines={2}>{animeData.englishName || animeData.title || 'Unknown Anime'}</Text>  
           
           {/* Rating badge - only show if score exists */}
           {animeData.score && (
@@ -284,7 +381,7 @@ export default function DetailsPage() {
             </View>
           )}
           
-          {/* Info badges */}
+          {/* Information badges for rating, type, and status */}
           <View style={styles.badges}>
             {animeData.rating && (
               <View style={styles.badge}>
@@ -303,7 +400,7 @@ export default function DetailsPage() {
             )}
           </View>
           
-          {/* Only show audio type toggles if at least one type is available */}
+          {/* Audio type selection buttons - only show if episodes available */}
           {(hasSubEpisodes || hasDubEpisodes) && (
             <View style={styles.actions}>
               {hasSubEpisodes && (
@@ -345,12 +442,14 @@ export default function DetailsPage() {
       {animeData.description && (
         <View style={styles.descriptionContainer}>
           <Text style={styles.sectionTitle}>Description</Text>
+          {/* Description text with conditional line limiting */}
           <Text 
             style={styles.description} 
             numberOfLines={expandedDescription ? undefined : 3}
           >
             {animeData.description}
           </Text>
+          {/* Expand/collapse button */}
           <TouchableOpacity
             style={styles.expandButton}
             onPress={() => setExpandedDescription(!expandedDescription)}
@@ -371,6 +470,7 @@ export default function DetailsPage() {
       {animeData.genres && animeData.genres.length > 0 && (
         <View style={styles.genresContainer}>
           <View style={styles.genresList}>
+            {/* Genre chips with unique keys */}
             {animeData.genres.map((genre, index) => (
               <View key={`genre-${index}`} style={styles.genreChip}>
                 <Text style={styles.genreChipText}>{genre}</Text>
@@ -380,18 +480,19 @@ export default function DetailsPage() {
         </View>
       )}
 
-      {/* Episodes section - only show if episodes exist for the selected audio type */}
+      {/* Episodes section - only show if episodes exist for selected audio type */}
       {animeData.episodes && animeData.episodes[audioType] && animeData.episodes[audioType]?.length > 0 && (
         <View style={styles.episodesSection}>
           <Text style={styles.sectionTitle}>Episodes</Text>
+          {/* Episode grid with watch status indicators */}
           <View style={styles.episodeGrid}>
             {animeData.episodes[audioType]?.map((episode, index) => (
               <TouchableOpacity 
                 key={`episode-${episode}`}
                 style={[
                   styles.episodeBox,
-                  watchedEpisodes.has(episode) && styles.watchedEpisodeBox,
-                  episode === watchedEpisode && styles.currentEpisodeBox
+                  watchedEpisodes.has(episode) && styles.watchedEpisodeBox, // Watched episode styling
+                  episode === watchedEpisode && styles.currentEpisodeBox // Most recent episode styling
                 ]}
                 onPress={() => router.push({
                   pathname: "/streaming",
@@ -404,10 +505,12 @@ export default function DetailsPage() {
                   }
                 })}
               >
+                {/* Episode number */}
                 <Text style={[
                   styles.episodeNumber,
                   watchedEpisodes.has(episode) && styles.watchedEpisodeText
                 ]}>{episode}</Text>
+                {/* Watched indicator checkmark */}
                 {watchedEpisodes.has(episode) && (
                   <View style={styles.watchedIndicator}>
                     <MaterialCommunityIcons name="check" size={10} color="#fff" />
