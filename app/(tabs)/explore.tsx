@@ -1,20 +1,48 @@
+// React hooks for state management and side effects
 import { useState, useEffect, useRef } from "react";
+
+// React Native core components for UI rendering and device interaction
 import { View, Text, ScrollView, Dimensions, TouchableOpacity, Image, ActivityIndicator, StyleSheet } from "react-native";
+
+// Icon libraries for visual elements
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+
+// Linear gradient component for visual overlays
 import { LinearGradient } from 'expo-linear-gradient';
+
+// Expo Router for navigation
 import { router } from "expo-router";
+
+// Status bar component for controlling appearance
 import { StatusBar } from "expo-status-bar";
+
+// Application color constants for consistent theming
 import Colors from "../../constants/Colors";
+
+// Component-specific styles
 import { styles } from "../../styles/explore.styles";
+
+// API utilities for fetching anime data
 import { animeApi } from "../../lib/api";
+
+// TypeScript interfaces for type safety
 import { AnimeItem } from "../../types/anime";
+
+// Watchlist context for managing user's saved anime
 import { useWatchlist } from '../../contexts/WatchlistContext';
 
+// Get device screen width for responsive carousel sizing
 const { width } = Dimensions.get('window');
-const AUTO_SWIPE_INTERVAL = 6000; // Changed from 3000ms to 6000ms (6 seconds)
-const CAROUSEL_COUNT = 5;
 
-// Helper function to map API response to our AnimeItem structure
+// Configuration constants for carousel behavior
+const AUTO_SWIPE_INTERVAL = 6000; // Auto-swipe interval in milliseconds (6 seconds)
+const CAROUSEL_COUNT = 5; // Number of featured anime items in carousel
+
+/**
+ * Helper function to map API response to our AnimeItem structure
+ * Ensures consistent data format across different API endpoints
+ * Handles missing or inconsistent fields from various anime data sources
+ */
 const mapAnimeData = (item: any): AnimeItem => {
   return {
     id: item.id?.toString() || item._id?.toString() || String(Math.random()),
@@ -30,20 +58,46 @@ const mapAnimeData = (item: any): AnimeItem => {
   };
 };
 
+/**
+ * Explore Component
+ * 
+ * Main discovery screen that displays:
+ * - Featured anime carousel with auto-swipe functionality
+ * - Trending anime horizontal scroll section
+ * - Top anime horizontal scroll section
+ * - Watchlist integration for quick bookmarking
+ * - Navigation to detailed views and category pages
+ */
 export default function Explore() {
+  // Ref for controlling carousel scroll programmatically
   const carouselRef = useRef<ScrollView>(null);
+  
+  // State for carousel navigation and current position
   const [activeIndex, setActiveIndex] = useState(0);
+  
+  // State for different anime data categories
   const [topAnime, setTopAnime] = useState<AnimeItem[]>([]);
   const [trendingAnime, setTrendingAnime] = useState<AnimeItem[]>([]);
   const [carouselAnime, setCarouselAnime] = useState<AnimeItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [carouselLoading, setCarouselLoading] = useState(true);
+  
+  // Loading and error states for different sections
+  const [loading, setLoading] = useState(true); // General loading for trending/top sections
+  const [carouselLoading, setCarouselLoading] = useState(true); // Specific loading for carousel
   const [error, setError] = useState<string | null>(null);
 
-  // Use watchlist context
+  // Extract watchlist functionality from context
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
-  // Fetch anime data
+  /**
+   * Data Fetching Effect
+   * 
+   * Loads anime data from multiple API endpoints in parallel:
+   * - Top anime for top-rated section
+   * - Trending anime for trending section  
+   * - Featured anime for carousel display
+   * 
+   * Handles loading states and error conditions for each data source
+   */
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -53,7 +107,7 @@ export default function Explore() {
       try {
         console.log("Starting to fetch anime data for explore page...");
         
-        // Fetch data from all endpoints in parallel
+        // Fetch data from all endpoints in parallel for better performance
         const [topData, trendingData, carouselData] = await Promise.all([
           animeApi.fetchTopAnime(),
           animeApi.fetchTrendingAnime(),
@@ -101,15 +155,25 @@ export default function Explore() {
     fetchData();
   }, []);
 
-  // Auto-swipe carousel
+  /**
+   * Auto-Swipe Carousel Effect
+   * 
+   * Implements automatic carousel navigation:
+   * - Advances to next slide every AUTO_SWIPE_INTERVAL milliseconds
+   * - Loops back to first slide after reaching the end
+   * - Uses smooth animated transitions
+   * - Cleans up timer on component unmount or dependency changes
+   */
   useEffect(() => {
     if (carouselAnime.length === 0) return;
 
     const timer = setInterval(() => {
       if (activeIndex === carouselAnime.length - 1) {
+        // Loop back to first slide
         setActiveIndex(0);
         carouselRef.current?.scrollTo({ x: 0, animated: true });
       } else {
+        // Advance to next slide
         setActiveIndex(activeIndex + 1);
         carouselRef.current?.scrollTo({
           x: width * (activeIndex + 1),
@@ -121,6 +185,10 @@ export default function Explore() {
     return () => clearInterval(timer);
   }, [activeIndex, carouselAnime.length]);
 
+  /**
+   * Regular anime card press handler
+   * Navigates to details page with source tracking for proper back navigation
+   */
   const handlePressCard = (item: AnimeItem) => {
     router.push({
       pathname: "/(tabs)/details",
@@ -128,6 +196,10 @@ export default function Explore() {
     });
   };
 
+  /**
+   * Carousel item press handler
+   * Navigates to details page for featured anime items
+   */
   const handlePressCarousel = (item: AnimeItem) => {
     router.push({
       pathname: "/(tabs)/details",
@@ -135,6 +207,15 @@ export default function Explore() {
     });
   };
 
+  /**
+   * Renders individual anime cards for trending and top sections
+   * 
+   * Features:
+   * - Poster image with fallback placeholder
+   * - Watchlist toggle button with immediate visual feedback
+   * - Title with line limiting for consistent layout
+   * - Special styling for last card to handle margins
+   */
   const renderCard = (item: AnimeItem, type: 'trending' | 'top', index: number, array: AnimeItem[]) => (
     <TouchableOpacity 
       key={`${type}-${item.id}`} 
@@ -145,6 +226,7 @@ export default function Explore() {
       onPress={() => handlePressCard(item)}
     >
       <View style={styles.posterPlaceholder}>
+        {/* Poster image with fallback icon */}
         {item.thumbnail ? (
           <Image 
             source={{ uri: item.thumbnail }} 
@@ -154,10 +236,11 @@ export default function Explore() {
         ) : (
           <MaterialCommunityIcons name="image" size={40} color={Colors.dark.secondaryText} />
         )}
+        {/* Watchlist toggle button */}
         <TouchableOpacity 
           style={styles.watchlistIcon}
           onPress={(e) => {
-            e.stopPropagation();
+            e.stopPropagation(); // Prevent navigation when toggling watchlist
             toggleWatchlist(
               item.id, 
               item.englishName || item.title || 'Unknown Anime', 
@@ -172,12 +255,17 @@ export default function Explore() {
           />
         </TouchableOpacity>
       </View>
+      {/* Anime title with line limiting */}
       <Text style={styles.cardTitle} numberOfLines={2}>
         {item.englishName || item.title || 'Unknown Anime'}
       </Text>
     </TouchableOpacity>
   );
 
+  /**
+   * Renders loading placeholder cards during data fetch
+   * Maintains consistent layout while content is loading
+   */
   const renderLoadingCard = (index: number, type: 'trending' | 'top', isLast: boolean = false) => (
     <View 
       key={`${type}-loading-${index}`} 
@@ -190,12 +278,23 @@ export default function Explore() {
     </View>
   );
 
+  /**
+   * Renders carousel items with enhanced visual presentation
+   * 
+   * Features:
+   * - Full-width background image
+   * - Gradient overlay for text readability
+   * - Anime metadata (genre, format, rating)
+   * - Pagination dots for visual navigation
+   * - Watchlist integration
+   */
   const renderCarouselItem = (item: AnimeItem, index: number) => (
     <TouchableOpacity 
       key={`carousel-${item.id}`} 
       style={styles.carouselItem}
       onPress={() => handlePressCarousel(item)}
     >
+      {/* Background image or placeholder */}
       {item.thumbnail ? (
         <Image 
           source={{ uri: item.thumbnail }} 
@@ -209,17 +308,20 @@ export default function Explore() {
         </View>
       )}
       
-      {/* Use LinearGradient for overlay with text */}
+      {/* Gradient overlay for text readability */}
       <LinearGradient
         colors={['transparent', 'rgba(22, 22, 34, 0.7)', 'rgba(22, 22, 34, 0.9)']}
         style={styles.carouselGradient}
       />
       
+      {/* Content overlay with anime information */}
       <View style={styles.carouselContent}>
+        {/* Anime title */}
         <Text style={styles.carouselTitle} numberOfLines={2}>
           {item.englishName || item.title || 'Unknown Anime'}
         </Text>
         
+        {/* Metadata row with genre, format, and rating */}
         <View style={styles.carouselInfo}>
           {item.genres && item.genres.length > 0 && (
             <>
@@ -239,6 +341,7 @@ export default function Explore() {
             </>
           )}
           
+          {/* Rating with star icon */}
           <View style={styles.carouselRating}>
             <Ionicons name="star" size={16} color="#FFD700" />
             <Text style={styles.carouselRatingText}>
@@ -249,11 +352,12 @@ export default function Explore() {
           </View>
         </View>
         
+        {/* Action buttons */}
         <View style={styles.carouselActions}>
           <TouchableOpacity 
             style={styles.bookmarkButton}
             onPress={(e) => {
-              e.stopPropagation();
+              e.stopPropagation(); // Prevent navigation when toggling watchlist
               toggleWatchlist(
                 item.id, 
                 item.englishName || item.title || 'Unknown Anime', 
@@ -270,7 +374,7 @@ export default function Explore() {
         </View>
       </View>
       
-      {/* Pagination dots */}
+      {/* Pagination dots for visual navigation indicator */}
       <View style={styles.paginationDots}>
         {carouselAnime.map((_, dotIndex) => (
           <View
@@ -292,20 +396,24 @@ export default function Explore() {
       showsVerticalScrollIndicator={false}
     >
       <StatusBar style="light" translucent />
-      {/* Carousel Section */}
+      
+      {/* Featured Anime Carousel Section */}
       <View style={styles.carouselContainer}>
         {carouselLoading ? (
+          /* Carousel loading state */
           <View style={styles.carouselLoadingContainer}>
             <ActivityIndicator size="large" color={Colors.dark.buttonBackground} />
             <Text style={[styles.placeholderText, { marginTop: 10 }]}>Loading featured anime...</Text>
           </View>
         ) : carouselAnime.length > 0 ? (
+          /* Carousel with anime items */
           <ScrollView
             ref={carouselRef}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={(event) => {
+              // Update active index based on scroll position
               const newIndex = Math.round(event.nativeEvent.contentOffset.x / width);
               setActiveIndex(newIndex);
             }}
@@ -313,6 +421,7 @@ export default function Explore() {
             {carouselAnime.map((item, index) => renderCarouselItem(item, index))}
           </ScrollView>
         ) : (
+          /* Carousel error state */
           <View style={styles.carouselLoadingContainer}>
             <MaterialCommunityIcons name="alert-circle-outline" size={40} color={Colors.dark.buttonBackground} />
             <Text style={[styles.placeholderText, { marginTop: 10 }]}>No featured anime available</Text>
@@ -320,8 +429,9 @@ export default function Explore() {
         )}
       </View>
 
-      {/* Trending Section */}
+      {/* Trending Anime Section */}
       <View style={styles.section}>
+        {/* Section header with navigation to full trending page */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Trending</Text>
           <TouchableOpacity 
@@ -336,6 +446,8 @@ export default function Explore() {
             />
           </TouchableOpacity>
         </View>
+        
+        {/* Horizontal scrolling anime cards */}
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
@@ -343,14 +455,18 @@ export default function Explore() {
           contentContainerStyle={styles.scrollContentContainer}
         >
           {loading ? 
+            /* Loading placeholders */
             Array(5).fill(0).map((_, index) => renderLoadingCard(index, 'trending', index === 4)) :
             trendingAnime.length > 0 ? 
+              /* Actual trending anime cards */
               trendingAnime.map((item, index, array) => renderCard(item, 'trending', index, array)) :
               error ? (
+                /* Error state */
                 <View style={styles.errorContainer}>
                   <Text style={styles.errorText}>{error}</Text>
                 </View>
               ) : (
+                /* No data state */
                 <View style={styles.errorContainer}>
                   <Text style={styles.errorText}>No trending anime available</Text>
                 </View>
@@ -359,8 +475,9 @@ export default function Explore() {
         </ScrollView>
       </View>
 
-      {/* Top Section */}
+      {/* Top Anime Section */}
       <View style={styles.section}>
+        {/* Section header with navigation to full top anime page */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Top</Text>
           <TouchableOpacity 
@@ -375,6 +492,8 @@ export default function Explore() {
             />
           </TouchableOpacity>
         </View>
+        
+        {/* Horizontal scrolling anime cards */}
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
@@ -382,14 +501,18 @@ export default function Explore() {
           contentContainerStyle={styles.scrollContentContainer}
         >
           {loading ? 
+            /* Loading placeholders */
             Array(5).fill(0).map((_, index) => renderLoadingCard(index, 'top', index === 4)) :
             topAnime.length > 0 ? 
+              /* Actual top anime cards */
               topAnime.map((item, index, array) => renderCard(item, 'top', index, array)) :
               error ? (
+                /* Error state */
                 <View style={styles.errorContainer}>
                   <Text style={styles.errorText}>{error}</Text>
                 </View>
               ) : (
+                /* No data state */
                 <View style={styles.errorContainer}>
                   <Text style={styles.errorText}>No top anime available</Text>
                 </View>
