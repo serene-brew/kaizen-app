@@ -49,8 +49,7 @@ npx expo start -c
 - TypeScript
 - Appwrite (Backend)
 
-## License
-MIT License
+
 
 ---
-<div align="center">Made with ❤️ for anime lovers</div>
+<div align="center">Made with ❤️ for Anime Lovers</div>
