@@ -1,18 +1,17 @@
 # Kaizen - Anime Streaming App 🍥
 
-> A modern anime streaming mobile app built with React Native and Expo
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![React Native](https://img.shields.io/badge/React%20Native-blue.svg)](https://reactnative.dev/)
-[![Expo](https://img.shields.io/badge/Expo-black.svg)](https://expo.dev/)
 
 ## 📱 Screenshots
 
 <!-- Add your app screenshots here -->
 <div align="center">
-  <img src="docs/screenshots/explore.png" width="200" alt="Explore Screen" />
-  <img src="docs/screenshots/watchlist.png" width="200" alt="Watchlist" />
-  <img src="docs/screenshots/streaming.png" width="200" alt="Streaming Player" />
+  <img src="https://github.com/user-attachments/assets/d2de053f-6e43-46a8-9425-232e7d99f17c" width="630">
+  <br>
+  <br>
+  <img src="https://github.com/user-attachments/assets/a6bda381-4369-412e-b443-b9b3137d2291" width="200"> &nbsp 
+  <img src="https://github.com/user-attachments/assets/6f7098d2-fbcc-43fe-8a55-dcb89dd0d71a" width="200"> &nbsp
+  <img src="https://github.com/user-attachments/assets/128fc30b-4903-4dad-9c45-3d3d5abaaee6" width="200"> 
 </div>
 
 ## 🎬 Demo Videos
