@@ -1,23 +1,61 @@
+// React hooks for state management
 import { useState } from "react";
+
+// React Native core components for UI rendering and device interaction
 import { Text, View, ScrollView, TouchableOpacity, Dimensions, Image, ActivityIndicator } from "react-native";
+
+// Material Community Icons for visual elements
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+// Expo Router for navigation
 import { router } from "expo-router";
+
+// Application color constants for consistent theming
 import Colors from "../../constants/Colors";
+
+// Component-specific styles
 import { styles } from "../../styles/watchlist.styles";
+
+// Watchlist context for managing user's saved anime
 import { useWatchlist } from "../../contexts/WatchlistContext";
+
+// Date formatting utility for displaying when anime was added
 import { formatDistanceToNow } from 'date-fns';
 
+// Get device screen width for responsive grid layout
 const { width } = Dimensions.get('window');
-const PADDING = 16;
-const GAP = 10;
-const CARD_WIDTH = (width - (PADDING * 2) - GAP) / 2;
 
+// Grid layout constants for consistent spacing and sizing
+const PADDING = 16; // Container horizontal padding
+const GAP = 10; // Gap between grid items
+const CARD_WIDTH = (width - (PADDING * 2) - GAP) / 2; // Calculate card width for 2-column grid
+
+/**
+ * Watchlist Component
+ * 
+ * Displays user's saved anime in a responsive grid layout with management features.
+ * Features:
+ * - Two-column grid layout optimized for mobile screens
+ * - Cloud sync functionality for authenticated users
+ * - Sorting options by recent addition or alphabetical name
+ * - Individual item removal with visual feedback
+ * - Empty state with call-to-action to explore anime
+ * - Loading and syncing states with appropriate indicators
+ * - Navigation to anime details with source tracking
+ */
 export default function Watchlist() {
-  const [sortBy, setSortBy] = useState<'recent' | 'name'>('recent');
+  // Local state for sorting preference
+  const [sortBy, setSortBy] = useState<'recent' | 'name'>('recent'); // Current sort method
   
-  // Use the watchlist context
+  // Extract watchlist functionality from context
   const { watchlist, removeFromWatchlist, sortWatchlist, isLoading, isSyncing, refreshWatchlist, isAuthenticated } = useWatchlist();
 
+  /**
+   * Anime Card Press Handler
+   * 
+   * Navigates to anime details page with proper source tracking
+   * for accurate back navigation and analytics.
+   */
   const handlePressCard = (id: string, title: string) => {
     router.push({
       pathname: "/(tabs)/details",
@@ -25,17 +63,35 @@ export default function Watchlist() {
     });
   };
 
+  /**
+   * Watchlist Removal Handler
+   * 
+   * Removes anime from user's watchlist with event propagation prevention.
+   * Prevents card navigation when removing items from watchlist.
+   * Provides immediate UI feedback through context state updates.
+   */
   const handleRemoveFromWatchlist = async (id: string, event: any) => {
-    event.stopPropagation();
+    event.stopPropagation(); // Prevent triggering card press when removing item
     await removeFromWatchlist(id);
   };
 
+  /**
+   * Sort Toggle Handler
+   * 
+   * Switches between sorting by recent addition and alphabetical name.
+   * Updates both local state and watchlist context sorting.
+   * Provides visual feedback through icon changes.
+   */
   const toggleSort = () => {
     const newSortBy = sortBy === 'recent' ? 'name' : 'recent';
     setSortBy(newSortBy);
-    sortWatchlist(newSortBy);
+    sortWatchlist(newSortBy); // Update context with new sort order
   };
   
+  /**
+   * Loading State Render
+   * Displays loading spinner and text while fetching watchlist data
+   */
   // Show loading indicator while fetching watchlist data
   if (isLoading) {
     return (
@@ -46,6 +102,10 @@ export default function Watchlist() {
     );
   }
 
+  /**
+   * Syncing State Render
+   * Displays syncing indicator during cloud sync operations
+   */
   // Show syncing indicator
   if (isSyncing) {
     return (
@@ -56,16 +116,23 @@ export default function Watchlist() {
     );
   }
 
+  /**
+   * Empty State Render
+   * Displays empty state when user has no saved anime with call-to-action
+   */
   // If watchlist is empty, show the empty state
   if (watchlist.length === 0) {
     return (
       <View style={styles.emptyContainer}>
+        {/* Empty state icon */}
         <MaterialCommunityIcons 
           name="bookmark-off-outline" 
           size={64} 
           color={Colors.dark.secondaryText} 
         />
+        {/* Empty state message */}
         <Text style={styles.emptyText}>Your watchlist is empty</Text>
+        {/* Call-to-action button to explore anime */}
         <TouchableOpacity 
           style={styles.exploreButton}
           onPress={() => router.push("/(tabs)/explore")}
@@ -76,11 +143,19 @@ export default function Watchlist() {
     );
   }
 
+  /**
+   * Main Watchlist Render
+   * 
+   * Displays saved anime in a responsive grid with management controls.
+   * Includes header with sync and sort options, and scrollable grid of anime cards.
+   */
   return (
     <View style={styles.container}>
+      {/* Watchlist header with title and action buttons */}
       <View style={styles.header}>
         <Text style={styles.title}>My Watchlist</Text>
         <View style={styles.headerButtons}>
+          {/* Cloud sync button - disabled if not authenticated */}
           <TouchableOpacity 
             style={[styles.iconButton, !isAuthenticated && styles.disabledButton]} 
             onPress={refreshWatchlist}
@@ -92,6 +167,7 @@ export default function Watchlist() {
               color={isAuthenticated ? Colors.dark.text : Colors.dark.secondaryText} 
             />
           </TouchableOpacity>
+          {/* Sort toggle button with dynamic icon based on current sort */}
           <TouchableOpacity style={styles.iconButton} onPress={toggleSort}>
             <MaterialCommunityIcons 
               name={sortBy === 'recent' ? "sort-clock-descending" : "sort-alphabetical-ascending"} 
@@ -102,23 +178,28 @@ export default function Watchlist() {
         </View>
       </View>
 
+      {/* Scrollable grid container */}
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         bounces={true}
       >
+        {/* Two-column grid layout for watchlist items */}
         <View style={styles.grid}>
           {watchlist.map((item, index) => (
             <TouchableOpacity 
               key={`watchlist-${item.id}`}
               style={[
                 styles.card,
+                // Add margin to every first item in each row (even indices)
                 index % 2 === 0 ? { marginRight: GAP } : null
               ]}
               onPress={() => handlePressCard(item.id, item.englishName)}
             >
+              {/* Anime poster container with remove button overlay */}
               <View style={styles.posterPlaceholder}>
+                {/* Poster image with fallback placeholder */}
                 {item.thumbnailUrl ? (
                   <Image 
                     source={{ uri: item.thumbnailUrl }} 
@@ -130,12 +211,14 @@ export default function Watchlist() {
                     resizeMode="cover"
                   />
                 ) : (
+                  /* Fallback icon when no thumbnail available */
                   <MaterialCommunityIcons 
                     name="image" 
                     size={40} 
                     color={Colors.dark.secondaryText}
                   />
                 )}
+                {/* Remove from watchlist button overlaid on poster */}
                 <TouchableOpacity 
                   style={styles.removeButton}
                   onPress={(event) => handleRemoveFromWatchlist(item.id, event)}
@@ -147,9 +230,11 @@ export default function Watchlist() {
                   />
                 </TouchableOpacity>
               </View>
+              {/* Anime title with line limiting for consistent card height */}
               <Text style={styles.cardTitle} numberOfLines={2}>
                 {item.englishName}
               </Text>
+              {/* Date added information with relative time formatting */}
               <Text style={styles.cardSubtitle}>
                 Added {formatDistanceToNow(item.dateAdded, { addSuffix: true })}
               </Text>
