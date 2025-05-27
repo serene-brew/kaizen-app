@@ -1,54 +1,99 @@
+// React hooks for state management, context creation, and component lifecycle
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
+
+// AsyncStorage for persistent download data storage
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Expo file system utilities for download management and file operations
 import * as FileSystem from 'expo-file-system';
+
+// Expo media library for saving downloads to device gallery
 import * as MediaLibrary from 'expo-media-library';
+
+// React Native core components for platform detection and user alerts
 import { Platform, Alert } from 'react-native';
+
+// Expo notifications for download progress and completion alerts
 import * as Notifications from 'expo-notifications';
 
-// Storage key for downloads
+/**
+ * Constants and Interfaces
+ * 
+ * Core data structures and storage keys for the download management system.
+ */
+// Storage key for downloads - using @ prefix for namespacing
 const DOWNLOADS_STORAGE_KEY = '@kaizen_downloads';
 
+/**
+ * DownloadItem Interface
+ * 
+ * Comprehensive data structure for tracking individual download operations:
+ * - Basic metadata (anime info, episode, quality, thumbnail)
+ * - Download state (progress, status, file location)
+ * - Technical details (file size, resume capability)
+ * - Timestamps for organization and cleanup
+ */
 // Download item interface
 export interface DownloadItem {
-  id: string;
-  animeId: string;
-  episodeNumber: string;
-  audioType: 'sub' | 'dub';
-  title: string;
-  downloadUrl: string;
-  thumbnail: string;
-  filePath: string;
-  progress: number; // 0-1
-  status: 'pending' | 'downloading' | 'completed' | 'failed' | 'paused';
-  size: number; // in bytes
-  dateAdded: number; // timestamp
-  resumeData?: string; // for resumable downloads
+  id: string;                    // Unique identifier for the download
+  animeId: string;              // Parent anime identifier for grouping
+  episodeNumber: string;        // Episode number for organization
+  audioType: 'sub' | 'dub';     // Audio track type for user preference
+  title: string;                // Display title for UI and notifications
+  downloadUrl: string;          // Source URL for the video file
+  thumbnail: string;            // Episode thumbnail for visual identification
+  filePath: string;             // Local file system path after download
+  progress: number;             // Download progress (0-1 range)
+  status: 'pending' | 'downloading' | 'completed' | 'failed' | 'paused'; // Current state
+  size: number;                 // File size in bytes for storage management
+  dateAdded: number;            // Timestamp for chronological sorting
+  resumeData?: string;          // Resume token for interrupted downloads
 }
 
+/**
+ * DownloadsContext Interface
+ * 
+ * Complete API for download management functionality:
+ * - State tracking (downloads, queue, storage usage)
+ * - Download operations (start, pause, resume, cancel)
+ * - Data queries (by ID, by anime)
+ * - Permission management for file system access
+ */
 interface DownloadsContextType {
-  downloads: DownloadItem[];
-  currentDownloads: DownloadItem[];
-  downloadQueue: DownloadItem[];
-  totalStorageUsed: number;
-  isDownloading: boolean;
-  downloadPermissionGranted: boolean;
+  // State properties
+  downloads: DownloadItem[];              // All downloads (completed, failed, pending)
+  currentDownloads: DownloadItem[];       // Currently active downloads
+  downloadQueue: DownloadItem[];          // Pending downloads waiting to start
+  totalStorageUsed: number;               // Total bytes used by completed downloads
+  isDownloading: boolean;                 // Global downloading state flag
+  downloadPermissionGranted: boolean;     // Media library access permission status
   
-  // Actions
+  // Download management actions
   startDownload: (item: Omit<DownloadItem, 'progress' | 'status' | 'dateAdded' | 'filePath' | 'size'>) => Promise<void>;
-  pauseDownload: (id: string) => Promise<void>;
-  resumeDownload: (id: string) => Promise<boolean>;
-  cancelDownload: (id: string) => Promise<boolean>;
-  removeDownload: (id: string) => Promise<boolean>;
-  clearAllDownloads: () => Promise<boolean>;
+  pauseDownload: (id: string) => Promise<void>;         // Pause active download
+  resumeDownload: (id: string) => Promise<boolean>;     // Resume paused download
+  cancelDownload: (id: string) => Promise<boolean>;     // Cancel and delete download
+  removeDownload: (id: string) => Promise<boolean>;     // Remove completed download
+  clearAllDownloads: () => Promise<boolean>;            // Clear all downloads and files
   
-  // Helpers
-  getDownloadById: (id: string) => DownloadItem | undefined;
-  getDownloadsByAnimeId: (animeId: string) => DownloadItem[];
-  requestDownloadPermissions: () => Promise<boolean>;
+  // Query helpers
+  getDownloadById: (id: string) => DownloadItem | undefined;        // Find specific download
+  getDownloadsByAnimeId: (animeId: string) => DownloadItem[];       // Get all episodes for anime
+  requestDownloadPermissions: () => Promise<boolean>;               // Request file system permissions
 }
 
+// Create the downloads context
 const DownloadsContext = createContext<DownloadsContextType | undefined>(undefined);
 
+/**
+ * useDownloads Hook
+ * 
+ * Custom hook to access the downloads context with error handling.
+ * Ensures the hook is only used within the DownloadsProvider scope.
+ * 
+ * @returns DownloadsContextType - The complete downloads context
+ * @throws Error if used outside of DownloadsProvider
+ */
 export const useDownloads = () => {
   const context = useContext(DownloadsContext);
   if (context === undefined) {
@@ -57,23 +102,55 @@ export const useDownloads = () => {
   return context;
 };
 
+/**
+ * DownloadsProvider Component
+ * 
+ * Comprehensive download management provider that handles:
+ * - Multi-concurrent download operations with queue management
+ * - Resumable downloads with automatic retry capabilities
+ * - Real-time progress tracking with throttled UI updates
+ * - Background download notifications with progress indicators
+ * - File system management and media library integration
+ * - Storage persistence and crash recovery
+ * - Permission handling for file system access
+ * 
+ * Architecture Features:
+ * - Non-blocking UI operations using requestAnimationFrame
+ * - Throttled progress updates to prevent performance issues
+ * - Automatic queue processing with concurrent download limits
+ * - Comprehensive error handling and recovery mechanisms
+ * - Cross-platform notification system integration
+ */
 export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [downloads, setDownloads] = useState<DownloadItem[]>([]);
-  const [currentDownloads, setCurrentDownloads] = useState<DownloadItem[]>([]);
-  const [downloadQueue, setDownloadQueue] = useState<DownloadItem[]>([]);
-  // Tracks if the download processor is working, but doesn't block UI
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [totalStorageUsed, setTotalStorageUsed] = useState(0);
-  const [downloadPermissionGranted, setDownloadPermissionGranted] = useState(false);
+  // Core download state management
+  const [downloads, setDownloads] = useState<DownloadItem[]>([]);           // All downloads history
+  const [currentDownloads, setCurrentDownloads] = useState<DownloadItem[]>([]);  // Active downloads
+  const [downloadQueue, setDownloadQueue] = useState<DownloadItem[]>([]);   // Pending downloads
   
-  // Flag to track if a download operation is in progress (for internal use)
+  // Global state indicators
+  const [isDownloading, setIsDownloading] = useState(false);               // Processing flag for UI
+  const [totalStorageUsed, setTotalStorageUsed] = useState(0);             // Storage usage tracking
+  const [downloadPermissionGranted, setDownloadPermissionGranted] = useState(false); // Permission status
+  
+  // Internal operation tracking to prevent race conditions
   const isProcessingDownload = useRef(false);
   
-  // Active download references
+  // Active download references for pause/resume functionality
   const downloadRefsMap = React.useRef<Record<string, FileSystem.DownloadResumable>>({});
-  // Download notification IDs mapping
+  
+  // Notification ID mapping for progress updates and completion alerts
   const notificationIdsMap = React.useRef<Record<string, string>>({});
   
+  /**
+   * Notification Configuration Function
+   * 
+   * Sets up the notification system for download progress tracking:
+   * - Requests notification permissions from the user
+   * - Configures notification channels for Android devices
+   * - Sets up notification handlers for background behavior
+   * - Establishes response listeners for user interaction
+   * - Creates consistent notification experience across platforms
+   */
   // Configure notifications
   const configureNotifications = async () => {
     // Request notification permissions
@@ -84,16 +161,16 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return;
     }
     
-    // Set notification handler
+    // Set notification handler for background behavior
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: false,
-        shouldSetBadge: false,
+        shouldShowAlert: true,      // Show alert when app is open
+        shouldPlaySound: false,     // Silent notifications for downloads
+        shouldSetBadge: false,      // No badge count updates
       }),
     });
     
-    // Create notification channel for Android
+    // Create notification channel for Android (iOS handles this automatically)
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('downloads', {
         name: 'Downloads',
@@ -103,51 +180,61 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
     }
     
-    // Setup notification response listener
+    // Setup notification response listener for user interaction
     const subscription = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
       const downloadId = data.downloadId as string;
       
-      // If the notification is for a completed download and user taps it,
-      // we could navigate to the downloads page or handle some specific action
+      // Handle user tapping on completed download notification
       if (data.status === 'completed' && downloadId) {
-        // Handle completed download tap
+        // Could navigate to downloads page or specific episode
       } 
     });
     
     return () => subscription.remove();
   };
   
+  /**
+   * Downloads Initialization Effect
+   * 
+   * Handles app startup and download state restoration:
+   * - Checks and requests media library permissions
+   * - Configures the notification system
+   * - Loads persisted downloads from AsyncStorage
+   * - Calculates total storage usage for UI display
+   * - Recovers interrupted downloads and updates their status
+   * - Separates downloads by status for queue management
+   */
   // Initialize downloads from storage
   useEffect(() => {
     const initDownloads = async () => {
       try {
-        // Check media library permissions
+        // Check media library permissions for saving to gallery
         const { status } = await MediaLibrary.getPermissionsAsync();
         setDownloadPermissionGranted(status === 'granted');
         
-        // Configure notifications
+        // Configure notification system
         await configureNotifications();
         
-        // Load saved downloads
+        // Load saved downloads from persistent storage
         const storedDownloads = await AsyncStorage.getItem(DOWNLOADS_STORAGE_KEY);
         if (storedDownloads) {
           const parsedDownloads = JSON.parse(storedDownloads) as DownloadItem[];
           setDownloads(parsedDownloads);
           
-          // Calculate storage used
+          // Calculate total storage used for display
           const totalSize = parsedDownloads.reduce((sum, item) => sum + (item.size || 0), 0);
           setTotalStorageUsed(totalSize);
           
-          // Separate downloads by status
+          // Separate downloads by status for queue management
           const active = parsedDownloads.filter(d => d.status === 'downloading' || d.status === 'pending');
           setCurrentDownloads(parsedDownloads.filter(d => d.status === 'downloading'));
           setDownloadQueue(active.filter(d => d.status === 'pending'));
           
-          // If there were active downloads when app was closed, update their status
+          // Recovery: Handle downloads that were interrupted when app was closed
           for (const download of active) {
             if (download.status === 'downloading') {
-              // Find if file exists and update status
+              // Verify if the file still exists
               const fileInfo = await FileSystem.getInfoAsync(download.filePath);
               if (!fileInfo.exists) {
                 // File doesn't exist anymore, mark as failed
@@ -167,6 +254,16 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     initDownloads();
   }, []);
   
+  /**
+   * Downloads Persistence Effect
+   * 
+   * Manages automatic saving of download state to AsyncStorage:
+   * - Debounces storage writes to prevent excessive I/O operations
+   * - Uses requestAnimationFrame for non-blocking UI updates
+   * - Recalculates storage usage when downloads change
+   * - Provides error handling for storage operations
+   * - Cleans up timeouts on component unmount
+   */
   // Update downloads in AsyncStorage whenever they change
   useEffect(() => {
     // Debounce the storage update to avoid frequent I/O operations
@@ -174,7 +271,7 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     
     const saveDownloads = async () => {
       try {
-        // Use a worker or batched operation to avoid blocking the UI thread
+        // Use requestAnimationFrame to avoid blocking the UI thread
         requestAnimationFrame(async () => {
           await AsyncStorage.setItem(DOWNLOADS_STORAGE_KEY, JSON.stringify(downloads));
           
@@ -198,6 +295,16 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
   }, [downloads]);
   
+  /**
+   * Download Queue Processing Effect
+   * 
+   * Automated queue management system that:
+   * - Monitors queue state and current download capacity
+   * - Limits concurrent downloads to prevent bandwidth saturation
+   * - Uses non-blocking scheduling to maintain UI responsiveness
+   * - Automatically starts next downloads when capacity is available
+   * - Prevents duplicate processing through ref-based flags
+   */
   // Process download queue using a non-blocking approach
   useEffect(() => {
     // Skip if we're already processing a download
@@ -205,7 +312,7 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return;
     }
     
-    // Prevent UI blocking by using a combination of requestAnimationFrame and setTimeout
+    // Prevent UI blocking by using requestAnimationFrame and setTimeout
     const processQueue = () => {
       // Use requestAnimationFrame for smooth UI
       const processQueueFrame = requestAnimationFrame(() => {
@@ -234,6 +341,14 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return cleanup;
   }, [downloadQueue, currentDownloads, isDownloading]);
   
+  /**
+   * Permission Request Function
+   * 
+   * Requests media library permissions for saving downloads to device gallery.
+   * Updates the permission state for UI conditional rendering.
+   * 
+   * @returns Promise<boolean> - Whether permission was granted
+   */
   // Request media library permissions
   const requestDownloadPermissions = async () => {
     const { status } = await MediaLibrary.requestPermissionsAsync();
@@ -242,6 +357,16 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return granted;
   };
   
+  /**
+   * Download Status Update Function
+   * 
+   * Throttled update system for download status changes:
+   * - Uses requestAnimationFrame to prevent UI blocking
+   * - Throttles updates to maintain performance during rapid progress changes
+   * - Updates both main downloads list and category-specific lists
+   * - Manages transitions between download states (pending, downloading, completed)
+   * - Ensures consistent state across all download tracking systems
+   */
   // Update a download's status using requestAnimationFrame to prevent UI blocking
   const updateDownloadStatus = (id: string, status: DownloadItem['status'], progress?: number, size?: number) => {
     // Throttle the UI updates for download status
@@ -285,6 +410,15 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, 100); // 100ms throttle to prevent too many updates
   };
   
+  /**
+   * Download Notification Creation Function
+   * 
+   * Creates initial notification for new downloads:
+   * - Generates consistent notification identifiers
+   * - Sets up notification content with download metadata
+   * - Stores notification mapping for later updates
+   * - Handles notification creation errors gracefully
+   */
   // Create a new download notification
   const createDownloadNotification = async (downloadItem: DownloadItem) => {
     try {
@@ -311,6 +445,15 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  /**
+   * Download Notification Update Function
+   * 
+   * Updates existing download notifications with progress:
+   * - Calculates and displays progress percentage
+   * - Shows data transfer information (downloaded/total)
+   * - Updates notification using consistent identifier
+   * - Handles notification update errors gracefully
+   */
   // Update an existing download notification
   const updateDownloadNotification = async (downloadItem: DownloadItem) => {
     try {
@@ -337,6 +480,15 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  /**
+   * Download Completion Notification Function
+   * 
+   * Handles final notification states for completed downloads:
+   * - Dismisses ongoing progress notifications
+   * - Shows completion/failure notifications as appropriate
+   * - Cleans up notification tracking data
+   * - Provides different messages for success, failure, and cancellation
+   */
   // Complete or dismiss a download notification
   const completeDownloadNotification = async (downloadItem: DownloadItem, status: 'completed' | 'failed' | 'cancelled') => {
     try {
@@ -378,6 +530,16 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
   
+  /**
+   * Byte Formatting Utility Function
+   * 
+   * Converts byte values to human-readable format (KB, MB, GB, etc.).
+   * Used for displaying file sizes and download progress in notifications and UI.
+   * 
+   * @param bytes - Number of bytes to format
+   * @param decimals - Number of decimal places to show
+   * @returns String representation of file size
+   */
   // Helper function to format bytes
   const formatBytes = (bytes: number, decimals = 2) => {
     if (bytes === 0) return '0 Bytes';
@@ -391,6 +553,18 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   };
   
+  /**
+   * Download Process Function
+   * 
+   * Core download execution with comprehensive features:
+   * - Non-blocking download processing to maintain UI responsiveness
+   * - Directory creation and file path management
+   * - Progress tracking with throttled updates for performance
+   * - Resumable download support with proper cleanup
+   * - Notification integration throughout the download lifecycle
+   * - Media library integration for gallery access
+   * - Robust error handling and recovery mechanisms
+   */
   // Process download and update status
   const startDownloadProcess = async (downloadItem: DownloadItem) => {
     // If a download operation is already in progress, don't block the UI thread
@@ -509,7 +683,7 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               
               await completeDownloadNotification(completedItem, 'completed');
               
-              // Save to media library
+              // Save to media library if permission granted
               if (downloadPermissionGranted) {
                 const asset = await MediaLibrary.createAssetAsync(result.uri);
                 await MediaLibrary.createAlbumAsync('Kaizen', asset, false);
