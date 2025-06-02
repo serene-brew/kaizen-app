@@ -44,7 +44,7 @@ interface MenuItemProps {
 // Static assets and constants
 const AppIcon = require('../../assets/images/icon.png');
 const GITHUB_URL = "https://github.com/serene-brew/kaizen-app";
-const APP_VERSION = "1.0.1";
+const APP_VERSION = "1.0.2";
 const DEFAULT_AVATAR_ICON = 'account-circle';
 
 /**
@@ -75,11 +75,10 @@ export default function More() {
    * Calculates and formats download statistics including storage usage and counts.
    */
   // Use downloads context with optimizations to prevent UI freezing
-  const { downloads, totalStorageUsed } = useDownloads();
+  const { downloads } = useDownloads();
   
   // Use state to store derived values to decouple from downloads re-renders
   const [downloadStats, setDownloadStats] = useState({
-    downloadSize: '0 B',
     completedDownloads: 0,
     inProgressDownloads: 0
   });
@@ -94,9 +93,6 @@ export default function More() {
   useEffect(() => {
     // Use requestAnimationFrame to ensure UI updates don't block the main thread
     const updateFrame = requestAnimationFrame(() => {
-      // Calculate formatted size
-      const formattedSize = formatBytes(totalStorageUsed);
-      
       // Calculate download counts
       const completed = downloads.filter(item => item.status === 'completed').length;
       const inProgress = downloads.filter(item => 
@@ -104,35 +100,15 @@ export default function More() {
       ).length;
       
       setDownloadStats({
-        downloadSize: formattedSize,
         completedDownloads: completed,
         inProgressDownloads: inProgress
       });
     });
     
     return () => cancelAnimationFrame(updateFrame);
-  }, [downloads, totalStorageUsed]);
+  }, [downloads]);
 
-  /**
-   * Utility function to format bytes into human-readable file sizes
-   * Converts bytes to appropriate units (B, KB, MB, GB, etc.)
-   * 
-   * @param bytes - Size in bytes
-   * @param decimals - Number of decimal places to show
-   * @returns Formatted size string with appropriate unit
-   */
-  // Format bytes to human-readable size
-  function formatBytes(bytes: number, decimals = 2) {
-    if (bytes === 0) return '0 B';
-    
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-    
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-  }
+
 
   /**
    * User Data Synchronization Effect
@@ -360,13 +336,6 @@ export default function More() {
           icon="folder-download"
           text="Downloads"
           value={downloadStats.inProgressDownloads > 0 ? `${downloadStats.completedDownloads} + ${downloadStats.inProgressDownloads} in progress` : `${downloadStats.completedDownloads}`}
-          onPress={navigateToDownloads}
-        />
-        {/* Storage usage display */}
-        <MenuItem
-          icon="harddisk"
-          text="Storage Used"
-          value={downloadStats.downloadSize}
           onPress={navigateToDownloads}
         />
         {/* Clear downloads action */}
