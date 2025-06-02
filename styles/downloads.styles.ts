@@ -38,18 +38,22 @@ export const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
   },
-  storageInfo: {
+  galleryInfoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: Colors.dark.secondaryBackground,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 12,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.dark.buttonBackground,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 4,
   },
-  storageText: {
-    color: Colors.dark.secondaryText,
-    fontSize: 14,
+  galleryInfoText: {
+    color: Colors.dark.text,
+    fontSize: 12,
     marginLeft: 8,
+    flex: 1,
   },
   filtersContainer: {
     flexDirection: 'row',
