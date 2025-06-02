@@ -85,7 +85,8 @@ export default function DownloadsPage() {
     cancelDownload, // Function to cancel a pending/active download
     clearAllDownloads, // Function to remove all downloads
     downloadPermissionGranted, // Permission status for file system
-    requestDownloadPermissions // Function to request file permissions
+    requestDownloadPermissions, // Function to request file permissions
+    validateAndCleanupDownloads // Function to validate file existence and cleanup
   } = useDownloads();
   
   // Local state for UI filtering and sorting
@@ -109,6 +110,22 @@ export default function DownloadsPage() {
     
     checkPermissions();
   }, [downloadPermissionGranted]);
+
+  /**
+   * File Validation Effect
+   * 
+   * Validates file existence when the page loads to ensure downloads are still available.
+   * Helps identify files that may have been deleted externally.
+   */
+  useEffect(() => {
+    const validateFiles = async () => {
+      if (downloads.length > 0) {
+        await validateAndCleanupDownloads();
+      }
+    };
+    
+    validateFiles();
+  }, []); // Run once when component mounts
 
   /**
    * Back Navigation Handler
@@ -168,12 +185,25 @@ export default function DownloadsPage() {
    * - Navigates to streaming screen with local file path
    * - Removes broken downloads from the list
    * - Provides user feedback for errors
+   * - Handles gallery-only downloads (optimized storage)
    * 
    * @param item - The download item to play
    */
   // Play a downloaded episode
   const playDownload = async (item: typeof downloads[0]) => {
     try {
+      // Check if this is a gallery-only download (storage optimized)
+      if (item.isInGallery && !item.filePath) {
+        Alert.alert(
+          'Download Available in Gallery', 
+          'This episode has been saved to your device gallery to optimize storage. Please open your gallery app and look for the "Kaizen" album to watch this episode.',
+          [
+            { text: 'OK', style: 'default' }
+          ]
+        );
+        return;
+      }
+      
       const fileInfo = await FileSystem.getInfoAsync(item.filePath);
       
       if (fileInfo.exists) {
@@ -348,7 +378,11 @@ export default function DownloadsPage() {
             {/* Play Icon for completed downloads */}
             {item.status === 'completed' && (
               <View style={styles.playIconContainer}>
-                <MaterialCommunityIcons name="play-circle" size={32} color="white" />
+                {item.isInGallery ? (
+                  <MaterialCommunityIcons name="folder-open" size={32} color="white" />
+                ) : (
+                  <MaterialCommunityIcons name="play-circle" size={32} color="white" />
+                )}
               </View>
             )}
           </View>
@@ -366,6 +400,7 @@ export default function DownloadsPage() {
             {item.status === 'completed' ? (
               <Text style={styles.downloadMeta}>
                 {formatBytes(item.size)} • {format(new Date(item.dateAdded), 'MMM d, yyyy')}
+                {item.isInGallery ? ' • In Gallery' : ''}
               </Text>
             ) : (
               <Text style={styles.downloadMeta}>
@@ -452,13 +487,17 @@ export default function DownloadsPage() {
         </View>
       </View>
       
-      {/* Storage usage information */}
-      <View style={styles.storageInfo}>
-        <MaterialCommunityIcons name="folder-download" size={20} color={Colors.dark.secondaryText} />
-        <Text style={styles.storageText}>
-          Total storage: {formatBytes(totalStorageUsed)}
-        </Text>
-      </View>
+
+      
+      {/* Gallery information banner */}
+      {downloads.some(d => d.status === 'completed') && (
+        <View style={styles.galleryInfoBanner}>
+          <MaterialCommunityIcons name="information" size={16} color={Colors.dark.buttonBackground} />
+          <Text style={styles.galleryInfoText}>
+            Downloaded episodes are saved to your device gallery in the "Kaizen" album for easy access
+          </Text>
+        </View>
+      )}
       
       {/* Filtering and sorting controls */}
       <View style={styles.filtersContainer}>
