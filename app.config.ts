@@ -4,7 +4,7 @@ export default {
   expo: {
     name: 'kaizen',
     slug: 'kaizen',
-    version: '1.0.1',
+    version: '1.0.2',
     orientation: 'portrait',
     icon: './assets/images/splash-icon.png',
     scheme: 'kaizen',
