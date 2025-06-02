@@ -47,7 +47,8 @@ export interface DownloadItem {
   status: 'pending' | 'downloading' | 'completed' | 'failed' | 'paused'; // Current state
   size: number;                 // File size in bytes for storage management
   dateAdded: number;            // Timestamp for chronological sorting
-  resumeData?: string;          // Resume token for interrupted downloads
+  resumeData?: string | null;   // Resume token for interrupted downloads - can be string, null, or undefined
+  isInGallery?: boolean;        // Flag indicating if file is saved to device gallery (for storage optimization)
 }
 
 /**
@@ -70,7 +71,7 @@ interface DownloadsContextType {
   
   // Download management actions
   startDownload: (item: Omit<DownloadItem, 'progress' | 'status' | 'dateAdded' | 'filePath' | 'size'>) => Promise<void>;
-  pauseDownload: (id: string) => Promise<void>;         // Pause active download
+  pauseDownload: (id: string) => Promise<boolean>;      // Pause active download
   resumeDownload: (id: string) => Promise<boolean>;     // Resume paused download
   cancelDownload: (id: string) => Promise<boolean>;     // Cancel and delete download
   removeDownload: (id: string) => Promise<boolean>;     // Remove completed download
@@ -80,6 +81,7 @@ interface DownloadsContextType {
   getDownloadById: (id: string) => DownloadItem | undefined;        // Find specific download
   getDownloadsByAnimeId: (animeId: string) => DownloadItem[];       // Get all episodes for anime
   requestDownloadPermissions: () => Promise<boolean>;               // Request file system permissions
+  validateAndCleanupDownloads: () => Promise<void>;                // Validate file existence and cleanup orphaned entries
 }
 
 // Create the downloads context
@@ -140,6 +142,91 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   
   // Notification ID mapping for progress updates and completion alerts
   const notificationIdsMap = React.useRef<Record<string, string>>({});
+  
+  /**
+   * Resume Data Utility Functions
+   * 
+   * Helper functions to handle resume data parsing and validation:
+   * - Safely parse resume data from different formats
+   * - Validate resume data integrity
+   * - Handle fallback scenarios when resume data is corrupted
+   */
+  
+  // Parse and validate resume data from various formats
+  const parseResumeData = (resumeData: any): any => {
+    if (!resumeData) return null;
+    
+    // If it's a string, return as-is (most common case for resume data)
+    if (typeof resumeData === 'string') {
+      return resumeData;
+    }
+    
+    // If it's an object, try to stringify it
+    if (typeof resumeData === 'object' && resumeData !== null) {
+      try {
+        return JSON.stringify(resumeData);
+      } catch {
+        return null;
+      }
+    }
+    
+    return null;
+  };
+  
+  // Validate if resume data appears to be valid
+  const isValidResumeData = (resumeData: any): boolean => {
+    if (!resumeData) return false;
+    
+    // For string resume data, check if it's not empty
+    if (typeof resumeData === 'string') {
+      return resumeData.length > 0 && resumeData.trim() !== '';
+    }
+    
+    // For other types, be more permissive
+    return false;
+  };
+  
+  // Create a clean restart for failed downloads
+  const restartDownload = async (download: DownloadItem): Promise<void> => {
+    console.log('Restarting download from beginning:', download.id);
+    
+    // Clean up any existing partial file
+    if (download.filePath) {
+      try {
+        const fileInfo = await FileSystem.getInfoAsync(download.filePath);
+        if (fileInfo.exists) {
+          await FileSystem.deleteAsync(download.filePath);
+          console.log('Deleted partial file for restart:', download.filePath);
+        }
+      } catch (error) {
+        console.warn('Could not delete partial file:', error);
+      }
+    }
+    
+    // Reset download state and add to queue
+    const restartedDownload = {
+      ...download,
+      status: 'pending' as const,
+      progress: 0,
+      resumeData: null
+    };
+    
+    // Update the download in the list
+    setDownloads(prevDownloads => 
+      prevDownloads.map(d => 
+        d.id === download.id ? restartedDownload : d
+      )
+    );
+    
+    // Add to queue for processing
+    setDownloadQueue(prev => {
+      // Avoid duplicates
+      if (prev.find(d => d.id === download.id)) {
+        return prev;
+      }
+      return [...prev, restartedDownload];
+    });
+  };
   
   /**
    * Notification Configuration Function
@@ -222,8 +309,10 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           const parsedDownloads = JSON.parse(storedDownloads) as DownloadItem[];
           setDownloads(parsedDownloads);
           
-          // Calculate total storage used for display
-          const totalSize = parsedDownloads.reduce((sum, item) => sum + (item.size || 0), 0);
+          // Calculate total storage used for display - only count completed downloads
+          const totalSize = parsedDownloads
+            .filter(item => item.status === 'completed')
+            .reduce((sum, item) => sum + (item.size || 0), 0);
           setTotalStorageUsed(totalSize);
           
           // Separate downloads by status for queue management
@@ -245,6 +334,11 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               }
             }
           }
+          
+          // Validate all downloads after initialization
+          setTimeout(() => {
+            validateAndCleanupDownloads();
+          }, 1000); // Small delay to ensure all state is settled
         }
       } catch (error) {
         console.error('Error initializing downloads:', error);
@@ -275,8 +369,10 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         requestAnimationFrame(async () => {
           await AsyncStorage.setItem(DOWNLOADS_STORAGE_KEY, JSON.stringify(downloads));
           
-          // Recalculate storage used without blocking UI
-          const totalSize = downloads.reduce((sum, item) => sum + (item.size || 0), 0);
+          // Recalculate storage used without blocking UI - only count completed downloads that still have local files
+          const totalSize = downloads
+            .filter(item => item.status === 'completed' && !item.isInGallery)
+            .reduce((sum, item) => sum + (item.size || 0), 0);
           setTotalStorageUsed(totalSize);
         });
       } catch (error) {
@@ -292,9 +388,23 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     
     return () => {
       if (saveTimeout) clearTimeout(saveTimeout);
-    };
-  }, [downloads]);
-  
+    };  }, [downloads]);
+
+  /**
+   * Download State Consistency Check Effect
+   * 
+   * Periodically ensures that completed downloads are not incorrectly 
+   * showing as active in the currentDownloads list, which fixes UI
+   * inconsistencies where downloads appear to be "downloading" after completion
+   */
+  useEffect(() => {
+    const consistencyInterval = setInterval(() => {
+      ensureDownloadStateConsistency();
+    }, 2000); // Check every 2 seconds
+
+    return () => clearInterval(consistencyInterval);
+  }, []);
+
   /**
    * Download Queue Processing Effect
    * 
@@ -351,10 +461,26 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
    */
   // Request media library permissions
   const requestDownloadPermissions = async () => {
-    const { status } = await MediaLibrary.requestPermissionsAsync();
-    const granted = status === 'granted';
-    setDownloadPermissionGranted(granted);
-    return granted;
+    try {
+      console.log('Requesting media library permissions...');
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      console.log('Media library permission status:', status);
+      
+      const granted = status === 'granted';
+      setDownloadPermissionGranted(granted);
+      
+      if (granted) {
+        console.log('Media library permissions granted');
+      } else {
+        console.log('Media library permissions denied');
+      }
+      
+      return granted;
+    } catch (error) {
+      console.error('Error requesting media library permissions:', error);
+      setDownloadPermissionGranted(false);
+      return false;
+    }
   };
   
   /**
@@ -380,14 +506,32 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     updateThrottleTimeout = setTimeout(() => {
       requestAnimationFrame(() => {
         setDownloads(prevDownloads => 
-          prevDownloads.map(download => 
-            download.id === id ? { 
-              ...download, 
-              status, 
-              ...(progress !== undefined ? { progress } : {}),
-              ...(size !== undefined ? { size } : {})
-            } : download
-          )
+          prevDownloads.map(download => {
+            if (download.id === id) {
+              // Never overwrite completed status with downloading status to prevent race conditions
+              if (download.status === 'completed' && status === 'downloading') {
+                return download; // Keep completed status
+              }
+              
+              // For resumed downloads, always allow status updates to 'downloading'
+              // Only protect against overwriting user-initiated pauses when download is actively running
+              if (download.status === 'paused' && status === 'downloading') {
+                // Check if this is a legitimate resume operation by looking at downloadRefsMap
+                if (!downloadRefsMap.current[id]) {
+                  return download; // Keep paused state if no active download reference
+                }
+                // Allow update if there's an active download reference (legitimate resume)
+              }
+              
+              return { 
+                ...download, 
+                status, 
+                ...(progress !== undefined ? { progress } : {}),
+                ...(size !== undefined ? { size } : {})
+              };
+            }
+            return download;
+          })
         );
         
         // Update current downloads or queue based on status
@@ -397,11 +541,31 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           setCurrentDownloads(prev => prev.filter(d => d.id !== id));
         } else if (status === 'downloading') {
           setCurrentDownloads(prev => {
-            if (!prev.find(d => d.id === id)) {
+            const existingDownload = prev.find(d => d.id === id);
+            if (!existingDownload) {
               const download = downloads.find(d => d.id === id);
               if (download) {
-                return [...prev, download];
+                // Don't add to current downloads if it's already completed
+                if (download.status === 'completed') {
+                  return prev;
+                }
+                // Create updated download with new status and progress
+                const updatedDownload = { 
+                  ...download, 
+                  status: 'downloading' as const,
+                  ...(progress !== undefined ? { progress } : {}),
+                  ...(size !== undefined ? { size } : {})
+                };
+                return [...prev, updatedDownload];
               }
+            } else {
+              // Update existing download in current downloads
+              return prev.map(d => d.id === id ? {
+                ...d,
+                status: 'downloading' as const,
+                ...(progress !== undefined ? { progress } : {}),
+                ...(size !== undefined ? { size } : {})
+              } : d);
             }
             return prev;
           });
@@ -584,8 +748,23 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         // Create notification for this download
         await createDownloadNotification(downloadItem);
         
-        // Define download directory path
-        const downloadDir = `${FileSystem.documentDirectory}downloads/`;
+        // Define download directory path - use a gallery-accessible location for Android compatibility
+        let downloadDir: string;
+        let filePath: string;
+        
+        // Create a unique filename
+        const fileName = `kaizen_${downloadItem.animeId}_${downloadItem.audioType}_${downloadItem.episodeNumber}.mp4`;
+        
+        if (Platform.OS === 'android') {
+          // For Android, use cacheDirectory which is accessible to MediaLibrary
+          // This avoids scoped storage restrictions while still allowing gallery access
+          downloadDir = `${FileSystem.cacheDirectory}Downloads/`;
+          filePath = `${downloadDir}${fileName}`;
+        } else {
+          // For iOS, continue using documentDirectory as it works fine
+          downloadDir = `${FileSystem.documentDirectory}Downloads/`;
+          filePath = `${downloadDir}${fileName}`;
+        }
         
         // Ensure the downloads directory exists - wrap in requestAnimationFrame to avoid UI blocking
         await new Promise<void>((resolve) => {
@@ -599,31 +778,27 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           });
         });
         
-        // Create a unique filename
-        const fileName = `kaizen_${downloadItem.animeId}_${downloadItem.audioType}_${downloadItem.episodeNumber}.mp4`;
-        const filePath = `${downloadDir}${fileName}`;
-        
-        // Update the file path in the item - using requestAnimationFrame to avoid UI blocking
-        await new Promise<void>((resolve) => {
-          requestAnimationFrame(() => {
-            setDownloads(prevDownloads => 
-              prevDownloads.map(download => 
-                download.id === downloadItem.id ? { ...download, filePath } : download
-              )
-            );
-            resolve();
-          });
-        });
+        // Update the file path in the item immediately (synchronously)
+        downloadItem.filePath = filePath;
+        setDownloads(prevDownloads => 
+          prevDownloads.map(download => 
+            download.id === downloadItem.id ? { ...download, filePath } : download
+          )
+        );
         
         // Create download resumable with a throttled progress callback
         let lastProgressUpdate = 0;
         const PROGRESS_UPDATE_INTERVAL = 500; // ms
+        let isDownloadCompleted = false; // Flag to prevent race conditions
         
         const downloadResumable = FileSystem.createDownloadResumable(
           downloadItem.downloadUrl,
           filePath,
           {},
           (downloadProgress) => {
+            // Don't update progress if download is already completed
+            if (isDownloadCompleted) return;
+            
             const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
             const totalSize = downloadProgress.totalBytesExpectedToWrite;
             
@@ -634,7 +809,10 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               
               // Update download status asynchronously to avoid UI blocking
               requestAnimationFrame(() => {
-                updateDownloadStatus(downloadItem.id, 'downloading', progress, totalSize);
+                // Double-check completion flag before updating
+                if (!isDownloadCompleted) {
+                  updateDownloadStatus(downloadItem.id, 'downloading', progress, totalSize);
+                }
               });
               
               // Update notification with progress (throttle updates)
@@ -654,44 +832,131 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const result = await downloadResumable.downloadAsync();
         
         if (result) {
-          // Get file info to store size - do this in a non-blocking way
-          await new Promise<void>((resolve) => {
-            requestAnimationFrame(async () => {
-              const fileInfo = await FileSystem.getInfoAsync(result.uri);
+          // Set completion flag to prevent race conditions
+          isDownloadCompleted = true;
+          
+          // Get file info immediately to ensure completion
+          const fileInfo = await FileSystem.getInfoAsync(result.uri);
+          const finalSize = (fileInfo.exists && 'size' in fileInfo ? fileInfo.size : downloadItem.size);
+          
+          // Update the download with completed status and size immediately
+          const completedItem = {
+            ...downloadItem,
+            status: 'completed' as const,
+            progress: 1,
+            size: finalSize,
+            filePath: result.uri
+          };
+          
+          // Update state immediately without requestAnimationFrame to ensure completion status is set
+          setDownloads(prevDownloads => 
+            prevDownloads.map(download => 
+              download.id === downloadItem.id ? completedItem : download
+            )
+          );
+          
+          // Remove from current downloads immediately
+          setCurrentDownloads(prev => prev.filter(d => d.id !== downloadItem.id));
+          
+          // Show completion notification
+          await completeDownloadNotification(completedItem, 'completed');
+          
+          // Save to media library if permission granted
+          if (downloadPermissionGranted) {
+            try {
+              console.log('Attempting to save to media library:', result.uri);
               
-              // Update the download with completed status and size
-              setDownloads(prevDownloads => 
-                prevDownloads.map(download => 
-                  download.id === downloadItem.id ? { 
-                    ...download, 
-                    status: 'completed', 
-                    progress: 1,
-                    size: (fileInfo.exists && 'size' in fileInfo ? fileInfo.size : download.size),
-                    filePath: result.uri
-                  } : download
-                )
-              );
-              
-              // Show completion notification
-              const completedItem = {
-                ...downloadItem,
-                status: 'completed' as const,
-                progress: 1,
-                size: (fileInfo.exists && 'size' in fileInfo ? fileInfo.size : downloadItem.size),
-                filePath: result.uri
-              };
-              
-              await completeDownloadNotification(completedItem, 'completed');
-              
-              // Save to media library if permission granted
-              if (downloadPermissionGranted) {
-                const asset = await MediaLibrary.createAssetAsync(result.uri);
-                await MediaLibrary.createAlbumAsync('Kaizen', asset, false);
+              // Try different approaches for Android scoped storage compatibility
+              let asset;
+              try {
+                // First try: Direct asset creation (works on older Android versions)
+                asset = await MediaLibrary.createAssetAsync(result.uri);
+                console.log('Asset created successfully with direct method:', asset.id);
+              } catch (directError) {
+                console.log('Direct asset creation failed, trying alternative method...');
+                
+                // Second try: Copy to a public directory first (for newer Android versions)
+                try {
+                  // Use a temporary filename in the public downloads directory
+                  const tempFileName = `kaizen_temp_${Date.now()}.mp4`;
+                  const publicUri = `${FileSystem.documentDirectory}${tempFileName}`;
+                  
+                  // Copy the file to a location that MediaLibrary can access
+                  await FileSystem.copyAsync({
+                    from: result.uri,
+                    to: publicUri
+                  });
+                  
+                  // Create asset from the copied file
+                  asset = await MediaLibrary.createAssetAsync(publicUri);
+                  console.log('Asset created successfully with copy method:', asset.id);
+                  
+                  // Clean up the temporary file
+                  try {
+                    await FileSystem.deleteAsync(publicUri);
+                    console.log('Temporary file cleaned up');
+                  } catch (cleanupError) {
+                    console.warn('Could not clean up temporary file:', cleanupError);
+                  }
+                } catch (copyError) {
+                  console.error('Copy method also failed:', copyError);
+                  throw directError; // Re-throw the original error
+                }
               }
               
-              resolve();
-            });
-          });
+              // Check if Kaizen album exists, create if it doesn't
+              let kaizenAlbum = await MediaLibrary.getAlbumAsync('Kaizen');
+              if (!kaizenAlbum) {
+                kaizenAlbum = await MediaLibrary.createAlbumAsync('Kaizen', asset, false);
+                console.log('Kaizen album created successfully');
+              } else {
+                // Album exists, add asset to it
+                await MediaLibrary.addAssetsToAlbumAsync([asset], kaizenAlbum, false);
+                console.log('Asset added to existing Kaizen album');
+              }
+              
+              console.log('Successfully saved to media library and album');
+              
+              // Storage optimization: Remove the app cache file after successfully saving to gallery
+              // This prevents duplicate storage usage since the file is now in the device gallery
+              try {
+                console.log('Optimizing storage: Removing app cache file after gallery save...');
+                await FileSystem.deleteAsync(result.uri);
+                console.log('App cache file removed successfully to optimize storage');
+                
+                // Update the download item to indicate it's in gallery only
+                const optimizedItem = {
+                  ...completedItem,
+                  filePath: '', // Clear local path since file is now only in gallery
+                  isInGallery: true // Add flag to indicate it's saved to gallery
+                };
+                
+                setDownloads(prevDownloads => 
+                  prevDownloads.map(download => 
+                    download.id === downloadItem.id ? optimizedItem : download
+                  )
+                );
+                
+                console.log('Download optimized: File removed from app cache, available in device gallery');
+              } catch (deleteError) {
+                console.warn('Could not remove app cache file after gallery save:', deleteError);
+                // Don't fail the download if we can't optimize storage
+              }
+            } catch (error) {
+              console.error('Error saving to media library:', error);
+              
+              // Check if this is the common Android scoped storage error
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              if (errorMessage.includes('Unable to copy file into external storage') || 
+                  errorMessage.includes('scoped storage') ||
+                  errorMessage.includes('external storage')) {
+                console.log('Android scoped storage restriction detected. This is a known limitation on newer Android versions.');
+                console.log('The download completed successfully and is available in the app, but cannot be saved to the device gallery due to system restrictions.');
+              } else {
+                console.log('Unexpected media library error occurred.');
+              }
+            }
+          }
         }
       } catch (error) {
         console.error('Error in download process:', error);
@@ -701,7 +966,7 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         await completeDownloadNotification(downloadItem, 'failed');
       } finally {
         setIsDownloading(false);
-        // Remove from current downloads
+        // Ensure the download is removed from current downloads (in case it wasn't done above)
         setCurrentDownloads(prev => prev.filter(d => d.id !== downloadItem.id));
         // Clean up the download reference
         delete downloadRefsMap.current[downloadItem.id];
@@ -757,15 +1022,55 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     
     if (downloadRef && download) {
       try {
-        const resumeData = await downloadRef.pauseAsync();
-        
-        // Update download status and save resume data
+        // First, immediately update the status to prevent progress callbacks from overwriting
         setDownloads(prevDownloads => 
           prevDownloads.map(download => 
             download.id === id ? { 
               ...download, 
-              status: 'paused',
-              resumeData: resumeData?.resumeData 
+              status: 'paused' as const
+            } : download
+          )
+        );
+        
+        console.log('Attempting to pause download:', id);
+        const pauseResult = await downloadRef.pauseAsync();
+        
+        // Extract resume data properly - pauseResult itself should contain the resume data
+        let resumeData: string | null = null;
+        if (pauseResult && typeof pauseResult === 'object') {
+          // Check if pauseResult has resumeData property
+          if ('resumeData' in pauseResult && pauseResult.resumeData) {
+            resumeData = typeof pauseResult.resumeData === 'string' ? pauseResult.resumeData : JSON.stringify(pauseResult.resumeData);
+          } else if ('data' in pauseResult && pauseResult.data) {
+            // Sometimes it's nested in a data property
+            resumeData = typeof pauseResult.data === 'string' ? pauseResult.data : JSON.stringify(pauseResult.data);
+          } else {
+            // Sometimes the entire pauseResult object is the resume data
+            try {
+              resumeData = JSON.stringify(pauseResult);
+            } catch (stringifyError) {
+              console.warn('Could not stringify pause result:', stringifyError);
+              resumeData = null;
+            }
+          }
+        } else if (typeof pauseResult === 'string') {
+          // If pauseResult is directly the resume data string
+          resumeData = pauseResult;
+        }
+        
+        console.log('Pause result type:', typeof pauseResult, 'Resume data available:', !!resumeData);
+        if (resumeData) {
+          console.log('Resume data type:', typeof resumeData, 'Resume data preview:', 
+            typeof resumeData === 'string' ? resumeData.substring(0, 100) + '...' : 'Object');
+        }
+        
+        // Update download status with resume data (ensure status stays paused)
+        setDownloads(prevDownloads => 
+          prevDownloads.map(download => 
+            download.id === id ? { 
+              ...download, 
+              status: 'paused' as const,
+              resumeData: resumeData
             } : download
           )
         );
@@ -777,12 +1082,34 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           delete notificationIdsMap.current[id];
         }
         
-        // Remove from current downloads
+        // Remove from current downloads and clear the download reference
         setCurrentDownloads(prev => prev.filter(d => d.id !== id));
+        delete downloadRefsMap.current[id];
+        
+        console.log('Download paused successfully:', id, 'Resume data saved:', !!resumeData);
+        return true;
       } catch (error) {
         console.error('Error pausing download:', error);
+        // Even if pauseAsync fails, ensure status is set to paused
+        setDownloads(prevDownloads => 
+          prevDownloads.map(download => 
+            download.id === id ? { 
+              ...download, 
+              status: 'paused' as const,
+              resumeData: null // If pause failed, we can't resume properly
+            } : download
+          )
+        );
+        
+        // Clean up
+        setCurrentDownloads(prev => prev.filter(d => d.id !== id));
+        delete downloadRefsMap.current[id];
+        
+        return false;
       }
     }
+    
+    return false;
   };
   
   // Resume a paused download
@@ -790,44 +1117,354 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const download = downloads.find(d => d.id === id);
     
     if (!download || download.status !== 'paused') {
+      console.log('Cannot resume download:', id, 'Status:', download?.status);
       return false;
     }
+
+    // Check if already resuming to prevent multiple calls
+    if (downloadRefsMap.current[id]) {
+      console.log('Download already resuming:', id);
+      return false;
+    }
+
+    // Create a temporary marker to prevent multiple simultaneous calls
+    downloadRefsMap.current[id] = {} as FileSystem.DownloadResumable;
     
     try {
-      if (download.resumeData) {
-        // Create a new download resumable using saved data
-        const downloadResumable = new FileSystem.DownloadResumable(
+      // Set status to downloading immediately to prevent multiple resume attempts
+      setDownloads(prevDownloads => 
+        prevDownloads.map(d => 
+          d.id === id ? { ...d, status: 'downloading' as const } : d
+        )
+      );
+      
+      // First, create notification for resumed download
+      await createDownloadNotification(download);
+      
+      if (download.resumeData && download.filePath) {
+        console.log('Resuming download with saved data:', id, 'FilePath:', download.filePath);
+        
+        // Log resume data details for debugging
+        const details = {
+          type: typeof download.resumeData,
+          isValid: isValidResumeData(download.resumeData),
+          length: typeof download.resumeData === 'string' ? download.resumeData.length : 'N/A',
+          preview: typeof download.resumeData === 'string' ? download.resumeData.substring(0, 50) + '...' : 'Object'
+        };
+        console.log('Resume data details:', details);
+        
+        // Verify the partial file still exists
+        try {
+          const fileInfo = await FileSystem.getInfoAsync(download.filePath);
+          if (!fileInfo.exists) {
+            console.log('Partial file no longer exists, restarting download:', id);
+            // Clean up and restart
+            setCurrentDownloads(prev => prev.filter(d => d.id !== id));
+            delete downloadRefsMap.current[id];
+            await restartDownload(download);
+            return true;
+          }
+        } catch (fileCheckError) {
+          console.log('Error checking file existence, restarting download:', id);
+          // Clean up and restart
+          setCurrentDownloads(prev => prev.filter(d => d.id !== id));
+          delete downloadRefsMap.current[id];
+          await restartDownload(download);
+          return true;
+        }
+        
+        // Parse resume data if it's a string (sometimes it gets stringified)
+        const parsedResumeData = parseResumeData(download.resumeData);
+        
+        // Validate resume data before using it
+        if (!isValidResumeData(parsedResumeData)) {
+          console.log('Resume data invalid or corrupted, restarting download:', id);
+          // Clean up and restart
+          setCurrentDownloads(prev => prev.filter(d => d.id !== id));
+          delete downloadRefsMap.current[id];
+          await restartDownload(download);
+          return true;
+        }
+        
+        console.log('Resume data type:', typeof parsedResumeData, 'Resume data available:', !!parsedResumeData);
+        
+        // Create downloadResumable with resume data
+        let isResumeCompleted = false; // Flag to prevent race conditions in resume downloads
+        const downloadResumable = FileSystem.createDownloadResumable(
           download.downloadUrl,
           download.filePath,
           {},
           (downloadProgress) => {
+            // Don't update progress if download is already completed
+            if (isResumeCompleted) return;
+            
             const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
             const totalSize = downloadProgress.totalBytesExpectedToWrite;
-            updateDownloadStatus(id, 'downloading', progress, totalSize);
+            
+            // Always update progress/size regardless of status check to ensure UI updates
+            // Only skip if download was explicitly cancelled/removed
+            if (downloadRefsMap.current[id] && !isResumeCompleted) {
+              updateDownloadStatus(id, 'downloading', progress, totalSize);
+              
+              // Update notification periodically
+              const progressPercent = Math.round(progress * 100);
+              if (progressPercent % 10 === 0) {
+                const updatedItem = {...download, progress, size: totalSize};
+                updateDownloadNotification(updatedItem);
+              }
+            }
           },
-          download.resumeData
+          parsedResumeData // Pass the processed resume data here
         );
         
-        // Store reference
+        // Store reference for future pausing (replace the temporary marker)
         downloadRefsMap.current[id] = downloadResumable;
         
-        // Update status to downloading and add to current downloads
-        updateDownloadStatus(id, 'downloading');
-        setCurrentDownloads(prev => [...prev, download]);
+        // Update download status to downloading immediately and ensure it shows current progress
+        setDownloads(prevDownloads => 
+          prevDownloads.map(d => 
+            d.id === id ? { ...d, status: 'downloading' as const } : d
+          )
+        );
         
-        // Resume download
-        await downloadResumable.resumeAsync();
+        // Add to current downloads with current progress preserved
+        setCurrentDownloads(prev => {
+          if (!prev.find(d => d.id === id)) {
+            return [...prev, { ...download, status: 'downloading' }];
+          }
+          return prev.map(d => d.id === id ? { ...d, status: 'downloading' } : d);
+        });
+        
+        // Resume the download without timeout - let it handle its own network timeouts
+        try {
+          const result = await downloadResumable.resumeAsync();
+          
+          if (result) {
+            // Set completion flag to prevent race conditions
+            isResumeCompleted = true;
+            
+            // Handle completion
+            const fileInfo = await FileSystem.getInfoAsync(result.uri);
+            const finalSize = (fileInfo.exists && 'size' in fileInfo ? fileInfo.size : download.size);
+            
+            const completedItem = {
+              ...download,
+              status: 'completed' as const,
+              progress: 1,
+              size: finalSize,
+              filePath: result.uri
+            };
+            
+            // Update state immediately
+            setDownloads(prevDownloads => 
+              prevDownloads.map(d => 
+                d.id === id ? completedItem : d
+              )
+            );
+            
+            // Remove from current downloads immediately
+            setCurrentDownloads(prev => prev.filter(d => d.id !== id));
+            
+            // Show completion notification
+            await completeDownloadNotification(completedItem, 'completed');
+            
+            // Save to media library if permission granted
+            if (downloadPermissionGranted) {
+              try {
+                console.log('Attempting to save to media library:', result.uri);
+                
+                // First, check if the file exists and is accessible
+                const fileInfo = await FileSystem.getInfoAsync(result.uri);
+                if (!fileInfo.exists) {
+                  console.error('File does not exist for media library save:', result.uri);
+                  throw new Error('File not found');
+                }
+                
+                console.log('File exists, size:', fileInfo.size);
+                console.log('Creating asset from file...');
+                
+                // Try different approaches for Android scoped storage compatibility
+                let asset;
+                try {
+                  // First try: Direct asset creation (works on older Android versions)
+                  asset = await MediaLibrary.createAssetAsync(result.uri);
+                  console.log('Asset created successfully with direct method:', asset.id);
+                } catch (directError) {
+                  console.log('Direct asset creation failed, trying alternative method...');
+                  
+                  // Second try: Copy to a public directory first (for newer Android versions)
+                  try {
+                    // Use a temporary filename in the public downloads directory
+                    const tempFileName = `kaizen_temp_${Date.now()}.mp4`;
+                    const publicUri = `${FileSystem.documentDirectory}${tempFileName}`;
+                    
+                    // Copy the file to a location that MediaLibrary can access
+                    await FileSystem.copyAsync({
+                      from: result.uri,
+                      to: publicUri
+                    });
+                    
+                    // Create asset from the copied file
+                    asset = await MediaLibrary.createAssetAsync(publicUri);
+                    console.log('Asset created successfully with copy method:', asset.id);
+                    
+                    // Clean up the temporary file
+                    try {
+                      await FileSystem.deleteAsync(publicUri);
+                      console.log('Temporary file cleaned up');
+                    } catch (cleanupError) {
+                      console.warn('Could not clean up temporary file:', cleanupError);
+                    }
+                  } catch (copyError) {
+                    console.error('Copy method also failed:', copyError);
+                    throw directError; // Re-throw the original error
+                  }
+                }
+                
+                // Check if Kaizen album exists, create if it doesn't
+                console.log('Looking for Kaizen album...');
+                let kaizenAlbum = await MediaLibrary.getAlbumAsync('Kaizen');
+                
+                if (!kaizenAlbum) {
+                  console.log('Creating new Kaizen album with asset...');
+                  kaizenAlbum = await MediaLibrary.createAlbumAsync('Kaizen', asset, false);
+                  console.log('Kaizen album created successfully:', kaizenAlbum.id);
+                } else {
+                  console.log('Found existing Kaizen album, adding asset...');
+                  // Album exists, add asset to it
+                  await MediaLibrary.addAssetsToAlbumAsync([asset], kaizenAlbum, false);
+                  console.log('Asset added to album successfully');
+                }
+                
+                console.log('Successfully saved to media library and album');
+                
+                // Storage optimization: Remove the app cache file after successfully saving to gallery
+                // This prevents duplicate storage usage since the file is now in the device gallery
+                try {
+                  console.log('Optimizing storage: Removing app cache file after gallery save...');
+                  await FileSystem.deleteAsync(result.uri);
+                  console.log('App cache file removed successfully to optimize storage');
+                  
+                  // Update the download item to indicate it's in gallery only
+                  const optimizedItem = {
+                    ...completedItem,
+                    filePath: '', // Clear local path since file is now only in gallery
+                    isInGallery: true // Add flag to indicate it's saved to gallery
+                  };
+                  
+                  setDownloads(prevDownloads => 
+                    prevDownloads.map(d => 
+                      d.id === id ? optimizedItem : d
+                    )
+                  );
+                  
+                  console.log('Download optimized: File removed from app cache, available in device gallery');
+                } catch (deleteError) {
+                  console.warn('Could not remove app cache file after gallery save:', deleteError);
+                  // Don't fail the download if we can't optimize storage
+                }
+                
+              } catch (error) {
+                console.error('Error saving to media library:', error);
+                console.error('Error details:', error instanceof Error ? error.message : String(error));
+                
+                // Check if this is the common Android scoped storage error
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                if (errorMessage.includes('Unable to copy file into external storage') || 
+                    errorMessage.includes('scoped storage') ||
+                    errorMessage.includes('external storage')) {
+                  console.log('Android scoped storage restriction detected. This is a known limitation on newer Android versions.');
+                  console.log('The download completed successfully and is available in the app, but cannot be saved to the device gallery due to system restrictions.');
+                } else {
+                  console.log('Unexpected media library error occurred.');
+                }
+                
+                // Don't fail the download completion just because media library save failed
+                console.log('Download completed successfully but could not save to gallery');
+              }
+            } else {
+              console.log('Media library permission not granted, skipping gallery save');
+            }
+            
+            // Clean up
+            setCurrentDownloads(prev => prev.filter(d => d.id !== id));
+            delete downloadRefsMap.current[id];
+          } else {
+            // If resume failed without result, clean up and mark as failed
+            console.log('Resume completed but no result returned, marking as failed:', id);
+            setCurrentDownloads(prev => prev.filter(d => d.id !== id));
+            delete downloadRefsMap.current[id];
+            updateDownloadStatus(id, 'failed');
+          }
+        } catch (resumeError) {
+          console.error('Error during resume operation:', resumeError);
+          
+          // Clean up
+          setCurrentDownloads(prev => prev.filter(d => d.id !== id));
+          delete downloadRefsMap.current[id];
+          
+          // Handle specific resume errors
+          const errorMessage = resumeError instanceof Error ? resumeError.message : String(resumeError);
+          
+          // If it's a network or resume data corruption issue, restart the download
+          if (errorMessage.includes('network') || 
+              errorMessage.includes('timeout') || 
+              errorMessage.includes('Resume') ||
+              errorMessage.includes('corrupt') ||
+              errorMessage.includes('invalid') ||
+              errorMessage.includes('expired') ||
+              errorMessage.includes('connection') ||
+              errorMessage.includes('ENOENT') ||
+              errorMessage.includes('404') ||
+              errorMessage.includes('500')) {
+            console.log('Resume failed due to recoverable error, restarting download from beginning:', id);
+            await restartDownload(download);
+          } else {
+            // For other errors, mark as failed
+            console.log('Resume failed with non-recoverable error, marking as failed:', id, errorMessage);
+            updateDownloadStatus(id, 'failed');
+          }
+          
+          throw resumeError; // Re-throw to be caught by outer catch
+        }
+        
         return true;
       } else {
-        // If no resume data, restart the download
-        updateDownloadStatus(id, 'pending');
-        setDownloadQueue(prev => [...prev, download]);
+        console.log('No resume data or file path found, restarting download:', id);
+        console.log('Resume data available:', !!download.resumeData, 'File path:', download.filePath);
+        
+        // Clean up the temporary marker since we're restarting
+        setCurrentDownloads(prev => prev.filter(d => d.id !== id));
+        delete downloadRefsMap.current[id];
+        
+        // If no resume data or file path, restart the download
+        await restartDownload(download);
         return true;
       }
     } catch (error) {
       console.error('Error resuming download:', error);
-      updateDownloadStatus(id, 'failed');
-      return false;
+      
+      // Clean up on error - remove temporary marker
+      setCurrentDownloads(prev => prev.filter(d => d.id !== id));
+      delete downloadRefsMap.current[id];
+      
+      // If resume fails, try restarting the download instead of marking as failed
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('timeout') || 
+          errorMessage.includes('Resume') ||
+          errorMessage.includes('network') ||
+          errorMessage.includes('corrupt') ||
+          errorMessage.includes('expired') ||
+          errorMessage.includes('connection') ||
+          errorMessage.includes('ENOENT')) {
+        console.log('Resume failed due to recoverable error, restarting download:', id);
+        await restartDownload(download);
+        return true;
+      } else {
+        console.log('Resume failed with non-recoverable error, marking as failed:', id);
+        updateDownloadStatus(id, 'failed');
+        return false;
+      }
     }
   };
   
@@ -854,21 +1491,61 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       delete notificationIdsMap.current[id];
     }
     
-    // Remove from all lists
-    setDownloads(prev => prev.filter(d => d.id !== id));
-    setCurrentDownloads(prev => prev.filter(d => d.id !== id));
-    setDownloadQueue(prev => prev.filter(d => d.id !== id));
-    
     // If there's a file, delete it
     if (download?.filePath) {
       try {
         const fileInfo = await FileSystem.getInfoAsync(download.filePath);
         if (fileInfo.exists) {
           await FileSystem.deleteAsync(download.filePath);
+          
+          // Also try to remove from media library if permission is granted and file was completed
+          if (downloadPermissionGranted && download.status === 'completed') {
+            try {
+              // First check if Kaizen album exists
+              const kaizenAlbum = await MediaLibrary.getAlbumAsync('Kaizen');
+              
+              if (kaizenAlbum) {
+                const assets = await MediaLibrary.getAssetsAsync({
+                  first: 100,
+                  album: kaizenAlbum,
+                  mediaType: 'video'
+                });
+                
+                const matchingAsset = assets.assets.find(asset => 
+                  asset.uri.includes(download.episodeNumber) && 
+                  asset.uri.includes(download.animeId)
+                );
+                
+                if (matchingAsset) {
+                  await MediaLibrary.deleteAssetsAsync([matchingAsset]);
+                }
+              }
+            } catch (mediaError) {
+              console.error('Error removing from media library:', mediaError);
+            }
+          }
         }
       } catch (error) {
         console.error('Error deleting download file:', error);
       }
+    }
+    
+    // Remove from all lists
+    const updatedDownloads = downloads.filter(d => d.id !== id);
+    setDownloads(updatedDownloads);
+    setCurrentDownloads(prev => prev.filter(d => d.id !== id));
+    setDownloadQueue(prev => prev.filter(d => d.id !== id));
+    
+    // Update storage immediately
+    try {
+      await AsyncStorage.setItem(DOWNLOADS_STORAGE_KEY, JSON.stringify(updatedDownloads));
+      // Recalculate storage used - only count completed downloads
+      const totalSize = updatedDownloads
+        .filter(item => item.status === 'completed')
+        .reduce((sum, item) => sum + (item.size || 0), 0);
+      setTotalStorageUsed(totalSize);
+    } catch (error) {
+      console.error('Error updating storage after cancel:', error);
     }
     
     return true;
@@ -888,19 +1565,60 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return true;
     }
     
-    // Remove from downloads
-    setDownloads(prev => prev.filter(d => d.id !== id));
-    
     // Delete the file if it exists
     if (download.filePath && download.status === 'completed') {
       try {
         const fileInfo = await FileSystem.getInfoAsync(download.filePath);
         if (fileInfo.exists) {
           await FileSystem.deleteAsync(download.filePath);
+          
+          // Also try to remove from media library if permission is granted
+          if (downloadPermissionGranted) {
+            try {
+              // First check if Kaizen album exists
+              const kaizenAlbum = await MediaLibrary.getAlbumAsync('Kaizen');
+              
+              if (kaizenAlbum) {
+                const assets = await MediaLibrary.getAssetsAsync({
+                  first: 100,
+                  album: kaizenAlbum,
+                  mediaType: 'video'
+                });
+                
+                const matchingAsset = assets.assets.find(asset => 
+                  asset.uri.includes(download.episodeNumber) && 
+                  asset.uri.includes(download.animeId)
+                );
+                
+                if (matchingAsset) {
+                  await MediaLibrary.deleteAssetsAsync([matchingAsset]);
+                }
+              }
+            } catch (mediaError) {
+              console.error('Error removing from media library:', mediaError);
+              // Don't fail the deletion if media library removal fails
+            }
+          }
         }
       } catch (error) {
         console.error('Error deleting download file:', error);
       }
+    }
+    
+    // Remove from downloads
+    const updatedDownloads = downloads.filter(d => d.id !== id);
+    setDownloads(updatedDownloads);
+    
+    // Update storage immediately
+    try {
+      await AsyncStorage.setItem(DOWNLOADS_STORAGE_KEY, JSON.stringify(updatedDownloads));
+      // Recalculate storage used - only count completed downloads
+      const totalSize = updatedDownloads
+        .filter(item => item.status === 'completed')
+        .reduce((sum, item) => sum + (item.size || 0), 0);
+      setTotalStorageUsed(totalSize);
+    } catch (error) {
+      console.error('Error updating storage after removal:', error);
     }
     
     return true;
@@ -922,6 +1640,33 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             const fileInfo = await FileSystem.getInfoAsync(d.filePath);
             if (fileInfo.exists) {
               await FileSystem.deleteAsync(d.filePath);
+              
+              // Also try to remove from media library if permission is granted
+              if (downloadPermissionGranted) {
+                try {
+                  // First check if Kaizen album exists
+                  const kaizenAlbum = await MediaLibrary.getAlbumAsync('Kaizen');
+                  
+                  if (kaizenAlbum) {
+                    const assets = await MediaLibrary.getAssetsAsync({
+                      first: 100,
+                      album: kaizenAlbum,
+                      mediaType: 'video'
+                    });
+                  
+                    const matchingAsset = assets.assets.find(asset => 
+                      asset.uri.includes(d.episodeNumber) && 
+                      asset.uri.includes(d.animeId)
+                    );
+                    
+                    if (matchingAsset) {
+                      await MediaLibrary.deleteAssetsAsync([matchingAsset]);
+                    }
+                  }
+                } catch (mediaError) {
+                  console.error('Error removing from media library:', mediaError);
+                }
+              }
             }
           } catch (error) {
             console.error('Error deleting file:', error);
@@ -951,6 +1696,92 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return downloads.filter(d => d.animeId === animeId);
   };
   
+  // Validate file existence and cleanup orphaned entries
+  const validateAndCleanupDownloads = async () => {
+    try {
+      const validDownloads: DownloadItem[] = [];
+      let totalSizeRecalculated = 0;
+      
+      for (const download of downloads) {
+        if (download.status === 'completed' && download.filePath) {
+          try {
+            const fileInfo = await FileSystem.getInfoAsync(download.filePath);
+            if (fileInfo.exists) {
+              // File exists, keep the download
+              validDownloads.push(download);
+              totalSizeRecalculated += download.size || 0;
+            } else {
+              // File doesn't exist, mark as failed or remove
+              console.log(`File not found for download: ${download.title} - Episode ${download.episodeNumber}`);
+              // Add as failed download so user knows what happened
+              validDownloads.push({
+                ...download,
+                status: 'failed'
+              });
+            }
+          } catch (error) {
+            console.error('Error checking file existence:', error);
+            // Keep the download but mark as failed
+            validDownloads.push({
+              ...download,
+              status: 'failed'
+            });
+          }
+        } else {
+          // Keep non-completed downloads as is
+          validDownloads.push(download);
+          if (download.status === 'completed') {
+            totalSizeRecalculated += download.size || 0;
+          }
+        }
+      }
+      
+      // Update state if there were changes
+      if (validDownloads.length !== downloads.length || 
+          validDownloads.some((d, i) => downloads[i] && d.status !== downloads[i].status)) {
+        setDownloads(validDownloads);
+        setTotalStorageUsed(totalSizeRecalculated);
+        
+        // Update storage
+        await AsyncStorage.setItem(DOWNLOADS_STORAGE_KEY, JSON.stringify(validDownloads));
+      }
+    } catch (error) {
+      console.error('Error validating downloads:', error);
+    }
+  };
+  
+  /**
+   * Debug Logging for Download Operations
+   * 
+   * Enhanced logging system for better debugging of download issues:
+   * - Logs resume data structure and validity
+   * - Tracks download state transitions
+   * - Records error patterns for analysis
+   */
+  
+  // Enhanced logging for download operations
+  const logDownloadOperation = (operation: string, downloadId: string, details?: any) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] DOWNLOAD ${operation.toUpperCase()}: ${downloadId}`, details || '');
+  };
+  
+  // Log resume data details for debugging
+  const logResumeDataDetails = (downloadId: string, resumeData: any) => {
+    if (!resumeData) {
+      logDownloadOperation('resume_data', downloadId, 'No resume data available');
+      return;
+    }
+    
+    const details = {
+      type: typeof resumeData,
+      isValid: isValidResumeData(resumeData),
+      length: typeof resumeData === 'string' ? resumeData.length : 'N/A',
+      preview: typeof resumeData === 'string' ? resumeData.substring(0, 50) + '...' : 'Object'
+    };
+    
+    logDownloadOperation('resume_data', downloadId, details);
+  };
+
   const contextValue: DownloadsContextType = {
     downloads,
     currentDownloads,
@@ -971,6 +1802,23 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     getDownloadById,
     getDownloadsByAnimeId,
     requestDownloadPermissions,
+    validateAndCleanupDownloads,
+  };
+  
+  /**
+   * Utility function to ensure download state consistency
+   * 
+   * Removes any completed or failed downloads from currentDownloads list
+   * to prevent UI inconsistencies where completed downloads still show as downloading
+   */
+  const ensureDownloadStateConsistency = () => {
+    setCurrentDownloads(prev => 
+      prev.filter(download => 
+        download.status === 'downloading' || 
+        download.status === 'pending' || 
+        download.status === 'paused'
+      )
+    );
   };
   
   return (
