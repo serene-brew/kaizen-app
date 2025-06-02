@@ -25,7 +25,7 @@ If applicable, add screenshots to help explain your problem.
 **Device Information:**
 - Device: [e.g. iPhone 12, Samsung Galaxy S21]
 - OS: [e.g. iOS 15.0, Android 12]
-- App Version: [e.g. 1.0.1]
+- App Version: [e.g. 1.x.x]
 
 **Additional context**
 Add any other context about the problem here.
