@@ -29,6 +29,9 @@ import Constants from 'expo-constants';
 import { useDownloads } from '../../contexts/DownloadsContext';
 import { useWatchHistory } from '../../contexts/WatchHistoryContext';
 
+// Version service for manual update checking
+import { checkForUpdatesManually, versionService } from '../../lib/versionService';
+
 /**
  * TypeScript Interface Definitions
  * Define prop structures for component type safety and better development experience
@@ -212,6 +215,16 @@ export default function More() {
   }, []);
   
   /**
+   * Manual Update Check Handler
+   * 
+   * Triggers manual version checking when user requests it
+   * Shows feedback regardless of update availability
+   */
+  const handleCheckForUpdates = useCallback(async () => {
+    await checkForUpdatesManually();
+  }, []);
+
+  /**
    * About Modal Handler
    * 
    * Opens the app information modal
@@ -366,6 +379,12 @@ export default function More() {
       {/* App Information Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
+        {/* Check for updates manually */}
+        <MenuItem
+          icon="update"
+          text="Check for Updates"
+          onPress={handleCheckForUpdates}
+        />
         {/* GitHub repository link */}
         <MenuItem
           icon="github"
@@ -464,7 +483,7 @@ export default function More() {
                 />
               </TouchableOpacity>
               <Text style={styles.aboutTitle}>Kaizen</Text>
-              <Text style={styles.aboutVersion}>Version {APP_VERSION}</Text>
+              <Text style={styles.aboutVersion}>Version {versionService.getCurrentVersion()}</Text>
             </View>
             
             {/* App description and history */}
