@@ -182,8 +182,30 @@ export default function More() {
     router.push('/downloads');
   }, []);
 
-  // Extract watch history clearing function from context
-  const { clearHistory: clearWatchHistory } = useWatchHistory();
+  // Extract watch history data and functions from context
+  const { 
+    history, 
+    clearHistory: clearWatchHistory, 
+    isLoading: historyLoading,
+    getLastWatchedEpisode
+  } = useWatchHistory();
+
+  /**
+   * Watch History Statistics
+   * 
+   * Calculate recent watch history stats for display
+   */
+  const watchHistoryStats = useMemo(() => {
+    const recentItems = history.slice(0, 3); // Get 3 most recent items
+    const totalWatched = history.length;
+    const uniqueAnime = new Set(history.map(item => item.id)).size;
+    
+    return {
+      recentItems,
+      totalWatched,
+      uniqueAnime
+    };
+  }, [history]);
 
   /**
    * Clear Watch History Handler
@@ -309,88 +331,142 @@ export default function More() {
 
   return (
     <ScrollView style={styles.container}>
-      {/* User Profile Header Section */}
-      <View style={styles.header}>
-        <View style={styles.accountContainer}>
-          {/* User avatar placeholder */}
-          <View style={styles.avatar}>
+      {/* Watch History Hero Section - Most Important Feature */}
+      <View style={styles.heroSection}>
+        <TouchableOpacity 
+          style={styles.watchHistoryHero}
+          onPress={() => router.push('/(tabs)/history')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.heroHeader}>
+            <View style={styles.heroTitleSection}>
+              <MaterialCommunityIcons
+                name="history"
+                size={32}
+                color={Colors.dark.buttonBackground}
+              />
+              <View style={styles.heroTitleContainer}>
+                <Text style={styles.heroTitle}>Watch History</Text>
+                <Text style={styles.heroSubtitle}>Continue where you left off</Text>
+              </View>
+            </View>
             <MaterialCommunityIcons
-              name={DEFAULT_AVATAR_ICON}
-              size={32}
-              color={Colors.dark.secondaryText}
+              name="chevron-right"
+              size={28}
+              color={Colors.dark.buttonBackground}
             />
           </View>
-          {/* User information display */}
-          <View style={styles.userInfo}>
-            <Text style={styles.username}>{username}</Text>
-            <Text style={styles.email}>{user?.email || 'email@example.com'}</Text>
-          </View>
-          {/* Edit profile button */}
-          <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
-            <MaterialCommunityIcons
-              name="pencil"
-              size={20}
-              color={Colors.dark.text}
-            />
-          </TouchableOpacity>
-        </View>
+          
+          {/* Show last watched anime if available */}
+          {watchHistoryStats.recentItems.length > 0 && (
+            <View style={styles.lastWatchedSection}>
+              <Text style={styles.lastWatchedLabel}>Last Watched</Text>
+              <TouchableOpacity 
+                style={styles.lastWatchedItem}
+                onPress={() => router.push({
+                  pathname: "/streaming",
+                  params: { 
+                    id: watchHistoryStats.recentItems[0].id,
+                    audioType: watchHistoryStats.recentItems[0].audioType,
+                    episode: watchHistoryStats.recentItems[0].episodeNumber.toString(),
+                    title: watchHistoryStats.recentItems[0].englishName,
+                    thumbnail: watchHistoryStats.recentItems[0].thumbnailUrl
+                  }
+                })}
+                activeOpacity={0.8}
+              >
+                <Image
+                  source={{ uri: watchHistoryStats.recentItems[0].thumbnailUrl }}
+                  style={styles.lastWatchedThumbnail}
+                  resizeMode="cover"
+                />
+                <View style={styles.lastWatchedContent}>
+                  <Text style={styles.lastWatchedAnime} numberOfLines={2}>
+                    {watchHistoryStats.recentItems[0].englishName}
+                  </Text>
+                  <Text style={styles.lastWatchedEpisode}>
+                    Episode {watchHistoryStats.recentItems[0].episodeNumber} • {watchHistoryStats.recentItems[0].audioType.toUpperCase()}
+                  </Text>
+                  <View style={styles.progressContainer}>
+                    <View style={styles.progressBackground}>
+                      <View 
+                        style={[
+                          styles.progressFill,
+                          { 
+                            width: `${Math.min(
+                              (watchHistoryStats.recentItems[0].position / watchHistoryStats.recentItems[0].duration) * 100, 
+                              100
+                            )}%` 
+                          }
+                        ]} 
+                      />
+                    </View>
+                    <Text style={styles.progressText}>
+                      {Math.round((watchHistoryStats.recentItems[0].position / watchHistoryStats.recentItems[0].duration) * 100)}% completed
+                    </Text>
+                  </View>
+                </View>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={20}
+                  color={Colors.dark.secondaryText}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+          
+          {/* Empty State */}
+          {watchHistoryStats.totalWatched === 0 && (
+            <View style={styles.emptyState}>
+              <MaterialCommunityIcons
+                name="television-play"
+                size={48}
+                color={Colors.dark.secondaryText}
+              />
+              <Text style={styles.emptyText}>Start watching to track your progress</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Downloads Management Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Downloads</Text>
+        <Text style={styles.sectionTitle}>Downloads & Storage</Text>
         {/* Downloads overview with counts */}
         <MenuItem
           icon="folder-download"
-          text="Downloads"
-          value={downloadStats.inProgressDownloads > 0 ? `${downloadStats.completedDownloads} + ${downloadStats.inProgressDownloads} in progress` : `${downloadStats.completedDownloads}`}
+          text="My Downloads"
+          value={downloadStats.inProgressDownloads > 0 ? `${downloadStats.completedDownloads} + ${downloadStats.inProgressDownloads} downloading` : `${downloadStats.completedDownloads} episodes`}
           onPress={navigateToDownloads}
         />
         {/* Clear downloads action */}
         <MenuItem
           icon="trash-can-outline"
-          text="Clear Downloads"
+          text="Clear All Downloads"
           onPress={clearDownloads}
         />
       </View>
 
-      {/* Watch History Section */}
+      {/* App Features & Settings Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>History</Text>
-        {/* Navigate to watch history */}
-        <MenuItem
-          icon="history"
-          text="Watch History"
-          onPress={() => router.push('/(tabs)/history')}
-        />
-        {/* Clear watch history action */}
-        <MenuItem
-          icon="trash-can-outline"
-          text="Clear History"
-          onPress={clearHistory}
-        />
-      </View>
-
-      {/* App Information Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
+        <Text style={styles.sectionTitle}>App & Settings</Text>
         {/* Check for updates manually */}
         <MenuItem
           icon="update"
           text="Check for Updates"
           onPress={handleCheckForUpdates}
         />
+        {/* App information modal */}
+        <MenuItem
+          icon="information-outline"
+          text="About Kaizen"
+          onPress={handleShowAbout}
+        />
         {/* GitHub repository link */}
         <MenuItem
           icon="github"
-          text="Our Project on GitHub"
+          text="View on GitHub"
           onPress={openGitHub}
-        />
-        {/* App information modal */}
-        <MenuItem
-          icon="information"
-          text="About Kaizen"
-          onPress={handleShowAbout}
         />
       </View>
 
@@ -404,6 +480,25 @@ export default function More() {
           onPress={handleLogout}
           danger
         />
+      </View>
+
+      {/* User Profile Section - Bottom */}
+      <View style={styles.profileSection}>
+        {/* <Text style={styles.sectionTitle}>Profile</Text> */}
+        <View style={styles.profileInfo}>
+          <View style={styles.profileDetails}>
+            <Text style={styles.profileName}>{username}</Text>
+            <Text style={styles.profileEmail}>{user?.email || 'email@example.com'}</Text>
+          </View>
+          <TouchableOpacity style={styles.profileEditButton} onPress={handleEditProfile}>
+            <MaterialCommunityIcons
+              name="pencil"
+              size={18}
+              color={Colors.dark.buttonBackground}
+            />
+            {/* <Text style={styles.profileEditText}>Edit</Text> */}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* App branding footer */}
