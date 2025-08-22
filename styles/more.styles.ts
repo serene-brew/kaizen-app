@@ -5,6 +5,8 @@ export const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.dark.background,
+    paddingTop: 60,
+    paddingBottom: 160,  // Line 222 must be changed as well for this one to take effect
   },
   header: {
     paddingTop: 60,
@@ -101,6 +103,163 @@ export const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 36,
     paddingHorizontal: 16,
+  },
+  // Watch History Hero Section
+  heroSection: {
+    paddingHorizontal: 16,
+    marginBottom: 24,
+  },
+  watchHistoryHero: {
+    backgroundColor: Colors.dark.secondaryBackground,
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    shadowColor: Colors.dark.buttonBackground,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  heroTitleSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  heroTitleContainer: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.dark.text,
+    marginBottom: 4,
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: Colors.dark.secondaryText,
+    fontWeight: '500',
+  },
+  lastWatchedSection: {
+    marginTop: 8,
+  },
+  lastWatchedLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.dark.secondaryText,
+    marginBottom: 12,
+  },
+  lastWatchedItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.dark.background,
+    borderRadius: 12,
+    padding: 20, // Increased padding to accommodate larger thumbnail
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  lastWatchedThumbnail: {
+    width: 80,
+    height: 120, // 2:3 aspect ratio (80 * 1.5 = 120) to match app standard
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: Colors.dark.secondaryBackground,
+  },
+  lastWatchedContent: {
+    flex: 1,
+    marginRight: 8,
+  },
+  lastWatchedAnime: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.dark.text,
+    marginBottom: 4,
+  },
+  lastWatchedEpisode: {
+    fontSize: 14,
+    color: Colors.dark.secondaryText,
+    marginBottom: 8,
+  },
+  progressContainer: {
+    marginTop: 4,
+  },
+  progressBackground: {
+    height: 4,
+    backgroundColor: Colors.dark.border,
+    borderRadius: 2,
+    marginBottom: 4,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Colors.dark.buttonBackground,
+    borderRadius: 2,
+    minWidth: 2,
+  },
+  progressText: {
+    fontSize: 12,
+    color: Colors.dark.secondaryText,
+    fontWeight: '500',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: Colors.dark.secondaryText,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  // Profile Section at Bottom
+  profileSection: {
+    marginBottom: 80,  // This one also for bottom padding, needs to be changed
+    paddingHorizontal: 16,
+  },
+  profileInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: Colors.dark.secondaryBackground,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  profileDetails: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.dark.text,
+    marginBottom: 4,
+  },
+  profileEmail: {
+    fontSize: 14,
+    color: Colors.dark.secondaryText,
+  },
+  profileEditButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.dark.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.dark.buttonBackground,
+  },
+  profileEditText: {
+    color: Colors.dark.buttonBackground,
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
   },
   modalOverlay: {
     flex: 1,
