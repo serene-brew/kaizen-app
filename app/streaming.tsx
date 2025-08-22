@@ -10,7 +10,6 @@ import {
   BackHandler, 
   Image,
   Platform, 
-  Alert,
   Modal,
   ScrollView,
   ToastAndroid,
@@ -28,6 +27,9 @@ import { Video, ResizeMode } from 'expo-av';
 
 // Status bar component for controlling appearance
 import { StatusBar } from 'expo-status-bar';
+
+// Custom alert components for dark-themed alerts
+import { showCustomAlert, showErrorAlert, showConfirmAlert } from '../components/CustomAlert';
 
 // Application color constants for consistent theming
 import Colors from '../constants/Colors';
@@ -388,23 +390,16 @@ export default function StreamingPage() {
       
       // If we found a position and it's significant enough, ask to resume
       if (foundPosition && position > 30000) { // Only ask if more than 30 seconds in
-        Alert.alert(
+        showConfirmAlert(
           "Resume Playback",
           "Do you want to continue where you left off?",
-          [
-            {
-              text: "Start Over",
-              style: "cancel"
-            },
-            {
-              text: "Resume",
-              onPress: async () => {
-                if (videoRef.current) {
-                  await videoRef.current.setPositionAsync(position);
-                }
-              }
+          async () => {
+            // Resume
+            if (videoRef.current) {
+              await videoRef.current.setPositionAsync(position);
             }
-          ]
+          },
+          undefined // Start Over (default behavior - do nothing)
         );
       }
     } catch (err) {
@@ -580,7 +575,7 @@ export default function StreamingPage() {
       }
     } catch (err) {
       console.error('Error changing quality:', err);
-      Alert.alert('Error', 'Failed to change video quality');
+      showErrorAlert('Error', 'Failed to change video quality');
     } finally {
       setShowQualityModal(false);
     }
@@ -604,7 +599,7 @@ export default function StreamingPage() {
       }
     } catch (err) {
       console.error('Error changing playback speed:', err);
-      Alert.alert('Error', 'Failed to change playback speed');
+      showErrorAlert('Error', 'Failed to change playback speed');
     }
   };
 
@@ -621,7 +616,7 @@ export default function StreamingPage() {
   // Request media library permission and start download
   const startDownloadProcess = async () => {
     if (!streamingUrl) {
-      Alert.alert('Error', 'No video URL available to download');
+      showErrorAlert('Error', 'No video URL available to download');
       return;
     }
     
@@ -629,7 +624,7 @@ export default function StreamingPage() {
     if (!downloadPermissionGranted) {
       const granted = await requestDownloadPermissions();
       if (!granted) {
-        Alert.alert('Permission Required', 'Storage permission is required to download videos');
+        showErrorAlert('Permission Required', 'Storage permission is required to download videos');
         return;
       }
     }
@@ -638,42 +633,36 @@ export default function StreamingPage() {
     const episodeTitle = title ? `${title} - Episode ${episode} (${audioType === 'sub' ? 'Subbed' : 'Dubbed'})` : `Episode ${episode} (${audioType === 'sub' ? 'Subbed' : 'Dubbed'})`;
     
     // Confirm download with user
-    Alert.alert(
+    showConfirmAlert(
       'Download Episode',
       `Do you want to download ${episodeTitle}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Download',
-          style: 'default',
-          onPress: async () => {
-            try {
-              // Generate a unique ID for this download
-              const downloadId = ID.unique();
-              
-              await startDownload({
-                id: downloadId,
-                animeId: id as string,
-                episodeNumber: episode as string,
-                audioType: audioType as 'sub' | 'dub',
-                title: episodeTitle,
-                downloadUrl: streamingUrl,
-                thumbnail: thumbnail as string || ''
-              });
-              
-              // Show success notification
-              if (Platform.OS === 'android') {
-                ToastAndroid.show('Download started!', ToastAndroid.SHORT);
-              } else {
-                Alert.alert('Download Started', 'Check the Downloads section to view progress');
-              }
-            } catch (err) {
-              console.error('Error starting download:', err);
-              Alert.alert('Download Failed', 'There was an error starting the download');
-            }
+      async () => {
+        try {
+          // Generate a unique ID for this download
+          const downloadId = ID.unique();
+          
+          await startDownload({
+            id: downloadId,
+            animeId: id as string,
+            episodeNumber: episode as string,
+            audioType: audioType as 'sub' | 'dub',
+            title: episodeTitle,
+            downloadUrl: streamingUrl,
+            thumbnail: thumbnail as string || ''
+          });
+          
+          // Show success notification
+          if (Platform.OS === 'android') {
+            ToastAndroid.show('Download started!', ToastAndroid.SHORT);
+          } else {
+            showCustomAlert('Download Started', 'Check the Downloads section to view progress');
           }
+        } catch (err) {
+          console.error('Error starting download:', err);
+          showErrorAlert('Download Failed', 'There was an error starting the download');
         }
-      ]
+      },
+      undefined // onCancel (default behavior)
     );
   };
 
