@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { account, databases } from '../lib/appwrite'; // Import Appwrite services
 import { ID, Query, Permission, Role } from 'appwrite'; // Import Appwrite helper methods
 import Constants from 'expo-constants'; // Import Constants for environment variables
-import { Alert } from 'react-native';
+import { showErrorAlert, showSuccessAlert } from '../components/CustomAlert';
 
 // Get database and collection IDs from expo constants
 const APPWRITE_DATABASE_ID = Constants.expoConfig?.extra?.appwriteDatabaseId;
@@ -341,7 +341,7 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const clearHistory = async () => {
     if (!userId) {
       console.log('Cannot clear watch history: User not authenticated');
-      Alert.alert('Error', 'You must be logged in to clear your watch history');
+      showErrorAlert('Error', 'You must be logged in to clear your watch history');
       return;
     }
     
@@ -365,10 +365,10 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
       
       // Clear local state
       setHistory([]);
-      Alert.alert('Success', 'Watch history cleared successfully');
+      showSuccessAlert('Success', 'Watch history cleared successfully');
     } catch (error) {
       console.error('Failed to clear watch history:', error);
-      Alert.alert('Error', 'Failed to clear watch history');
+      showErrorAlert('Error', 'Failed to clear watch history');
     } finally {
       setIsLoading(false);
     }
@@ -458,17 +458,17 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const syncHistory = async () => {
     // This implementation uses only cloud storage, so syncing is just refreshing data from cloud
     if (!userId) {
-      Alert.alert("Not logged in", "Please log in to sync your watch history.");
+      showErrorAlert("Not logged in", "Please log in to sync your watch history.");
       return;
     }
     
     try {
       setIsSyncing(true);
       await refreshWatchHistory();
-      Alert.alert("Sync Complete", "Your watch history has been updated.");
+      showSuccessAlert("Sync Complete", "Your watch history has been updated.");
     } catch (error) {
       console.error('Error syncing watch history:', error);
-      Alert.alert("Sync Failed", "There was a problem syncing your watch history.");
+      showErrorAlert("Sync Failed", "There was a problem syncing your watch history.");
     } finally {
       setIsSyncing(false);
     }
