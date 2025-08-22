@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // React Native core components for UI rendering and device interaction
-import { Text, View, ScrollView, TouchableOpacity, Alert, Linking, Modal, TextInput, Image } from "react-native";
+import { Text, View, ScrollView, TouchableOpacity, Linking, Modal, TextInput, Image } from "react-native";
 
 // Material Community Icons for visual elements
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -31,6 +31,9 @@ import { useWatchHistory } from '../../contexts/WatchHistoryContext';
 
 // Version service for manual update checking
 import { checkForUpdatesManually, versionService } from '../../lib/versionService';
+
+// Custom alert components for dark-themed alerts
+import { showCustomAlert, showSuccessAlert, showErrorAlert, showConfirmAlert } from '../../components/CustomAlert';
 
 /**
  * TypeScript Interface Definitions
@@ -138,7 +141,7 @@ export default function More() {
       router.replace("/");
     } catch (error) {
       console.error('Logout error:', error);
-      Alert.alert("Error", "Failed to logout. Please try again.");
+      showErrorAlert("Error", "Failed to logout. Please try again.");
     }
   }, [logout]);
 
@@ -162,17 +165,11 @@ export default function More() {
    * Provides destructive action warning to prevent accidental clearing
    */
   const clearDownloads = useCallback(() => {
-    Alert.alert(
+    showConfirmAlert(
       "Clear Downloads",
       "Are you sure you want to clear all downloads?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear",
-          style: "destructive",
-          onPress: () => router.push('/downloads')
-        }
-      ]
+      () => router.push('/downloads'), // onConfirm
+      undefined // onCancel (default behavior)
     );
   }, []);
 
@@ -195,13 +192,11 @@ export default function More() {
    * Provides destructive action warning to prevent accidental data loss
    */
   const clearHistory = useCallback(() => {
-    Alert.alert(
+    showConfirmAlert(
       "Clear History",
       "Are you sure you want to clear your watch history?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Clear", style: "destructive", onPress: clearWatchHistory }
-      ]
+      clearWatchHistory, // onConfirm
+      undefined // onCancel (default behavior)
     );
   }, [clearWatchHistory]);
   
@@ -255,10 +250,10 @@ export default function More() {
       }
       
       setShowEditModal(false);
-      Alert.alert("Success", "Profile updated successfully");
+      showSuccessAlert("Success", "Profile updated successfully");
     } catch (error) {
       console.error('Profile update error:', error);
-      Alert.alert("Error", "Failed to update profile. Please try again.");
+      showErrorAlert("Error", "Failed to update profile. Please try again.");
     } finally {
       setIsLoading(false);
     }
