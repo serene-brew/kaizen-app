@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 
 // React Native core components for UI rendering and device interaction
-import { View, Text, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert, Dimensions, BackHandler } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, Image, ActivityIndicator, Dimensions, BackHandler } from 'react-native';
 
 // Expo Router for navigation
 import { useRouter } from 'expo-router';
@@ -15,6 +15,9 @@ import { StatusBar } from 'expo-status-bar';
 
 // Application color constants for consistent theming
 import Colors from '../../constants/Colors';
+
+// Custom alert system for consistent UI
+import { showConfirmAlert, showErrorAlert } from '../../components/CustomAlert';
 
 // Watch history context for managing user's viewing history
 import { useWatchHistory, WatchHistoryItem } from '../../contexts/WatchHistoryContext';
@@ -353,17 +356,10 @@ export default function HistoryPage() {
    */
   // Handle removal of history item
   const handleRemoveItem = useCallback((animeId: string, episodeNumber: string) => {
-    Alert.alert(
+    showConfirmAlert(
       "Remove from History",
       "Are you sure you want to remove this episode from your watch history?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Remove", 
-          style: "destructive",
-          onPress: () => removeFromHistory(animeId, episodeNumber)
-        }
-      ]
+      () => removeFromHistory(animeId, episodeNumber)
     );
   }, [removeFromHistory]);
 
@@ -373,17 +369,10 @@ export default function HistoryPage() {
    */
   // Handle clear all history
   const handleClearHistory = useCallback(() => {
-    Alert.alert(
+    showConfirmAlert(
       "Clear History",
       "Are you sure you want to clear your entire watch history?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Clear All", 
-          style: "destructive", 
-          onPress: clearHistory 
-        }
-      ]
+      clearHistory
     );
   }, [clearHistory]);
 
@@ -430,10 +419,9 @@ export default function HistoryPage() {
   // Handle sync history with cloud
   const handleSyncHistory = useCallback(() => {
     if (!isAuthenticated) {
-      Alert.alert(
+      showErrorAlert(
         "Not Logged In", 
-        "You need to be logged in to sync your watch history.",
-        [{ text: "OK" }]
+        "You need to be logged in to sync your watch history."
       );
       return;
     }
