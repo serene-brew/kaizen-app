@@ -10,8 +10,8 @@ import { ID, Permission, Role, Query } from 'appwrite'; // Import Appwrite helpe
 // Expo constants for accessing environment configuration
 import Constants from 'expo-constants'; // Import Constants for environment variables
 
-// React Native alert for user notifications and error handling
-import { Alert } from 'react-native';
+// Custom alert system for consistent UI
+import { showErrorAlert } from '../components/CustomAlert';
 
 /**
  * Environment Configuration
@@ -339,7 +339,7 @@ export const WatchlistProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } else {
       // If user is not authenticated, show alert
       if (!userId) {
-        Alert.alert("Authentication Required", "Please log in to add items to your watchlist.");
+        showErrorAlert("Authentication Required", "Please log in to add items to your watchlist.");
         return;
       }
       
@@ -387,7 +387,7 @@ export const WatchlistProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         
         // If cloud sync fails, rollback the optimistic update
         setWatchlist(prev => prev.filter(item => item.id !== id));
-        Alert.alert("Failed to Add", "Could not add the item to your watchlist.");
+        showErrorAlert("Failed to Add", "Could not add the item to your watchlist.");
       }
     }
   };
@@ -425,7 +425,7 @@ export const WatchlistProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         console.error('Failed to remove item from Appwrite watchlist:', error);
         // If deletion fails, restore the item (rollback optimistic update)
         setWatchlist(prev => [...prev, itemToRemove]);
-        Alert.alert("Failed to Remove", "Could not remove the item from your watchlist.");
+        showErrorAlert("Failed to Remove", "Could not remove the item from your watchlist.");
       }
     }
   };
