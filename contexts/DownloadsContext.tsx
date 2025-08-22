@@ -10,11 +10,14 @@ import * as FileSystem from 'expo-file-system';
 // Expo media library for saving downloads to device gallery
 import * as MediaLibrary from 'expo-media-library';
 
-// React Native core components for platform detection and user alerts
-import { Platform, Alert } from 'react-native';
+// React Native core components for platform detection
+import { Platform } from 'react-native';
 
 // Expo notifications for download progress and completion alerts
 import * as Notifications from 'expo-notifications';
+
+// Custom alert system for consistent UI
+import { showCustomAlert } from '../components/CustomAlert';
 
 /**
  * Constants and Interfaces
@@ -992,10 +995,10 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     
     if (existingDownload) {
       if (existingDownload.status === 'completed') {
-        Alert.alert('Already Downloaded', 'This episode has already been downloaded.');
+        showCustomAlert('Already Downloaded', 'This episode has already been downloaded.');
         return;
       } else if (['downloading', 'pending', 'paused'].includes(existingDownload.status)) {
-        Alert.alert('Download in Progress', 'This episode is already in your download queue.');
+        showCustomAlert('Download in Progress', 'This episode is already in your download queue.');
         return;
       }
     }
