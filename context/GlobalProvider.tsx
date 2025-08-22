@@ -6,11 +6,13 @@ import { authService, account } from '../lib/appwrite'; // Import account
 import { Models } from 'appwrite';
 
 // React Native and Expo utilities for user interaction and authentication
-import { Alert } from 'react-native'; // Import Alert
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
 import Constants from 'expo-constants'; // Import Constants
+
+// Custom alert components for dark-themed alerts
+import { showErrorAlert } from '../components/CustomAlert';
 
 // Application contexts for data synchronization
 import { useWatchlist } from '../contexts/WatchlistContext';
@@ -270,7 +272,7 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
             }
           } catch (error) {
             console.error('Error verifying token/creating session with Appwrite:', error);
-            Alert.alert('Authentication Failed', error instanceof Error ? error.message : 'Could not link Google account to Appwrite.');
+            showErrorAlert('Authentication Failed', error instanceof Error ? error.message : 'Could not link Google account to Appwrite.');
             setUser(null);
             setIsLogged(false);
           } finally {
@@ -279,12 +281,12 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
           }
         } else {
           console.warn('Google Auth Success but no ID Token received.');
-          Alert.alert('Authentication Failed', 'Could not retrieve necessary information from Google.');
+          showErrorAlert('Authentication Failed', 'Could not retrieve necessary information from Google.');
           setLoading(false);
         }
       } else if (response?.type === 'error') {
         console.error('Google Auth Error:', response.error);
-        Alert.alert('Authentication Failed', response.error?.message || 'Google authentication failed.');
+        showErrorAlert('Authentication Failed', response.error?.message || 'Google authentication failed.');
         setLoading(false);
       } else if (response?.type === 'cancel') {
          console.log('Google Auth Cancelled by user.');
@@ -550,7 +552,7 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
       // We set loading false within that hook after processing
     } catch (error) {
       console.error('Error initiating Google prompt:', error);
-      Alert.alert('Error', 'Could not start Google sign-in process.');
+      showErrorAlert('Error', 'Could not start Google sign-in process.');
       setLoading(false); // Ensure loading is false if prompt fails immediately
     }
   };
