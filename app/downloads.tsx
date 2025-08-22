@@ -8,7 +8,6 @@ import {
   FlatList, 
   TouchableOpacity, 
   Image, 
-  Alert,
   ActivityIndicator,
   Platform
 } from 'react-native';
@@ -27,6 +26,9 @@ import Colors from '../constants/Colors';
 
 // Downloads context for managing offline content
 import { useDownloads } from '../contexts/DownloadsContext';
+
+// Custom alert components for dark-themed alerts
+import { showCustomAlert, showErrorAlert, showConfirmAlert } from '../components/CustomAlert';
 
 // Expo file system utilities for file operations
 import * as FileSystem from 'expo-file-system';
@@ -194,12 +196,9 @@ export default function DownloadsPage() {
     try {
       // Check if this is a gallery-only download (storage optimized)
       if (item.isInGallery && !item.filePath) {
-        Alert.alert(
+        showCustomAlert(
           'Download Available in Gallery', 
-          'This episode has been saved to your device gallery to optimize storage. Please open your gallery app and look for the "Kaizen" album to watch this episode.',
-          [
-            { text: 'OK', style: 'default' }
-          ]
+          'This episode has been saved to your device gallery to optimize storage. Please open your gallery app and look for the "Kaizen" album to watch this episode.'
         );
         return;
       }
@@ -220,13 +219,13 @@ export default function DownloadsPage() {
           }
         });
       } else {
-        Alert.alert('Error', 'File not found. It may have been deleted.');
+        showErrorAlert('Error', 'File not found. It may have been deleted.');
         // Remove the download from the list
         await removeDownload(item.id);
       }
     } catch (error) {
       console.error('Error playing download:', error);
-      Alert.alert('Error', 'Could not play the downloaded file');
+      showErrorAlert('Error', 'Could not play the downloaded file');
     }
   };
   
@@ -239,24 +238,18 @@ export default function DownloadsPage() {
    */
   // Confirm and clear all downloads
   const handleClearAllDownloads = () => {
-    Alert.alert(
+    showConfirmAlert(
       'Clear All Downloads',
       'Are you sure you want to delete all downloaded episodes?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Clear All', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await clearAllDownloads();
-            } catch (error) {
-              console.error('Error clearing downloads:', error);
-              Alert.alert('Error', 'Failed to clear all downloads');
-            }
-          }
+      async () => {
+        try {
+          await clearAllDownloads();
+        } catch (error) {
+          console.error('Error clearing downloads:', error);
+          showErrorAlert('Error', 'Failed to clear all downloads');
         }
-      ]
+      },
+      undefined // onCancel (default behavior)
     );
   };
   
@@ -289,31 +282,19 @@ export default function DownloadsPage() {
           await resumeDownload(item.id);
           break;
         case 'cancel':
-          Alert.alert(
+          showConfirmAlert(
             'Cancel Download',
             'Are you sure you want to cancel this download?',
-            [
-              { text: 'No', style: 'cancel' },
-              { 
-                text: 'Yes', 
-                style: 'destructive', 
-                onPress: async () => await cancelDownload(item.id)
-              }
-            ]
+            async () => await cancelDownload(item.id),
+            undefined // onCancel (default behavior)
           );
           break;
         case 'delete':
-          Alert.alert(
+          showConfirmAlert(
             'Delete Download',
             'Are you sure you want to delete this download?',
-            [
-              { text: 'No', style: 'cancel' },
-              { 
-                text: 'Yes', 
-                style: 'destructive', 
-                onPress: async () => await removeDownload(item.id)
-              }
-            ]
+            async () => await removeDownload(item.id),
+            undefined // onCancel (default behavior)
           );
           break;
         default:
@@ -321,7 +302,7 @@ export default function DownloadsPage() {
       }
     } catch (error) {
       console.error(`Error with download action ${action}:`, error);
-      Alert.alert('Error', `Failed to ${action} the download`);
+      showErrorAlert('Error', `Failed to ${action} the download`);
     }
   };
   
