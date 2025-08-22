@@ -49,6 +49,9 @@ import { AuthSyncService } from '../context/AuthSyncService';
 // Sync manager for coordinating data synchronization across contexts
 import SyncManager from '../context/SyncManager';
 
+// Version service for automatic update checking
+import { checkForUpdates } from '../lib/versionService';
+
 /**
  * OAuth Session Initialization
  * 
@@ -100,6 +103,11 @@ export default function RootLayout() {
         router.setParams({});
         
         console.log('Appwrite client initialized in _layout');
+        
+        // Check for app updates after initialization
+        setTimeout(() => {
+          checkForUpdates();
+        }, 1000); // Delay to ensure app is fully loaded
         
         // Add artificial delay to improve initial rendering
         await new Promise(resolve => setTimeout(resolve, 300));
