@@ -52,6 +52,9 @@ import SyncManager from '../context/SyncManager';
 // Version service for automatic update checking
 import { checkForUpdates } from '../lib/versionService';
 
+// Custom alert component for dark-themed alerts
+import { CustomAlert, showErrorAlert } from '../components';
+
 /**
  * OAuth Session Initialization
  * 
@@ -116,7 +119,7 @@ export default function RootLayout() {
         await SplashScreen.hideAsync();
       } catch (e) {
         console.warn('Error initializing app:', e);
-        Alert.alert(
+        showErrorAlert(
           'Initialization Error',
           'There was an error initializing the app. Please try again.'
         );
@@ -217,6 +220,8 @@ export default function RootLayout() {
                   },
                 }}
               />
+              {/* Custom Alert Component for dark-themed alerts */}
+              <CustomAlert />
             </ThemeProvider>
           </GlobalProvider>
         </WatchHistoryProvider>
