@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { View, Text, ScrollView, Alert } from "react-native";
+import { View, Text, ScrollView } from "react-native";
 import Colors from "../../constants/Colors";
 import { CustomButton, FormField, GoogleButton, Loader } from "../../components";
 import { useGlobalContext } from "../../context/GlobalProvider";
+import { showErrorAlert } from "../../components/CustomAlert";
 import { styles } from "../../styles/sign-up.styles";
 
 /**
@@ -54,7 +55,7 @@ const SignUp = () => {
       
       // Extract meaningful error message for user display
       const message = error instanceof Error ? error.message : "Failed to sign up with Google";
-      Alert.alert("Authentication Failed", message);
+      showErrorAlert("Authentication Failed", message);
     } finally {
       // Reset loading state regardless of success/failure
       setGoogleSubmitting(false);
@@ -69,7 +70,7 @@ const SignUp = () => {
   const submit = async () => {
     // Validate that all required fields are filled
     if (!form.email || !form.username) {
-      Alert.alert("Error", "Please fill in all fields");
+      showErrorAlert("Error", "Please fill in all fields");
       return;
     }
 
@@ -87,7 +88,7 @@ const SignUp = () => {
     } catch (error) {
       // Extract and display error message
       const message = error instanceof Error ? error.message : "Failed to create account";
-      Alert.alert("Error", message);
+      showErrorAlert("Error", message);
     } finally {
       // Reset submission state
       setSubmitting(false);
