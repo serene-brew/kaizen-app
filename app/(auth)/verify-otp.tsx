@@ -5,13 +5,14 @@ import { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // React Native core components for UI rendering
-import { View, Text, Alert, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 
 // Expo Router for navigation
 import { router } from "expo-router";
 
 // Custom components for buttons and OTP input
 import { CustomButton } from "../../components";
+import { showErrorAlert, showSuccessAlert } from "../../components/CustomAlert";
 
 // Application color constants for consistent theming
 import Colors from "../../constants/Colors";
@@ -70,7 +71,7 @@ const VerifyOTP = () => {
     // Check if OTP has already expired
     if (diff <= 0) {
       // OTP expired
-      Alert.alert("OTP Expired", "Please request a new verification code.");
+      showErrorAlert("OTP Expired", "Please request a new verification code.");
       return;
     }
     
@@ -111,7 +112,7 @@ const VerifyOTP = () => {
   const handleVerify = async () => {
     // Validate OTP length (must be 6 digits)
     if (otp.length !== 6) {
-      Alert.alert("Error", "Please enter a valid 6-digit verification code");
+      showErrorAlert("Error", "Please enter a valid 6-digit verification code");
       return;
     }
 
@@ -123,7 +124,7 @@ const VerifyOTP = () => {
     } catch (error) {
       // Display verification error to user
       const message = error instanceof Error ? error.message : "Invalid verification code";
-      Alert.alert("Verification Failed", message);
+      showErrorAlert("Verification Failed", message);
     }
   };
 
@@ -135,7 +136,7 @@ const VerifyOTP = () => {
   const handleResend = async () => {
     // Only need email to resend
     if (!otpInfo?.email) {
-      Alert.alert("Error", "Cannot resend OTP without email information.");
+      showErrorAlert("Error", "Cannot resend OTP without email information.");
       return;
     }
     
@@ -143,7 +144,7 @@ const VerifyOTP = () => {
     try {
       // Send new OTP to the email
       await sendOTP(otpInfo.email);
-      Alert.alert("Code Sent", "A new verification code has been sent to your email.");
+      showSuccessAlert("Code Sent", "A new verification code has been sent to your email.");
       setOtp(""); // Clear current input
       setHasValidInfo(true); // Now we should have valid info
       // Timer will reset automatically due to useEffect dependency on otpInfo
@@ -152,7 +153,7 @@ const VerifyOTP = () => {
       const message = error instanceof Error 
         ? error.message 
         : "Failed to send a new verification code";
-      Alert.alert("Error", message);
+      showErrorAlert("Error", message);
     } finally {
       // Reset resending state
       setIsResending(false);
