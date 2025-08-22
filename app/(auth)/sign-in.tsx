@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { View, Text, ScrollView, Alert } from "react-native";
+import { View, Text, ScrollView } from "react-native";
 import Colors from "../../constants/Colors";
 import { CustomButton, FormField, GoogleButton, Loader } from "../../components";
 import { useGlobalContext } from "../../context/GlobalProvider";
+import { showErrorAlert } from "../../components/CustomAlert";
 import { styles } from "../../styles/sign-in.styles";
 
 /**
@@ -49,7 +50,7 @@ const SignIn = () => {
       
       // Extract meaningful error message for user display
       const message = error instanceof Error ? error.message : 'Failed to sign in with Google';
-      Alert.alert("Authentication Failed", message);
+      showErrorAlert("Authentication Failed", message);
     } finally {
       // Reset loading state regardless of success/failure
       setGoogleSubmitting(false);
@@ -64,7 +65,7 @@ const SignIn = () => {
   const submit = async () => {
     // Validate email input
     if (email === "") {
-      Alert.alert("Error", "Please enter your email address");
+      showErrorAlert("Error", "Please enter your email address");
       return;
     }
     
@@ -81,7 +82,7 @@ const SignIn = () => {
     } catch (error) {
       // Extract and display error message
       const errorMessage = error instanceof Error ? error.message : 'Failed to sign in';
-      Alert.alert("Error", errorMessage);
+      showErrorAlert("Error", errorMessage);
     } finally {
       // Reset submission state
       setSubmitting(false);
