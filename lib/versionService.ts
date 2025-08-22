@@ -1,8 +1,11 @@
 // React Native utilities for platform detection and external browser integration
-import { Platform, Alert, Linking } from 'react-native';
+import { Platform, Linking } from 'react-native';
 
 // Expo constants for accessing app configuration and version information
 import Constants from 'expo-constants';
+
+// Custom alert components for dark-themed notifications
+import { showCustomAlert, showErrorAlert } from '../components/CustomAlert';
 
 /**
  * Version Service
@@ -223,8 +226,8 @@ function getCurrentVersion(): string {
 function showUpdateAlert(latestVersion: string, currentVersion: string): void {
   const releaseUrl = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/tag/v${latestVersion}`;
   
-  Alert.alert(
-    '🎉 Good News!', // Title with emoji for visual appeal
+  showCustomAlert(
+    'Good News!', // Title without emoji for cleaner look
     `A new update is available!\n\nNew Version: v${latestVersion}\nCurrent: v${currentVersion}\n\nWould you like to install the update now?`,
     [
       {
@@ -243,18 +246,16 @@ function showUpdateAlert(latestVersion: string, currentVersion: string): void {
               console.log('Opened release URL:', releaseUrl);
             } else {
               // Fallback alert if can't open URL
-              Alert.alert(
+              showErrorAlert(
                 'Update Available',
-                `Please visit: ${releaseUrl}`,
-                [{ text: 'OK', style: 'default' }]
+                `Please visit: ${releaseUrl}`
               );
             }
           } catch (error) {
             console.error('Error opening release URL:', error);
-            Alert.alert(
+            showErrorAlert(
               'Update Available',
-              `Please visit: ${releaseUrl}`,
-              [{ text: 'OK', style: 'default' }]
+              `Please visit: ${releaseUrl}`
             );
           }
         }
@@ -313,10 +314,9 @@ export async function checkForUpdates(showNoUpdateMessage: boolean = false): Pro
       
       // Optionally show "no update" message (useful for manual checks)
       if (showNoUpdateMessage) {
-        Alert.alert(
+        showCustomAlert(
           'No Updates',
-          'You are using the latest version of Kaizen!',
-          [{ text: 'OK', style: 'default' }]
+          'You are using the latest version of Kaizen!'
         );
       }
     }
