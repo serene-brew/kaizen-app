@@ -5,7 +5,7 @@ Thanks for your interest in contributing! Please follow these simple guidelines.
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/kaizen-app.git`
+2. Clone your fork: `git clone https://github.com/serene-brew/kaizen-app.git`
 3. Install dependencies: `npm install`
 4. Create a branch: `git checkout -b feature/your-feature`
 5. Make your changes
@@ -287,10 +287,10 @@ We follow semantic versioning (SemVer):
 
 If you need help with your contribution:
 
-1. **Documentation** - Check our [Wiki](https://github.com/serene-brew/kaizen-app/wiki)
-2. **Issues** - Create a discussion issue
-3. **Discord** - Join our [community Discord](https://discord.gg/kaizen)
-4. **Email** - Contact us at developers@serenebrew.com
+<!-- 1. **Documentation** - Check our [Wiki](https://github.com/serene-brew/kaizen-app/wiki) -->
+1. **Issues** - Create a discussion issue
+<!-- 3. **Discord** - Join our [community Discord](https://discord.gg/kaizen) -->
+2. **Email** - Contact us at serene.brew.git@gmail.com
 
 ## 🎉 Recognition
 
