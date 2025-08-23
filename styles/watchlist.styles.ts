@@ -112,11 +112,26 @@ export const styles = StyleSheet.create({
     padding: PADDING,
     paddingBottom: 80, // Ensure content isn't hidden behind tab bar
   },
+  emptyContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: PADDING,
+    paddingBottom: 80, // Ensure content isn't hidden behind tab bar
+  },
   emptyText: {
     color: Colors.dark.secondaryText,
     fontSize: 16,
     marginTop: 16,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  syncHintText: {
+    color: Colors.dark.secondaryText,
+    fontSize: 14,
     marginBottom: 24,
+    textAlign: 'center',
+    opacity: 0.8,
   },
   exploreButton: {
     backgroundColor: Colors.dark.buttonBackground,
