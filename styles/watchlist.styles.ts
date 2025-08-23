@@ -3,8 +3,9 @@ import Colors from "../constants/Colors";
 
 const { width } = Dimensions.get('window');
 const PADDING = 16;
-const GAP = 10;
-const CARD_WIDTH = (width - (PADDING * 2) - GAP) / 2;
+const GAP = 12;
+// Use the same responsive card dimensions as trending and top pages
+const CARD_WIDTH = (width - PADDING * 2 - GAP) / 2;
 
 export const styles = StyleSheet.create({
   container: {
@@ -55,21 +56,27 @@ export const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between', // Maintain space-between for proper 2-column layout
   },
   card: {
     width: CARD_WIDTH,
-    marginBottom: GAP,
+    marginBottom: GAP + 4, // Slightly increased margin for better spacing
   },
   posterPlaceholder: {
     width: '100%',
-    height: CARD_WIDTH * 1.5,
+    height: CARD_WIDTH * 1.5, // Same aspect ratio as trending and top pages
     backgroundColor: Colors.dark.secondaryBackground,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
     position: 'relative',
+    overflow: 'hidden', // Ensure image doesn't overflow rounded corners
+  },
+  posterImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
   },
   removeButton: {
     position: 'absolute',
