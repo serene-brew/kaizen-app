@@ -110,16 +110,9 @@ export const styles = StyleSheet.create({
     marginBottom: 24,
   },
   watchHistoryHero: {
-    backgroundColor: Colors.dark.secondaryBackground,
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    shadowColor: Colors.dark.buttonBackground,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.dark.border,
   },
   heroHeader: {
     flexDirection: 'row',
@@ -159,11 +152,10 @@ export const styles = StyleSheet.create({
   lastWatchedItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.dark.background,
-    borderRadius: 12,
-    padding: 20, // Increased padding to accommodate larger thumbnail
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: Colors.dark.border,
+    marginTop: 12,
   },
   lastWatchedThumbnail: {
     width: 80,
