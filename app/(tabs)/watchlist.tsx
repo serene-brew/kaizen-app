@@ -27,15 +27,15 @@ const { width } = Dimensions.get('window');
 
 // Grid layout constants for consistent spacing and sizing
 const PADDING = 16; // Container horizontal padding
-const GAP = 10; // Gap between grid items
-const CARD_WIDTH = (width - (PADDING * 2) - GAP) / 2; // Calculate card width for 2-column grid
+const GAP = 12; // Gap between grid items
+const CARD_WIDTH = (width - PADDING * 2 - GAP) / 2; // Calculate card width for 2-column grid (same as trending/top)
 
 /**
  * Watchlist Component
  * 
  * Displays user's saved anime in a responsive grid layout with management features.
  * Features:
- * - Two-column grid layout optimized for mobile screens
+ * - Responsive 2-column grid layout matching trending and top pages
  * - Cloud sync functionality for authenticated users
  * - Sorting options by recent addition or alphabetical name
  * - Individual item removal with visual feedback
@@ -185,16 +185,12 @@ export default function Watchlist() {
         showsVerticalScrollIndicator={false}
         bounces={true}
       >
-        {/* Two-column grid layout for watchlist items */}
+        {/* Two-column responsive grid layout for watchlist items */}
         <View style={styles.grid}>
           {watchlist.map((item, index) => (
             <TouchableOpacity 
               key={`watchlist-${item.id}`}
-              style={[
-                styles.card,
-                // Add margin to every first item in each row (even indices)
-                index % 2 === 0 ? { marginRight: GAP } : null
-              ]}
+              style={styles.card}
               onPress={() => handlePressCard(item.id, item.englishName)}
             >
               {/* Anime poster container with remove button overlay */}
@@ -203,11 +199,7 @@ export default function Watchlist() {
                 {item.thumbnailUrl ? (
                   <Image 
                     source={{ uri: item.thumbnailUrl }} 
-                    style={{
-                      width: '100%', 
-                      height: '100%', 
-                      borderRadius: 8,
-                    }} 
+                    style={styles.posterImage}
                     resizeMode="cover"
                   />
                 ) : (
