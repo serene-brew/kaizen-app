@@ -3,7 +3,7 @@ import Colors from '../constants/Colors';
 
 const { width } = Dimensions.get('window');
 const PADDING = 16;
-const GAP = 10;
+const GAP = 12;
 const CARD_WIDTH = (width - PADDING * 2 - GAP) / 2;
 
 export const styles = StyleSheet.create({
