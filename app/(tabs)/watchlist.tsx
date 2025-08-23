@@ -36,10 +36,10 @@ const CARD_WIDTH = (width - PADDING * 2 - GAP) / 2; // Calculate card width for 
  * Displays user's saved anime in a responsive grid layout with management features.
  * Features:
  * - Responsive 2-column grid layout matching trending and top pages
- * - Cloud sync functionality for authenticated users
+ * - Cloud sync functionality always accessible (even when empty)
  * - Sorting options by recent addition or alphabetical name
  * - Individual item removal with visual feedback
- * - Empty state with call-to-action to explore anime
+ * - Enhanced empty state with sync hint and manual sync option
  * - Loading and syncing states with appropriate indicators
  * - Navigation to anime details with source tracking
  */
@@ -118,27 +118,61 @@ export default function Watchlist() {
 
   /**
    * Empty State Render
-   * Displays empty state when user has no saved anime with call-to-action
+   * Displays empty state when user has no saved anime with call-to-action and sync option
    */
-  // If watchlist is empty, show the empty state
+  // If watchlist is empty, show the empty state with header
   if (watchlist.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        {/* Empty state icon */}
-        <MaterialCommunityIcons 
-          name="bookmark-off-outline" 
-          size={64} 
-          color={Colors.dark.secondaryText} 
-        />
-        {/* Empty state message */}
-        <Text style={styles.emptyText}>Your watchlist is empty</Text>
-        {/* Call-to-action button to explore anime */}
-        <TouchableOpacity 
-          style={styles.exploreButton}
-          onPress={() => router.push("/(tabs)/explore")}
-        >
-          <Text style={styles.exploreButtonText}>Explore Anime</Text>
-        </TouchableOpacity>
+      <View style={styles.container}>
+        {/* Header with sync button - always visible for manual sync */}
+        <View style={styles.header}>
+          <Text style={styles.title}>My Watchlist</Text>
+          <View style={styles.headerButtons}>
+            {/* Cloud sync button - available even when empty for manual sync */}
+            <TouchableOpacity 
+              style={[styles.iconButton, !isAuthenticated && styles.disabledButton]} 
+              onPress={refreshWatchlist}
+              disabled={!isAuthenticated || isSyncing}
+            >
+              {isSyncing ? (
+                <ActivityIndicator size="small" color={Colors.dark.text} />
+              ) : (
+                <MaterialCommunityIcons 
+                  name="cloud-sync" 
+                  size={24} 
+                  color={isAuthenticated ? Colors.dark.text : Colors.dark.secondaryText} 
+                />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Empty state content */}
+        <View style={styles.emptyContent}>
+          {/* Empty state icon */}
+          <MaterialCommunityIcons 
+            name="bookmark-off-outline" 
+            size={64} 
+            color={Colors.dark.secondaryText} 
+          />
+          {/* Empty state message */}
+          <Text style={styles.emptyText}>Your watchlist is empty</Text>
+          
+          {/* Additional sync message for authenticated users */}
+          {isAuthenticated && (
+            <Text style={styles.syncHintText}>
+              Try syncing with the cloud to restore your watchlist
+            </Text>
+          )}
+          
+          {/* Call-to-action button to explore anime */}
+          <TouchableOpacity 
+            style={styles.exploreButton}
+            onPress={() => router.push("/(tabs)/explore")}
+          >
+            <Text style={styles.exploreButtonText}>Explore Anime</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -161,11 +195,15 @@ export default function Watchlist() {
             onPress={refreshWatchlist}
             disabled={!isAuthenticated || isSyncing}
           >
-            <MaterialCommunityIcons 
-              name="cloud-sync" 
-              size={24} 
-              color={isAuthenticated ? Colors.dark.text : Colors.dark.secondaryText} 
-            />
+            {isSyncing ? (
+              <ActivityIndicator size="small" color={Colors.dark.text} />
+            ) : (
+              <MaterialCommunityIcons 
+                name="cloud-sync" 
+                size={24} 
+                color={isAuthenticated ? Colors.dark.text : Colors.dark.secondaryText} 
+              />
+            )}
           </TouchableOpacity>
           {/* Sort toggle button with dynamic icon based on current sort */}
           <TouchableOpacity style={styles.iconButton} onPress={toggleSort}>
