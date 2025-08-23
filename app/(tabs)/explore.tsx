@@ -1,5 +1,5 @@
 // React hooks for state management and side effects
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 // React Native core components for UI rendering and device interaction
 import { View, Text, ScrollView, Dimensions, TouchableOpacity, Image, ActivityIndicator, StyleSheet } from "react-native";
@@ -88,6 +88,17 @@ export default function Explore() {
   // Extract watchlist functionality from context
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
+  // Create infinite carousel data by duplicating items
+  const infiniteCarouselData = useMemo(() => {
+    if (carouselAnime.length === 0) return [];
+    
+    // Create infinite loop by adding copies at start and end
+    const lastItem = carouselAnime[carouselAnime.length - 1];
+    const firstItem = carouselAnime[0];
+    
+    return [lastItem, ...carouselAnime, firstItem];
+  }, [carouselAnime]);
+
   /**
    * Data Fetching Effect
    * 
@@ -156,34 +167,87 @@ export default function Explore() {
   }, []);
 
   /**
-   * Auto-Swipe Carousel Effect
+   * Auto-Swipe Carousel Effect with Infinite Scrolling
    * 
-   * Implements automatic carousel navigation:
+   * Implements automatic carousel navigation with seamless infinite loop:
    * - Advances to next slide every AUTO_SWIPE_INTERVAL milliseconds
-   * - Loops back to first slide after reaching the end
-   * - Uses smooth animated transitions
+   * - Uses infinite scrolling technique with duplicate items
+   * - Handles seamless transitions at loop boundaries
    * - Cleans up timer on component unmount or dependency changes
    */
   useEffect(() => {
-    if (carouselAnime.length === 0) return;
+    if (infiniteCarouselData.length === 0) return;
 
     const timer = setInterval(() => {
-      if (activeIndex === carouselAnime.length - 1) {
-        // Loop back to first slide
-        setActiveIndex(0);
-        carouselRef.current?.scrollTo({ x: 0, animated: true });
-      } else {
-        // Advance to next slide
-        setActiveIndex(activeIndex + 1);
+      setActiveIndex((prevIndex) => {
+        const nextIndex = prevIndex + 1;
+        
+        // Scroll to next position
         carouselRef.current?.scrollTo({
-          x: width * (activeIndex + 1),
+          x: width * (nextIndex + 1), // +1 because we start at index 1 (after duplicate)
           animated: true,
         });
-      }
+        
+        return nextIndex;
+      });
     }, AUTO_SWIPE_INTERVAL);
 
     return () => clearInterval(timer);
-  }, [activeIndex, carouselAnime.length]);
+  }, [infiniteCarouselData.length]);
+
+  /**
+   * Initial Carousel Position Effect
+   * 
+   * Sets the initial scroll position to the first real item (index 1)
+   * to properly initialize the infinite scroll mechanism
+   */
+  useEffect(() => {
+    if (infiniteCarouselData.length > 0) {
+      // Set initial position to index 1 (first real item after duplicate)
+      setTimeout(() => {
+        carouselRef.current?.scrollTo({
+          x: width,
+          animated: false,
+        });
+        setActiveIndex(0);
+      }, 100);
+    }
+  }, [infiniteCarouselData.length]);
+
+  /**
+   * Handle Carousel Scroll End for Infinite Loop
+   * 
+   * Manages seamless looping by detecting when user reaches boundaries
+   * and smoothly transitioning to the opposite end of the carousel
+   */
+  const handleCarouselScrollEnd = (event: any) => {
+    const scrollX = event.nativeEvent.contentOffset.x;
+    const currentIndex = Math.round(scrollX / width);
+    
+    // Handle infinite loop boundaries
+    if (currentIndex === 0) {
+      // At the beginning (duplicate of last item), jump to actual last item
+      setTimeout(() => {
+        carouselRef.current?.scrollTo({
+          x: width * carouselAnime.length,
+          animated: false,
+        });
+        setActiveIndex(carouselAnime.length - 1);
+      }, 50);
+    } else if (currentIndex === infiniteCarouselData.length - 1) {
+      // At the end (duplicate of first item), jump to actual first item
+      setTimeout(() => {
+        carouselRef.current?.scrollTo({
+          x: width,
+          animated: false,
+        });
+        setActiveIndex(0);
+      }, 50);
+    } else {
+      // Normal scroll within bounds
+      setActiveIndex(currentIndex - 1); // -1 because index 0 is duplicate
+    }
+  };
 
   /**
    * Regular anime card press handler
@@ -290,7 +354,7 @@ export default function Explore() {
    */
   const renderCarouselItem = (item: AnimeItem, index: number) => (
     <TouchableOpacity 
-      key={`carousel-${item.id}`} 
+      key={`carousel-${item.id}-${index}`} 
       style={styles.carouselItem}
       onPress={() => handlePressCarousel(item)}
     >
@@ -405,20 +469,16 @@ export default function Explore() {
             <ActivityIndicator size="large" color={Colors.dark.buttonBackground} />
             <Text style={[styles.placeholderText, { marginTop: 10 }]}>Loading featured anime...</Text>
           </View>
-        ) : carouselAnime.length > 0 ? (
-          /* Carousel with anime items */
+        ) : infiniteCarouselData.length > 0 ? (
+          /* Infinite scrolling carousel with anime items */
           <ScrollView
             ref={carouselRef}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={(event) => {
-              // Update active index based on scroll position
-              const newIndex = Math.round(event.nativeEvent.contentOffset.x / width);
-              setActiveIndex(newIndex);
-            }}
+            onMomentumScrollEnd={handleCarouselScrollEnd}
           >
-            {carouselAnime.map((item, index) => renderCarouselItem(item, index))}
+            {infiniteCarouselData.map((item, index) => renderCarouselItem(item, index))}
           </ScrollView>
         ) : (
           /* Carousel error state */
