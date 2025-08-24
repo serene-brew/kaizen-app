@@ -13,7 +13,8 @@ import {
   Modal,
   ScrollView,
   ToastAndroid,
-  Share
+  Share,
+  Linking
 } from 'react-native';
 
 // Material Community Icons for visual elements and controls
@@ -29,7 +30,7 @@ import { Video, ResizeMode } from 'expo-av';
 import { StatusBar } from 'expo-status-bar';
 
 // Custom alert components for dark-themed alerts
-import { showCustomAlert, showErrorAlert, showConfirmAlert } from '../components/CustomAlert';
+import { showCustomAlert, showErrorAlert, showConfirmAlert, showSuccessAlert } from '../components/CustomAlert';
 
 // Application color constants for consistent theming
 import Colors from '../constants/Colors';
@@ -113,6 +114,7 @@ export default function StreamingPage() {
   const [currentTime, setCurrentTime] = useState(0); // Current playback position (milliseconds)
   const [duration, setDuration] = useState(0); // Total video duration (milliseconds)
   const [seeking, setSeeking] = useState(false); // Whether user is actively seeking
+  const [isBuffering, setIsBuffering] = useState(false); // Whether video is currently buffering
   
   // Quality selection state management
   const [qualityOptions, setQualityOptions] = useState<QualityOption[]>([]); // Available quality options
@@ -142,11 +144,13 @@ export default function StreamingPage() {
    * 
    * Rewinds video by 10 seconds with boundary checking.
    * Ensures position doesn't go below 0.
+   * Shows buffering indicator during seek operation.
    */
   // Skip backward 10 seconds
   const skipBackward = async () => {
     if (videoRef.current && status.isLoaded) {
       const newPosition = Math.max(0, currentTime - 10000);
+      setIsBuffering(true); // Show buffering during skip
       await videoRef.current.setPositionAsync(newPosition);
     }
   };
@@ -156,11 +160,13 @@ export default function StreamingPage() {
    * 
    * Fast forwards video by 10 seconds with boundary checking.
    * Ensures position doesn't exceed video duration.
+   * Shows buffering indicator during seek operation.
    */
   // Skip forward 10 seconds
   const skipForward = async () => {
     if (videoRef.current && status.isLoaded) {
       const newPosition = Math.min(duration, currentTime + 10000);
+      setIsBuffering(true); // Show buffering during skip
       await videoRef.current.setPositionAsync(newPosition);
     }
   };
@@ -283,6 +289,9 @@ export default function StreamingPage() {
 
         console.log('Streaming URL fetched successfully');
         setStreamingUrl(data.direct);
+        
+        // Set initial buffering state when starting to load video
+        setIsBuffering(true);
         
         // Set quality options if available
         const qualityOpts: QualityOption[] = [{ label: 'Auto', url: data.direct }];
@@ -461,6 +470,7 @@ export default function StreamingPage() {
    * 
    * Processes video playback status updates from Expo AV.
    * Updates current time and duration state.
+   * Handles buffering state for smooth user experience.
    * Triggers automatic save for significant progress changes.
    * Handles video completion events for final progress save.
    */
@@ -471,6 +481,11 @@ export default function StreamingPage() {
     if (status.isLoaded) {
       setCurrentTime(status.positionMillis);
       setDuration(status.durationMillis);
+      
+      // Handle buffering state - show loader when buffering
+      if (status.isBuffering !== undefined) {
+        setIsBuffering(status.isBuffering);
+      }
       
       // If video is at least 5 seconds in, and position has changed by more than 5 seconds,
       // or if playback is paused/ended, trigger a save to ensure we track progress
@@ -485,6 +500,9 @@ export default function StreamingPage() {
         console.log("Saving watch history due to playback status change or progress");
         savePlaybackPosition();
       }
+    } else {
+      // If video is not loaded, it might be buffering
+      setIsBuffering(true);
     }
   };
 
@@ -510,6 +528,7 @@ export default function StreamingPage() {
    * 
    * Handles programmatic seeking to specific video position.
    * Sets seeking state to prevent UI conflicts during seek operation.
+   * Shows buffering state during seek for better user feedback.
    * 
    * @param value - Target position in milliseconds
    */
@@ -517,8 +536,15 @@ export default function StreamingPage() {
   const handleSeek = async (value: number) => {
     if (videoRef.current) {
       setSeeking(true);
-      await videoRef.current.setPositionAsync(value);
-      setSeeking(false);
+      setIsBuffering(true); // Show buffering during seek
+      try {
+        await videoRef.current.setPositionAsync(value);
+      } catch (err) {
+        console.error('Error seeking video:', err);
+      } finally {
+        setSeeking(false);
+        // Note: buffering state will be updated by onPlaybackStatusUpdate
+      }
     }
   };
 
@@ -545,13 +571,25 @@ export default function StreamingPage() {
    * 
    * @param quality - Selected quality option with label and URL
    */
-  // Change quality
+  /**
+   * Quality Change Handler
+   * 
+   * Switches video quality while preserving playback position and state.
+   * Handles smooth quality transitions with buffering indication.
+   * Automatically seeks to previous position after quality change.
+   * 
+   * @param quality - Target quality option with label and URL
+   */
+  // Change video quality
   const changeQuality = async (quality: QualityOption) => {
     try {
       if (videoRef.current && quality.url !== streamingUrl) {
         // Remember the current position and playing state
         const currentPosition = status.positionMillis;
         const wasPlaying = status.isPlaying;
+        
+        // Show buffering indicator during quality change
+        setIsBuffering(true);
         
         // Update the streaming URL
         setStreamingUrl(quality.url);
@@ -579,9 +617,7 @@ export default function StreamingPage() {
     } finally {
       setShowQualityModal(false);
     }
-  };
-
-  /**
+  };  /**
    * Playback Speed Change Function
    * 
    * Changes video playback speed using Expo AV's rate control.
@@ -613,13 +649,59 @@ export default function StreamingPage() {
    * - Initiates download through context with unique ID
    * - Provides user feedback on success/failure
    */
-  // Request media library permission and start download
-  const startDownloadProcess = async () => {
+  /**
+   * Download Method Selection Handler
+   * 
+   * Shows dialog to let user choose between in-app and browser downloads:
+   * - In-App Download: Downloads to device storage via app
+   * - Browser Download: Opens download in default browser
+   * - Validates streaming URL availability
+   * - Provides user choice for download method preference
+   */
+  // Show download method selection dialog
+  const showDownloadMethodDialog = () => {
     if (!streamingUrl) {
       showErrorAlert('Error', 'No video URL available to download');
       return;
     }
+
+    const episodeTitle = title ? `${title} - Episode ${episode} (${audioType === 'sub' ? 'Subbed' : 'Dubbed'})` : `Episode ${episode} (${audioType === 'sub' ? 'Subbed' : 'Dubbed'})`;
     
+    showCustomAlert(
+      'Choose Download Method',
+      `How would you like to download ${episodeTitle}?`,
+      [
+        {
+          text: 'In-App',
+          style: 'default',
+          onPress: () => startAppDownload()
+        },
+        {
+          text: 'Browser',
+          style: 'default',
+          onPress: () => startBrowserDownload()
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {}
+        }
+      ]
+    );
+  };
+
+  /**
+   * In-App Download Process
+   * 
+   * Handles downloading through the app's download manager:
+   * - Validates streaming URL availability
+   * - Requests storage permissions if needed
+   * - Shows confirmation dialog with episode details
+   * - Initiates download through context with unique ID
+   * - Provides user feedback on success/failure
+   */
+  // Start in-app download process
+  const startAppDownload = async () => {
     // First check permissions
     if (!downloadPermissionGranted) {
       const granted = await requestDownloadPermissions();
@@ -628,45 +710,70 @@ export default function StreamingPage() {
         return;
       }
     }
-    
-    // Check if file has a title
+
     const episodeTitle = title ? `${title} - Episode ${episode} (${audioType === 'sub' ? 'Subbed' : 'Dubbed'})` : `Episode ${episode} (${audioType === 'sub' ? 'Subbed' : 'Dubbed'})`;
     
-    // Confirm download with user
-    showConfirmAlert(
-      'Download Episode',
-      `Do you want to download ${episodeTitle}?`,
-      async () => {
-        try {
-          // Generate a unique ID for this download
-          const downloadId = ID.unique();
-          
-          await startDownload({
-            id: downloadId,
-            animeId: id as string,
-            episodeNumber: episode as string,
-            audioType: audioType as 'sub' | 'dub',
-            title: episodeTitle,
-            downloadUrl: streamingUrl,
-            thumbnail: thumbnail as string || ''
-          });
-          
-          // Show success notification
-          if (Platform.OS === 'android') {
-            ToastAndroid.show('Download started!', ToastAndroid.SHORT);
-          } else {
-            showCustomAlert('Download Started', 'Check the Downloads section to view progress');
-          }
-        } catch (err) {
-          console.error('Error starting download:', err);
-          showErrorAlert('Download Failed', 'There was an error starting the download');
-        }
-      },
-      undefined // onCancel (default behavior)
-    );
+    try {
+      // Generate a unique ID for this download
+      const downloadId = ID.unique();
+      
+      await startDownload({
+        id: downloadId,
+        animeId: id as string,
+        episodeNumber: episode as string,
+        audioType: audioType as 'sub' | 'dub',
+        title: episodeTitle,
+        downloadUrl: streamingUrl!,
+        thumbnail: '',
+      });
+      
+      showSuccessAlert('Download Started', `${episodeTitle} has been added to your downloads`);
+    } catch (error) {
+      console.error('Download error:', error);
+      showErrorAlert('Download Failed', 'There was an error starting the download. Please try again.');
+    }
   };
 
   /**
+   * Browser Download Process
+   * 
+   * Opens the video URL in the device's default browser for download:
+   * - Opens streaming URL in external browser
+   * - Browser handles download management
+   * - No storage permissions needed
+   * - Uses device's default download manager
+   */
+  // Start browser download process
+  const startBrowserDownload = async () => {
+    try {
+      const supported = await Linking.canOpenURL(streamingUrl!);
+      
+      if (supported) {
+        await Linking.openURL(streamingUrl!);
+        const episodeTitle = title ? `${title} - Episode ${episode} (${audioType === 'sub' ? 'Subbed' : 'Dubbed'})` : `Episode ${episode} (${audioType === 'sub' ? 'Subbed' : 'Dubbed'})`;
+        showSuccessAlert(
+          'Browser Download Started', 
+          `${episodeTitle} has been opened in your browser. You can manage the download from there.`
+        );
+      } else {
+        showErrorAlert('Error', 'Cannot open video URL in browser');
+      }
+    } catch (error) {
+      console.error('Browser download error:', error);
+      showErrorAlert('Browser Download Failed', 'There was an error opening the download in browser. Please try again.');
+    }
+  };
+
+  /**
+   * Legacy Download Process (Deprecated)
+   * 
+   * Kept for backwards compatibility - now redirects to method selection
+   */
+  // Request media library permission and start download
+  const startDownloadProcess = async () => {
+    // Redirect to new download method selection
+    showDownloadMethodDialog();
+  };  /**
    * Share Video Function
    * 
    * Opens native share dialog with episode information.
@@ -757,6 +864,16 @@ export default function StreamingPage() {
                   usePoster={true}
                   posterStyle={styles.poster}
                 />
+                
+                {/* Buffering loader overlay - integrated into the video player */}
+                {isBuffering && (
+                  <View style={styles.bufferingOverlay}>
+                    <ActivityIndicator 
+                      size="large" 
+                      color={Colors.dark.buttonBackground} 
+                    />
+                  </View>
+                )}
                 
                 {/* Custom controls overlay with conditional visibility */}
                 {showControls && (
