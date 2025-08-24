@@ -11,7 +11,7 @@ import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 
 // React Native core components for platform detection
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
 
 // Expo notifications for download progress and completion alerts
 import * as Notifications from 'expo-notifications';
@@ -74,11 +74,13 @@ interface DownloadsContextType {
   
   // Download management actions
   startDownload: (item: Omit<DownloadItem, 'progress' | 'status' | 'dateAdded' | 'filePath' | 'size'>) => Promise<void>;
+  startBrowserDownload: (downloadUrl: string) => Promise<boolean>;   // Open download in browser
   pauseDownload: (id: string) => Promise<boolean>;      // Pause active download
   resumeDownload: (id: string) => Promise<boolean>;     // Resume paused download
   cancelDownload: (id: string) => Promise<boolean>;     // Cancel and delete download
   removeDownload: (id: string) => Promise<boolean>;     // Remove completed download
   clearAllDownloads: () => Promise<boolean>;            // Clear all downloads and files
+  saveToGallery: (id: string) => Promise<boolean>;      // Save download to device gallery and clear cache
   
   // Query helpers
   getDownloadById: (id: string) => DownloadItem | undefined;        // Find specific download
@@ -1785,6 +1787,113 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     logDownloadOperation('resume_data', downloadId, details);
   };
 
+  /**
+   * Start Browser Download
+   * 
+   * Opens a download URL in the device's default browser for manual download.
+   * This provides an alternative download method when app-integrated downloads fail.
+   * 
+   * @param downloadUrl - The URL to open in browser
+   * @returns Promise<boolean> - Success status
+   */
+  const startBrowserDownload = async (downloadUrl: string): Promise<boolean> => {
+    try {
+      // Check if URL can be opened
+      const supported = await Linking.canOpenURL(downloadUrl);
+      if (supported) {
+        await Linking.openURL(downloadUrl);
+        console.log('Browser download started:', downloadUrl);
+        return true;
+      } else {
+        console.error('Cannot open URL in browser:', downloadUrl);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error starting browser download:', error);
+      return false;
+    }
+  };
+
+  /**
+   * Save to Gallery
+   * 
+   * Saves a completed download to the device gallery and clears the app cache.
+   * This helps optimize storage by moving files to the device's gallery while
+   * still tracking them in the downloads list.
+   * 
+   * @param id - The download ID to save to gallery
+   * @returns Promise<boolean> - Success status
+   */
+  const saveToGallery = async (id: string): Promise<boolean> => {
+    try {
+      const download = downloads.find(d => d.id === id);
+      if (!download) {
+        console.error('Download not found:', id);
+        return false;
+      }
+
+      if (download.status !== 'completed') {
+        console.error('Download is not completed:', id);
+        return false;
+      }
+
+      if (download.isInGallery) {
+        console.log('Download already in gallery:', id);
+        return true;
+      }
+
+      // Check if file exists
+      const fileInfo = await FileSystem.getInfoAsync(download.filePath);
+      if (!fileInfo.exists) {
+        console.error('Download file not found:', download.filePath);
+        return false;
+      }
+
+      // Request media library permissions
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        console.error('Media library permission not granted');
+        return false;
+      }
+
+      // Create asset in gallery
+      const asset = await MediaLibrary.createAssetAsync(download.filePath);
+      
+      // Add to Kaizen album
+      let kaizenAlbum = await MediaLibrary.getAlbumAsync('Kaizen');
+      if (!kaizenAlbum) {
+        kaizenAlbum = await MediaLibrary.createAlbumAsync('Kaizen', asset, false);
+      } else {
+        await MediaLibrary.addAssetsToAlbumAsync([asset], kaizenAlbum, false);
+      }
+
+      // Update download item to mark as in gallery
+      setDownloads(prevDownloads => 
+        prevDownloads.map(d => 
+          d.id === id 
+            ? { ...d, isInGallery: true, filePath: '' } // Clear filePath to indicate cache cleared
+            : d
+        )
+      );
+
+      // Remove the cached file to free up app storage
+      try {
+        await FileSystem.deleteAsync(download.filePath);
+        console.log('Cached file deleted:', download.filePath);
+      } catch (deleteError) {
+        console.warn('Could not delete cached file:', deleteError);
+        // Don't fail the operation if file deletion fails
+      }
+
+      console.log('Download saved to gallery successfully:', id);
+      return true;
+
+    } catch (error) {
+      console.error('Error saving download to gallery:', error);
+      return false;
+    }
+  };
+
   const contextValue: DownloadsContextType = {
     downloads,
     currentDownloads,
@@ -1795,11 +1904,13 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     
     // Actions
     startDownload,
+    startBrowserDownload,
     pauseDownload,
     resumeDownload,
     cancelDownload,
     removeDownload,
     clearAllDownloads,
+    saveToGallery,
     
     // Helpers
     getDownloadById,
