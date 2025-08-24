@@ -114,6 +114,7 @@ export const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'space-between',
     padding: 16,
+    zIndex: 10, // Higher than buffering overlay to ensure controls are always clickable
   },
   topControlsBar: {
     flexDirection: 'row',
@@ -271,5 +272,13 @@ export const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Buffering overlay styles for integrated video player loader
+  bufferingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 5, // Above video but below controls overlay (which should be higher)
   },
 });
