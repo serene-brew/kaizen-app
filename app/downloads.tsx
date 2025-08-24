@@ -8,8 +8,7 @@ import {
   FlatList, 
   TouchableOpacity, 
   Image, 
-  ActivityIndicator,
-  Platform
+  ActivityIndicator
 } from 'react-native';
 
 // Status bar component for controlling appearance
@@ -62,38 +61,31 @@ const formatBytes = (bytes: number, decimals = 2) => {
 /**
  * DownloadsPage Component
  * 
- * Comprehensive download management interface that provides:
+ * Simple download management interface that provides:
  * - Visual display of all downloaded anime episodes
  * - Download queue management with pause/resume/cancel functionality
- * - File size and storage usage tracking
- * - Filtering by download status (all, completed, active)
- * - Sorting by date, name, or file size
  * - Playback of completed downloads
- * - Permission handling for file system access
- * - Bulk operations for clearing all downloads
+ * - Save to gallery functionality for completed downloads
  */
 export default function DownloadsPage() {
   const router = useRouter();
   
   // Extract download management functionality from context
   const { 
-    downloads, // Array of all download items
-    currentDownloads, // Currently active downloads
-    downloadQueue, // Queued downloads waiting to start
-    totalStorageUsed, // Total disk space used by downloads
-    removeDownload, // Function to delete a download
-    pauseDownload, // Function to pause an active download
-    resumeDownload, // Function to resume a paused download
-    cancelDownload, // Function to cancel a pending/active download
-    clearAllDownloads, // Function to remove all downloads
-    downloadPermissionGranted, // Permission status for file system
-    requestDownloadPermissions, // Function to request file permissions
-    validateAndCleanupDownloads // Function to validate file existence and cleanup
+    downloads,
+    currentDownloads,
+    downloadQueue,
+    totalStorageUsed,
+    removeDownload,
+    pauseDownload,
+    resumeDownload,
+    cancelDownload,
+    clearAllDownloads,
+    downloadPermissionGranted,
+    requestDownloadPermissions,
+    validateAndCleanupDownloads,
+    saveToGallery // We'll add this to the context
   } = useDownloads();
-  
-  // Local state for UI filtering and sorting
-  const [filter, setFilter] = useState<'all' | 'completed' | 'active'>('all'); // Current filter mode
-  const [sortBy, setSortBy] = useState<'date' | 'name' | 'size'>('date'); // Current sort method
   
   /**
    * Permission Request Effect
@@ -139,45 +131,6 @@ export default function DownloadsPage() {
   const handleGoBack = () => {
     router.push('/(tabs)/more');
   };
-  
-  /**
-   * Download Filtering and Sorting Logic
-   * 
-   * Memoized computation that processes the downloads array to:
-   * - Apply status-based filtering (all, completed, active)
-   * - Sort by user-selected criteria (date, name, size)
-   * - Maintain performance with large download lists
-   * 
-   * Active downloads include: downloading, pending, paused states
-   * Completed downloads include: successfully finished downloads
-   */
-  // Filtered and sorted downloads
-  const filteredDownloads = React.useMemo(() => {
-    let items = [...downloads];
-    
-    // Apply filter
-    if (filter === 'completed') {
-      items = items.filter(item => item.status === 'completed');
-    } else if (filter === 'active') {
-      items = items.filter(item => 
-        item.status === 'downloading' || 
-        item.status === 'pending' ||
-        item.status === 'paused'
-      );
-    }
-    
-    // Apply sorting
-    if (sortBy === 'name') {
-      items.sort((a, b) => a.title.localeCompare(b.title));
-    } else if (sortBy === 'size') {
-      items.sort((a, b) => b.size - a.size);
-    } else {
-      // Default sort by date, newest first
-      items.sort((a, b) => b.dateAdded - a.dateAdded);
-    }
-    
-    return items;
-  }, [downloads, filter, sortBy]);
   
   /**
    * Download Playback Handler
@@ -305,7 +258,33 @@ export default function DownloadsPage() {
       showErrorAlert('Error', `Failed to ${action} the download`);
     }
   };
-  
+
+  /**
+   * Save to Gallery Handler
+   * 
+   * Saves completed download to device gallery and clears app cache
+   */
+  const handleSaveToGallery = async (item: typeof downloads[0]) => {
+    if (item.status !== 'completed') {
+      showErrorAlert('Error', 'Only completed downloads can be saved to gallery');
+      return;
+    }
+
+    showConfirmAlert(
+      'Save to Gallery',
+      `Save "${item.title} - Episode ${item.episodeNumber}" to your device gallery? This will free up app storage space.`,
+      async () => {
+        try {
+          await saveToGallery(item.id);
+          showCustomAlert('Success', 'Video saved to gallery and app cache cleared!');
+        } catch (error) {
+          console.error('Error saving to gallery:', error);
+          showErrorAlert('Error', 'Failed to save video to gallery');
+        }
+      }
+    );
+  };
+
   /**
    * Download Item Renderer
    * 
@@ -398,6 +377,20 @@ export default function DownloadsPage() {
           
           {/* Actions */}
           <View style={styles.actions}>
+            {/* Save to Gallery button for completed downloads */}
+            {item.status === 'completed' && !item.isInGallery && (
+              <TouchableOpacity 
+                style={styles.actionButton} 
+                onPress={() => handleSaveToGallery(item)}
+              >
+                <MaterialCommunityIcons 
+                  name="content-save" 
+                  size={20} 
+                  color={Colors.dark.buttonBackground} 
+                />
+              </TouchableOpacity>
+            )}
+            
             {item.status === 'downloading' && (
               <TouchableOpacity 
                 style={styles.actionButton} 
@@ -422,14 +415,14 @@ export default function DownloadsPage() {
                 <MaterialCommunityIcons name="close" size={20} color={Colors.dark.text} />
               </TouchableOpacity>
             )}
-            {['completed', 'failed'].includes(item.status) && (
-              <TouchableOpacity 
-                style={styles.actionButton} 
-                onPress={() => handleAction(item, 'delete')}
-              >
-                <MaterialCommunityIcons name="delete" size={20} color={Colors.dark.text} />
-              </TouchableOpacity>
-            )}
+            
+            {/* Delete button - always available */}
+            <TouchableOpacity 
+              style={styles.actionButton} 
+              onPress={() => handleAction(item, 'delete')}
+            >
+              <MaterialCommunityIcons name="delete" size={20} color="#F44336" />
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
         
@@ -468,80 +461,6 @@ export default function DownloadsPage() {
         </View>
       </View>
       
-
-      
-      {/* Gallery information banner */}
-      {downloads.some(d => d.status === 'completed') && (
-        <View style={styles.galleryInfoBanner}>
-          <MaterialCommunityIcons name="information" size={16} color={Colors.dark.buttonBackground} />
-          <Text style={styles.galleryInfoText}>
-            Downloaded episodes are saved to your device gallery in the "Kaizen" album for easy access
-          </Text>
-        </View>
-      )}
-      
-      {/* Filtering and sorting controls */}
-      <View style={styles.filtersContainer}>
-        <View style={styles.filters}>
-          <TouchableOpacity 
-            style={[styles.filterButton, filter === 'all' && styles.activeFilterButton]} 
-            onPress={() => setFilter('all')}
-          >
-            <Text 
-              style={[styles.filterText, filter === 'all' && styles.activeFilterText]}
-            >
-              All
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.filterButton, filter === 'completed' && styles.activeFilterButton]} 
-            onPress={() => setFilter('completed')}
-          >
-            <Text 
-              style={[styles.filterText, filter === 'completed' && styles.activeFilterText]}
-            >
-              Completed
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.filterButton, filter === 'active' && styles.activeFilterButton]} 
-            onPress={() => setFilter('active')}
-          >
-            <Text 
-              style={[styles.filterText, filter === 'active' && styles.activeFilterText]}
-            >
-              Active
-            </Text>
-          </TouchableOpacity>
-        </View>
-        
-        {/* Sort toggle button with cycling sort options */}
-        <TouchableOpacity 
-          style={styles.sortButton}
-          onPress={() => {
-            const nextSortOptions: { [key: string]: 'date' | 'name' | 'size' } = {
-              'date': 'name',
-              'name': 'size',
-              'size': 'date'
-            };
-            setSortBy(nextSortOptions[sortBy]);
-          }}
-        >
-          <MaterialCommunityIcons 
-            name={
-              sortBy === 'date' ? "sort-calendar-descending" :
-              sortBy === 'name' ? "sort-alphabetical-ascending" :
-              "sort-numeric-descending"
-            } 
-            size={20} 
-            color={Colors.dark.text} 
-          />
-          <Text style={styles.sortText}>
-            {sortBy === 'date' ? "Date" : sortBy === 'name' ? "Name" : "Size"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-      
       {/* Download list with conditional empty states */}
       {downloads.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -552,18 +471,9 @@ export default function DownloadsPage() {
           />
           <Text style={styles.emptyText}>No downloads yet</Text>
         </View>
-      ) : filteredDownloads.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <MaterialCommunityIcons 
-            name="filter-remove" 
-            size={48} 
-            color={Colors.dark.secondaryText} 
-          />
-          <Text style={styles.emptyText}>No {filter} downloads found</Text>
-        </View>
       ) : (
         <FlatList
-          data={filteredDownloads}
+          data={downloads}
           renderItem={renderDownloadItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContainer}
