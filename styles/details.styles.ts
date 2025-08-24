@@ -141,6 +141,12 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  fullTitle: {
+    color: Colors.dark.text,
+    fontSize: 15,
+    fontWeight: '500',
+    lineHeight: 21,
+  },
   expandButton: {
     flexDirection: 'row',
     alignItems: 'center',
