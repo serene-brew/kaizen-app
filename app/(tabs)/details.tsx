@@ -438,33 +438,38 @@ export default function DetailsPage() {
         </View>
       </View>
 
-      {/* Description section with expand/collapse - only show if description exists */}
-      {animeData.description && (
-        <View style={styles.descriptionContainer}>
-          <Text style={styles.sectionTitle}>Description</Text>
-          {/* Description text with conditional line limiting */}
-          <Text 
-            style={styles.description} 
-            numberOfLines={expandedDescription ? undefined : 3}
-          >
-            {animeData.description}
+      {/* Description section with expand/collapse - always show to display full title */}
+      <View style={styles.descriptionContainer}>
+        <Text style={styles.sectionTitle}>Description</Text>
+        {/* Enhanced description with full title and actual description */}
+        <Text 
+          style={styles.description} 
+          numberOfLines={expandedDescription ? undefined : 4} // Increased to 4 to accommodate title line
+        >
+          {/* Full title as first line */}
+          <Text style={styles.fullTitle}>
+            {animeData.englishName || animeData.title || 'Unknown Anime'}
           </Text>
-          {/* Expand/collapse button */}
-          <TouchableOpacity
-            style={styles.expandButton}
-            onPress={() => setExpandedDescription(!expandedDescription)}
-          >
-            <Text style={styles.expandButtonText}>
-              {expandedDescription ? "Show Less" : "Read More"}
-            </Text>
-            <MaterialCommunityIcons 
-              name={expandedDescription ? "chevron-up" : "chevron-down"} 
-              size={16} 
-              color={Colors.dark.buttonBackground} 
-            />
-          </TouchableOpacity>
-        </View>
-      )}
+          {/* Empty line separator */}
+          {animeData.description && '\n\n'}
+          {/* Actual description if available */}
+          {animeData.description || 'No description available.'}
+        </Text>
+        {/* Expand/collapse button - show only if content exceeds 4 lines */}
+        <TouchableOpacity
+          style={styles.expandButton}
+          onPress={() => setExpandedDescription(!expandedDescription)}
+        >
+          <Text style={styles.expandButtonText}>
+            {expandedDescription ? "Show Less" : "Read More"}
+          </Text>
+          <MaterialCommunityIcons 
+            name={expandedDescription ? "chevron-up" : "chevron-down"} 
+            size={16} 
+            color={Colors.dark.buttonBackground} 
+          />
+        </TouchableOpacity>
+      </View>
 
       {/* Genres section - only show if genres exist */}
       {animeData.genres && animeData.genres.length > 0 && (
