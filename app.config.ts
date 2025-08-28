@@ -15,6 +15,9 @@ export default {
       supportsTablet: true,
       userInterfaceStyle: 'dark',
       bundleIdentifier: 'com.serenebrew.kaizen',
+      statusBar: {
+        barStyle: 'light-content'
+      },
       config: {
         usesNonExemptEncryption: false
       }
@@ -26,6 +29,15 @@ export default {
         backgroundColor: '#161622'
       },
       userInterfaceStyle: 'dark',
+      navigationBar: {
+        backgroundColor: '#161622',
+        barStyle: 'light-content',
+        visible: true
+      },
+      statusBar: {
+        backgroundColor: '#161622',
+        barStyle: 'light-content'
+      },
       intentFilters: [
         {
           action: "VIEW",
@@ -48,6 +60,13 @@ export default {
     },
     plugins: [
       'expo-router',
+      [
+        'expo-system-ui',
+        {
+          userInterfaceStyle: 'dark',
+          backgroundColor: '#161622'
+        }
+      ],
       [
         'expo-splash-screen',
         {
