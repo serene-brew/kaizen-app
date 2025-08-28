@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2025-08-28
+
+### Added
+- Version handler for auto-update reminders during app startup
+- Manual sync button in empty watchlist when initial sync fails
+- Buffering loader for streaming video player during buffering
+- New custom alert box
+
+### Changed
+- Revamped `more.tsx` page for better user accessibility with specialized watch history section at the top
+- Corrected `watchlist.tsx` page card sizes for dynamic accessibility
+- Updated download manager logic to support both browser-level downloads and local app integrated downloads
+- Improved carousel in `explore.tsx` to use infinite scrolling instead of returning to start
+- Enhanced details page to show full title in description first line to prevent overflow issues
+
+### Improved
+- Alert box styling changed from light to custom UI specific dark theme to complement overall app UI
+- App integrated download action dialogue now dynamically handled with buttons on downloaded item cards
+- Better user experience with improved navigation and accessibility features
+- Enhanced download management with dual download support
+
 ## [1.0.2] - 2025-06-02
 
 ### Changed
