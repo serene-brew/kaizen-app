@@ -13,6 +13,15 @@ import { useEffect, useState } from "react";
 // React Native components for keyboard handling and platform detection
 import { Keyboard, Platform } from "react-native";
 
+// Expo status bar component for controlling appearance
+import { StatusBar } from 'expo-status-bar';
+
+// System UI configuration for navigation bar theming
+import * as SystemUI from 'expo-system-ui';
+
+// Navigation bar configuration for proper theming
+import * as NavigationBar from 'expo-navigation-bar';
+
 /**
  * TabLayout Component
  * 
@@ -38,6 +47,18 @@ export default function TabLayout() {
    * - Uses platform-specific keyboard events for optimal performance
    */
   useEffect(() => {
+    // Configure navigation bar to match app background exactly
+    const configureNavigationBar = async () => {
+      try {
+        await NavigationBar.setBackgroundColorAsync(Colors.dark.background);
+        await NavigationBar.setButtonStyleAsync('light');
+      } catch (error) {
+        console.warn('Failed to configure navigation bar:', error);
+      }
+    };
+    
+    configureNavigationBar();
+
     // Platform-specific keyboard show events
     const keyboardWillShowListener = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
@@ -58,8 +79,10 @@ export default function TabLayout() {
   }, []);
 
   return (
-    <Tabs
-      screenOptions={{
+    <>
+      <StatusBar style="light" backgroundColor="#161622" />
+      <Tabs
+        screenOptions={{
         // Custom tab bar styling with dark theme
         tabBarStyle: {
           backgroundColor: Colors.dark.background, // Dark background color
@@ -184,5 +207,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </>
   );
 }
