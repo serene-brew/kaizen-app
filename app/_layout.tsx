@@ -10,6 +10,12 @@ import { ThemeProvider, DarkTheme } from "@react-navigation/native";
 // Status bar component for controlling appearance
 import { StatusBar } from 'expo-status-bar';
 
+// System UI configuration for navigation bar theming
+import * as SystemUI from 'expo-system-ui';
+
+// Navigation bar configuration for proper theming
+import * as NavigationBar from 'expo-navigation-bar';
+
 // Expo splash screen utilities for app initialization
 import * as SplashScreen from 'expo-splash-screen';
 
@@ -54,6 +60,9 @@ import { checkForUpdates } from '../lib/versionService';
 
 // Custom alert component for dark-themed alerts
 import { CustomAlert, showErrorAlert } from '../components';
+
+// Application color constants for consistent theming
+import Colors from '../constants/Colors';
 
 /**
  * OAuth Session Initialization
@@ -107,6 +116,13 @@ export default function RootLayout() {
         
         console.log('Appwrite client initialized in _layout');
         
+        // Configure system UI to match app background exactly
+        await SystemUI.setBackgroundColorAsync(Colors.dark.background);
+        
+        // Configure navigation bar to match app background
+        await NavigationBar.setBackgroundColorAsync(Colors.dark.background);
+        await NavigationBar.setButtonStyleAsync('light');
+
         // Check for app updates after initialization
         setTimeout(() => {
           checkForUpdates();
@@ -206,7 +222,7 @@ export default function RootLayout() {
             <AuthSyncService />
             <SyncManager />
             <ThemeProvider value={DarkTheme}>
-              <StatusBar style="light" />
+              <StatusBar style="light" backgroundColor="#161622" />
               {/* Root navigation stack with dark theme configuration */}
               <Stack
                 screenOptions={{
