@@ -276,7 +276,7 @@ export const styles = StyleSheet.create({
   // Buffering overlay styles for integrated video player loader
   bufferingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'transparent', // No dark overlay - just show the spinner
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 5, // Above video but below controls overlay (which should be higher)
