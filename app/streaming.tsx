@@ -115,6 +115,10 @@ export default function StreamingPage() {
   const [duration, setDuration] = useState(0); // Total video duration (milliseconds)
   const [seeking, setSeeking] = useState(false); // Whether user is actively seeking
   const [isBuffering, setIsBuffering] = useState(false); // Whether video is currently buffering
+  const [showBufferingLoader, setShowBufferingLoader] = useState(false); // Whether to show buffering UI
+  const bufferingTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Timeout for buffering delay
+  const [hasCreatedInitialEntry, setHasCreatedInitialEntry] = useState(false); // Whether initial watch entry was created
+  const isCreatingInitialEntryRef = useRef(false); // Lock to prevent concurrent initial entry creation
   
   // Quality selection state management
   const [qualityOptions, setQualityOptions] = useState<QualityOption[]>([]); // Available quality options
@@ -156,7 +160,7 @@ export default function StreamingPage() {
   const skipBackward = async () => {
     if (videoRef.current && status.isLoaded) {
       const newPosition = Math.max(0, currentTime - 10000);
-      setIsBuffering(true); // Show buffering during skip
+      setShowBufferingLoader(true); // Show buffering immediately for user actions
       await videoRef.current.setPositionAsync(newPosition);
     }
   };
@@ -172,7 +176,7 @@ export default function StreamingPage() {
   const skipForward = async () => {
     if (videoRef.current && status.isLoaded) {
       const newPosition = Math.min(duration, currentTime + 10000);
-      setIsBuffering(true); // Show buffering during skip
+      setShowBufferingLoader(true); // Show buffering immediately for user actions
       await videoRef.current.setPositionAsync(newPosition);
     }
   };
@@ -200,6 +204,36 @@ export default function StreamingPage() {
     }
     
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  /**
+   * Smart Buffering Handler
+   * 
+   * Implements delayed buffering indication to prevent flickering.
+   * Only shows buffering UI after a threshold delay (800ms) to avoid
+   * displaying loader for brief buffering events that resolve quickly.
+   * 
+   * @param isCurrentlyBuffering - Current buffering state from video player
+   */
+  const handleBufferingState = (isCurrentlyBuffering: boolean) => {
+    // Clear any existing timeout
+    if (bufferingTimeoutRef.current) {
+      clearTimeout(bufferingTimeoutRef.current);
+      bufferingTimeoutRef.current = null;
+    }
+
+    if (isCurrentlyBuffering) {
+      // Start a timer - only show buffering UI after 300ms delay
+      bufferingTimeoutRef.current = setTimeout(() => {
+        setShowBufferingLoader(true);
+      }, 300); // 300ms delay before showing buffer loader
+    } else {
+      // Immediately hide buffering UI when not buffering
+      setShowBufferingLoader(false);
+    }
+    
+    // Always update the raw buffering state for internal use
+    setIsBuffering(isCurrentlyBuffering);
   };
 
   /**
@@ -270,6 +304,10 @@ export default function StreamingPage() {
    */
   // Fetch the streaming URL and quality options when component mounts
   useEffect(() => {
+    // Reset initial entry flag and lock for new episode
+    setHasCreatedInitialEntry(false);
+    isCreatingInitialEntryRef.current = false;
+    
     const fetchStreamingUrl = async () => {
       if (!id || !audioType || !episode) {
         setError('Missing required parameters');
@@ -371,6 +409,25 @@ export default function StreamingPage() {
 
     return () => backHandler.remove();
   }, [router, isFullscreen, currentTime]);
+
+  /**
+   * Cleanup Effect
+   * 
+   * Cleans up timers and resources when component unmounts
+   * to prevent memory leaks and unnecessary operations.
+   */
+  useEffect(() => {
+    return () => {
+      // Clean up buffering timeout
+      if (bufferingTimeoutRef.current) {
+        clearTimeout(bufferingTimeoutRef.current);
+      }
+      // Clean up controls timeout (handled by existing effect but good to be safe)
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Get the watch history context
   const { getWatchedEpisodes } = useWatchHistory();
@@ -476,6 +533,45 @@ export default function StreamingPage() {
   };
 
   /**
+   * Create Initial Watch History Entry
+   * 
+   * Creates an immediate watch history entry when episode starts playing.
+   * This ensures the episode is tracked even if user stops watching quickly.
+   * Only runs once per episode to avoid duplicates.
+   */
+  const createInitialWatchEntry = async () => {
+    // Prevent concurrent executions with ref-based lock
+    if (hasCreatedInitialEntry || isCreatingInitialEntryRef.current || !duration || !id || !episode) return;
+    
+    // Set lock immediately to prevent race conditions
+    isCreatingInitialEntryRef.current = true;
+    
+    try {
+      console.log(`Creating initial watch history entry for: ${id}, ep ${episode}`);
+      
+      await addToHistory({
+        id: id as string, 
+        episodeNumber: episode as string,
+        audioType: audioType as 'sub' | 'dub',
+        englishName: title as string || 'Unknown Anime',
+        thumbnailUrl: thumbnail as string || '',
+        position: Math.max(0, Math.floor(currentTime)), // Start from current position (could be resume point)
+        duration: Math.floor(duration)
+      });
+      
+      setHasCreatedInitialEntry(true);
+      lastSavedPositionRef.current = currentTime;
+      
+      console.log(`Initial watch history entry created: ${id}, ep ${episode}`);
+    } catch (err) {
+      console.error('Error creating initial watch entry:', err);
+    } finally {
+      // Always release the lock, even if there was an error
+      isCreatingInitialEntryRef.current = false;
+    }
+  };
+
+  /**
    * Back Navigation Handler
    * 
    * Handles manual back navigation with progress saving.
@@ -504,9 +600,14 @@ export default function StreamingPage() {
       setCurrentTime(status.positionMillis);
       setDuration(status.durationMillis);
       
-      // Handle buffering state - show loader when buffering
+      // Handle buffering state - use smart buffering with delay
       if (status.isBuffering !== undefined) {
-        setIsBuffering(status.isBuffering);
+        handleBufferingState(status.isBuffering);
+      }
+      
+      // Create initial watch history entry when playback starts and duration is available
+      if (status.durationMillis > 0 && !hasCreatedInitialEntry) {
+        createInitialWatchEntry();
       }
       
       // Save on video completion
@@ -534,7 +635,7 @@ export default function StreamingPage() {
       }
     } else {
       // If video is not loaded, it might be buffering
-      setIsBuffering(true);
+      handleBufferingState(true);
     }
   };
 
@@ -568,7 +669,7 @@ export default function StreamingPage() {
   const handleSeek = async (value: number) => {
     if (videoRef.current) {
       setSeeking(true);
-      setIsBuffering(true); // Show buffering during seek
+      setShowBufferingLoader(true); // Show buffering immediately for user actions
       try {
         await videoRef.current.setPositionAsync(value);
       } catch (err) {
@@ -898,7 +999,7 @@ export default function StreamingPage() {
                 />
                 
                 {/* Buffering loader overlay - integrated into the video player */}
-                {isBuffering && (
+                {showBufferingLoader && (
                   <View style={styles.bufferingOverlay}>
                     <ActivityIndicator 
                       size="large" 
