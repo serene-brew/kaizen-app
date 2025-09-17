@@ -134,10 +134,16 @@ export default function StreamingPage() {
     getDownloadsByAnimeId 
   } = useDownloads();
   
-  const { addToHistory } = useWatchHistory();
+  const { addToHistory, cleanupDuplicateDocuments } = useWatchHistory();
   
   // Ref for managing control auto-hide timeout
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Ref for throttling save operations to prevent spam
+  const lastSaveTimeRef = useRef<number>(0);
+  
+  // Ref for tracking significant position changes
+  const lastSavedPositionRef = useRef<number>(0);
 
   /**
    * Skip Backward Function
@@ -302,6 +308,9 @@ export default function StreamingPage() {
         }
         setQualityOptions(qualityOpts);
         
+        // Clean up any duplicate documents for this episode before starting
+        cleanupDuplicateDocuments(id as string, episode as string, audioType as 'sub' | 'dub');
+        
         // Load saved playback position
         loadPlaybackPosition();
         
@@ -319,27 +328,24 @@ export default function StreamingPage() {
   /**
    * Auto-Save and Cleanup Effect
    * 
-   * Sets up automatic saving of playback position every 15 seconds.
-   * Ensures watch progress is saved even if user doesn't complete episode.
+   * Sets up automatic saving of playback position every 2 minutes.
+   * Optimized interval to reduce Appwrite usage while maintaining functionality.
    * Handles cleanup when component unmounts to save final position.
    */
   // Set up auto-save interval and save playback position when the component unmounts
   useEffect(() => {
-    // Save playback position every 15 seconds
+    // Save playback position every 2 minutes (120 seconds) to optimize cloud usage
     const autoSaveInterval = setInterval(() => {
-      if (status.isLoaded) {
-        // Save regardless of playing status, as long as video is loaded
-        // This helps capture progress even if user is paused
-        savePlaybackPosition();
-      }
-    }, 15000);
+      // Force save for interval - this is our intended 2-minute save
+      savePlaybackPosition(true);
+    }, 120000); // Changed from 15000ms (15s) to 120000ms (2 minutes)
     
-    // Cleanup function
+    // Cleanup function - only runs when component unmounts
     return () => {
       clearInterval(autoSaveInterval);
-      savePlaybackPosition();
+      savePlaybackPosition(true); // Force save on cleanup
     };
-  }, [currentTime, status.isLoaded]);
+  }, []); // Remove dependencies to prevent frequent re-runs
 
   /**
    * Hardware Back Button Effect
@@ -358,7 +364,7 @@ export default function StreamingPage() {
       }
       
       // Save playback position before navigating back
-      savePlaybackPosition();
+      savePlaybackPosition(true); // Force save on navigation
       router.back();
       return true;
     });
@@ -424,10 +430,23 @@ export default function StreamingPage() {
    * Uses low threshold (5%) to track progress from early viewing.
    * Handles errors gracefully to prevent streaming interruption.
    */
-  // Save current playback position to cloud watch history
-  const savePlaybackPosition = async () => {
+  // Save current playback position to cloud watch history (with smart throttling)
+  const savePlaybackPosition = async (force: boolean = false) => {
     try {
+      // Smart throttling: allow manual saves every 10 seconds, but forced saves bypass entirely
+      const now = Date.now();
+      const timeSinceLastSave = now - lastSaveTimeRef.current;
+      const isInitialSave = lastSaveTimeRef.current === 0;
+      
+      // Only throttle non-forced saves, and allow more frequent saves (10 seconds)
+      if (timeSinceLastSave < 10000 && !isInitialSave && !force) {
+        console.log(`Skipping save - too soon (${Math.floor(timeSinceLastSave / 1000)}s since last save)`);
+        return;
+      }
+      
       if (currentTime > 0 && duration > 0) {
+        // Update timestamp for all successful saves
+        lastSaveTimeRef.current = now;
         // Update the watch history in cloud storage
         // Lower the threshold to consider watched if at least 5% of the episode is watched
         // This ensures more consistent history recording
@@ -444,6 +463,9 @@ export default function StreamingPage() {
           position: Math.floor(currentTime), // Convert to integer (milliseconds)
           duration: Math.floor(duration)     // Convert to integer (milliseconds)
         });
+        
+        // Update the last saved position reference
+        lastSavedPositionRef.current = currentTime;
         
         // Log that we've saved watch history (for debugging)
         console.log(`Saved watch history: ${id}, ep ${episode}, position: ${Math.floor(currentTime)}ms / ${Math.floor(duration)}ms`);
@@ -487,18 +509,28 @@ export default function StreamingPage() {
         setIsBuffering(status.isBuffering);
       }
       
-      // If video is at least 5 seconds in, and position has changed by more than 5 seconds,
-      // or if playback is paused/ended, trigger a save to ensure we track progress
-      const significantProgress = Math.abs(currentTime - status.positionMillis) > 5000;
-      const isAtLeastFewSecondsIn = status.positionMillis > 5000;
-      const playbackStatusChanged = (status.isPlaying === false && status.positionMillis > 0);
-      
-      // Check for video completion (didJustFinish is only available in success status)
+      // Save on video completion
       const isPlaybackFinished = status.isLoaded && 'didJustFinish' in status && status.didJustFinish === true;
       
-      if ((isAtLeastFewSecondsIn && significantProgress) || playbackStatusChanged || isPlaybackFinished) {
-        console.log("Saving watch history due to playback status change or progress");
-        savePlaybackPosition();
+      // Save on significant position changes (like seeking or after long pause)
+      const currentPos = status.positionMillis || 0;
+      const positionDifference = Math.abs(currentPos - lastSavedPositionRef.current);
+      const significantPositionChange = positionDifference > 30000; // 30 seconds difference
+      
+      // Save on pause/stop after significant playback
+      const hasStoppedAfterProgress = !status.isPlaying && currentPos > 30000 && positionDifference > 10000;
+      
+      if (isPlaybackFinished) {
+        console.log("Saving watch history due to video completion");
+        savePlaybackPosition(true); // Force save on completion
+      } else if (significantPositionChange && currentPos > 10000) {
+        console.log("Saving watch history due to significant position change");
+        lastSavedPositionRef.current = currentPos;
+        savePlaybackPosition(); // Regular save for position changes
+      } else if (hasStoppedAfterProgress) {
+        console.log("Saving watch history due to pause after progress");
+        lastSavedPositionRef.current = currentPos;
+        savePlaybackPosition(); // Regular save for pause
       }
     } else {
       // If video is not loaded, it might be buffering
@@ -856,7 +888,7 @@ export default function StreamingPage() {
                     // Then check specifically if video has just finished
                     if (status.isLoaded && 'didJustFinish' in status && status.didJustFinish && duration > 0) {
                       // Save watch history when video completes
-                      savePlaybackPosition();
+                      savePlaybackPosition(true); // Force save on completion
                     }
                   }}
                   useNativeControls={false}
