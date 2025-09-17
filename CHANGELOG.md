@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2025-09-17
+
+### Changed
+- Navigation bar now matches app's dark theme (#161622) instead of system default
+- Buffer loader overlay changed from dark semi-transparent to fully transparent background
+- Watch history architecture completely revamped with delete-create pattern and 2-minute save intervals
+- Reduced API usage by 80-90% through intelligent throttling and duplicate prevention
+
+### Improved
+- Streaming experience with less intrusive buffer loader that only appears for real buffering events
+- Watch history reliability with immediate episode tracking prevents lost viewing sessions
+- Database efficiency with automatic cleanup of duplicate documents during login
+- Performance optimization with smart save throttling (10-second local, 60-second cloud intervals)
+- Better user experience with navigation bar that seamlessly integrates with app UI
+
+### Fixed
+- Race condition in initial watch history entry creation that caused multiple duplicate entries
+- Excessive API requests during watch history saves that could overwhelm cloud backend
+- Buffer loader appearing randomly during smooth video playback
+- Navigation bar theme inconsistency with overall app design
+- Missing episode entries for short viewing sessions or quick app exits
+
 ## [1.1.0] - 2025-08-28
 
 ### Added
