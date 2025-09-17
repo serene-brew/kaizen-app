@@ -36,6 +36,8 @@ interface WatchHistoryContextType {
   isSyncing: boolean;
   refreshWatchHistory: () => Promise<WatchHistoryItem[] | undefined>;
   syncHistory: () => Promise<void>;
+  cleanupDuplicateDocuments: (animeId: string, episodeNumber: string, audioType: 'sub' | 'dub') => Promise<void>;
+  cleanupAllUserDuplicates: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -51,20 +53,24 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Track last cloud update time to limit Appwrite API calls
   const [lastCloudUpdateTime, setLastCloudUpdateTime] = useState<Record<string, number>>({});
   
+  // Track cleanup operations to prevent duplicates
+  const [cleanupInProgress, setCleanupInProgress] = useState<Set<string>>(new Set());
+  
   // Helper function to add delay between Appwrite operations to prevent rate limiting
   const delayOperation = (ms: number = 5000): Promise<void> => {
     return new Promise(resolve => setTimeout(resolve, ms));  // 5 seconds delay
   };
 
-  // Throttle cloud updates - only update if 10 seconds have passed since last update for this item
+  // Throttle cloud updates - only update if 60 seconds have passed since last update for this item
   const shouldUpdateCloud = (animeId: string, episodeNumber: string): boolean => {
     const key = `${animeId}_${episodeNumber}`;
     const lastUpdate = lastCloudUpdateTime[key] || 0;
     const now = Date.now();
     const timeSinceLastUpdate = now - lastUpdate;
     
-    // Only update if 10 seconds have passed since the last cloud update for this item
-    return timeSinceLastUpdate > 10000; // 10 seconds
+    // Only update if 60 seconds have passed since the last cloud update for this item
+    // This allows for 2-minute interval saves while preventing spam
+    return timeSinceLastUpdate > 60000; // 60 seconds (1 minute)
   };
 
   // Mark an item as updated in the cloud
@@ -217,7 +223,7 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
       let newItem: WatchHistoryItem;
 
       if (existingIndex !== -1) {
-        // Update existing item
+        // Update existing item in local state
         newItem = {
           ...history[existingIndex],
           position: item.position,
@@ -231,19 +237,58 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
         
         // Only update cloud if enough time has passed since last update
         if (shouldUpdateCloud(item.id, item.episodeNumber)) {
-          console.log(`Updating cloud position for ${item.id}, ep ${item.episodeNumber}`);
-          await databases.updateDocument(
-            safeDbId,
-            safeCollectionId,
-            history[existingIndex].documentId as string,
-            {
-              position: Math.floor(item.position), // Ensure integer
-              duration: Math.floor(item.duration), // Ensure integer
-              watchedAt: watchedAt,
-              audioType: item.audioType
+          console.log(`Replacing cloud document for ${item.id}, ep ${item.episodeNumber}`);
+          
+          // Delete the old document first
+          const oldDocumentId = history[existingIndex].documentId;
+          if (oldDocumentId) {
+            try {
+              await databases.deleteDocument(
+                safeDbId,
+                safeCollectionId,
+                oldDocumentId
+              );
+              console.log(`Deleted old document: ${oldDocumentId}`);
+            } catch (deleteError) {
+              console.error('Failed to delete old document:', deleteError);
+              // Continue with creating new document even if delete fails
             }
-          );
-          markCloudUpdated(item.id, item.episodeNumber);
+          }
+          
+          // Create new document
+          try {
+            const response = await databases.createDocument(
+              safeDbId,
+              safeCollectionId,
+              ID.unique(),
+              {
+                userId: userId,
+                animeId: item.id,
+                episodeNumber: item.episodeNumber,
+                audioType: item.audioType,
+                englishName: item.englishName,
+                thumbnailUrl: item.thumbnailUrl,
+                position: Math.floor(item.position),
+                duration: Math.floor(item.duration),
+                watchedAt: watchedAt
+              },
+              [
+                Permission.read(Role.user(userId)),
+                Permission.update(Role.user(userId)),
+                Permission.delete(Role.user(userId))
+              ]
+            );
+            
+            // Update the item with new document ID
+            newItem.documentId = response.$id;
+            updatedHistory[existingIndex] = newItem;
+            
+            console.log(`Created new document: ${response.$id}`);
+            markCloudUpdated(item.id, item.episodeNumber);
+          } catch (createError) {
+            console.error('Failed to create new document:', createError);
+            // Keep local state updated even if cloud fails
+          }
         } else {
           console.log(`Skipping cloud update for ${item.id}, ep ${item.episodeNumber} (too soon)`);
         }
@@ -357,6 +402,8 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
               safeCollectionId,
               item.documentId
             );
+            // Add delay between delete operations to avoid rate limits
+            await new Promise(resolve => setTimeout(resolve, 150)); // 150ms delay
           } catch (error) {
             console.error(`Failed to delete document ${item.documentId}:`, error);
           }
@@ -432,7 +479,11 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
       
       console.log(`Fetching cloud history for user ${userId}`);
-      // Get cloud history
+      // Run global cleanup first to remove any duplicate documents
+      console.log('Running global duplicate cleanup before refresh...');
+      await cleanupAllUserDuplicates();
+      
+      // Get cloud history (now cleaned)
       const cloudItems = await fetchCloudHistory();
       console.log(`Fetched ${cloudItems.length} items from cloud watch history`);
       
@@ -451,6 +502,192 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } finally {
       setIsLoading(false);
       setIsSyncing(false);
+    }
+  };
+
+  // Cleanup function to remove duplicate documents for the same episode
+  const cleanupDuplicateDocuments = async (animeId: string, episodeNumber: string, audioType: 'sub' | 'dub') => {
+    if (!userId) return;
+    
+    const cleanupKey = `${animeId}_${episodeNumber}_${audioType}`;
+    
+    // Check if cleanup is already in progress for this episode
+    if (cleanupInProgress.has(cleanupKey)) {
+      console.log(`Cleanup already in progress for ${animeId} ep ${episodeNumber}, skipping...`);
+      return;
+    }
+    
+    // Mark cleanup as in progress
+    setCleanupInProgress(prev => new Set(prev).add(cleanupKey));
+    
+    try {
+      // Find all documents for this specific episode
+      const response = await databases.listDocuments(
+        safeDbId,
+        safeCollectionId,
+        [
+          Query.equal('userId', userId),
+          Query.equal('animeId', animeId),
+          Query.equal('episodeNumber', episodeNumber),
+          Query.equal('audioType', audioType),
+          Query.orderDesc('watchedAt') // Most recent first
+        ]
+      );
+      
+      // If we have more than one document, delete all but the most recent
+      if (response.documents.length > 1) {
+        console.log(`Found ${response.documents.length} duplicates for ${animeId} ep ${episodeNumber}, cleaning up...`);
+        
+        // Keep the first (most recent) document, delete the rest
+        const documentsToDelete = response.documents.slice(1);
+        let successfulDeletes = 0;
+        
+        for (const doc of documentsToDelete) {
+          try {
+            await databases.deleteDocument(safeDbId, safeCollectionId, doc.$id);
+            console.log(`Deleted duplicate document: ${doc.$id}`);
+            successfulDeletes++;
+          } catch (deleteError: any) {
+            // Only log error if it's not "document not found" (already deleted)
+            if (!deleteError.message?.includes('could not be found')) {
+              console.error(`Failed to delete duplicate document ${doc.$id}:`, deleteError);
+            }
+          }
+        }
+        
+        if (successfulDeletes > 0) {
+          console.log(`Cleaned up ${successfulDeletes} duplicate documents`);
+        }
+      }
+    } catch (error) {
+      console.error('Error cleaning up duplicate documents:', error);
+    } finally {
+      // Remove from in-progress set
+      setCleanupInProgress(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(cleanupKey);
+        return newSet;
+      });
+    }
+  };
+
+  // Global cleanup function to remove ALL duplicate documents for a user
+  const cleanupAllUserDuplicates = async () => {
+    if (!userId) return;
+    
+    console.log('Starting global cleanup of duplicate documents for user...');
+    
+    const globalCleanupKey = `global_cleanup_${userId}`;
+    
+    // Check if global cleanup is already in progress
+    if (cleanupInProgress.has(globalCleanupKey)) {
+      console.log('Global cleanup already in progress, skipping...');
+      return;
+    }
+    
+    // Mark global cleanup as in progress
+    setCleanupInProgress(prev => new Set(prev).add(globalCleanupKey));
+    
+    try {
+      // Get all documents for the user (using pagination for large datasets)
+      let allDocs: any[] = [];
+      let lastId: string | null = null;
+      const pageLimit = 100;
+      
+      while (true) {
+        const queries = [
+          Query.equal('userId', userId),
+          Query.limit(pageLimit),
+          Query.orderDesc('watchedAt')
+        ];
+        
+        if (lastId) {
+          queries.push(Query.cursorAfter(lastId));
+        }
+        
+        const response = await databases.listDocuments(
+          safeDbId,
+          safeCollectionId,
+          queries
+        );
+        
+        if (response.documents.length === 0) break;
+        
+        allDocs = [...allDocs, ...response.documents];
+        
+        if (response.documents.length < pageLimit) break;
+        
+        lastId = response.documents[response.documents.length - 1].$id;
+        
+        // Add delay between pagination requests to avoid rate limits
+        if (response.documents.length === pageLimit) {
+          await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+        }
+      }
+      
+      console.log(`Found ${allDocs.length} total documents for user, checking for duplicates...`);
+      
+      // Group documents by episode (animeId + episodeNumber + audioType)
+      const episodeGroups = new Map<string, any[]>();
+      
+      for (const doc of allDocs) {
+        const key = `${doc.animeId}_${doc.episodeNumber}_${doc.audioType}`;
+        if (!episodeGroups.has(key)) {
+          episodeGroups.set(key, []);
+        }
+        episodeGroups.get(key)!.push(doc);
+      }
+      
+      // Process each episode group
+      let totalDuplicatesRemoved = 0;
+      let episodesWithDuplicates = 0;
+      
+      for (const [episodeKey, docs] of episodeGroups) {
+        if (docs.length > 1) {
+          episodesWithDuplicates++;
+          console.log(`Episode ${episodeKey} has ${docs.length} documents, cleaning up...`);
+          
+          // Sort by watchedAt descending (most recent first)
+          docs.sort((a, b) => b.watchedAt - a.watchedAt);
+          
+          // Keep the first (most recent), delete the rest
+          const docsToDelete = docs.slice(1);
+          
+          for (const doc of docsToDelete) {
+            try {
+              await databases.deleteDocument(safeDbId, safeCollectionId, doc.$id);
+              totalDuplicatesRemoved++;
+              console.log(`Deleted duplicate: ${doc.$id} (${doc.englishName} ep ${doc.episodeNumber})`);
+              
+              // Add delay between delete operations to avoid rate limits
+              await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay
+            } catch (deleteError: any) {
+              if (!deleteError.message?.includes('could not be found')) {
+                console.error(`Failed to delete duplicate ${doc.$id}:`, deleteError);
+              }
+            }
+          }
+        }
+      }
+      
+      console.log(`Global cleanup completed! Episodes with duplicates: ${episodesWithDuplicates}, Total duplicates removed: ${totalDuplicatesRemoved}`);
+      
+      if (totalDuplicatesRemoved > 0) {
+        // Refresh the watch history after cleanup
+        setTimeout(() => {
+          refreshWatchHistory();
+        }, 2000);
+      }
+      
+    } catch (error) {
+      console.error('Error during global cleanup:', error);
+    } finally {
+      // Remove from in-progress set
+      setCleanupInProgress(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(globalCleanupKey);
+        return newSet;
+      });
     }
   };
 
@@ -488,6 +725,8 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
         isSyncing,
         refreshWatchHistory,
         syncHistory,
+        cleanupDuplicateDocuments,
+        cleanupAllUserDuplicates,
         isAuthenticated
       }}
     >
