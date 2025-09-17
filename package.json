@@ -15,7 +15,7 @@
     "preset": "jest-expo"
   },
   "dependencies": {
-    "@expo/vector-icons": "^14.0.2",
+    "@expo/vector-icons": "~14.0.4",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-community/slider": "4.5.5",
@@ -23,7 +23,7 @@
     "@react-navigation/native": "^7.0.14",
     "appwrite": "^17.0.1",
     "date-fns": "^4.1.0",
-    "expo": "~52.0.46",
+    "expo": "~52.0.47",
     "expo-auth-session": "~6.0.3",
     "expo-av": "~15.0.2",
     "expo-blur": "~14.0.3",
@@ -35,7 +35,7 @@
     "expo-linear-gradient": "~14.0.2",
     "expo-linking": "~7.0.5",
     "expo-media-library": "~17.0.6",
-    "expo-navigation-bar": "^4.2.7",
+    "expo-navigation-bar": "~4.0.9",
     "expo-notifications": "~0.29.14",
     "expo-router": "~4.0.21",
     "expo-screen-orientation": "~8.0.4",
