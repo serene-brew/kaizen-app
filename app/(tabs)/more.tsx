@@ -50,7 +50,7 @@ interface MenuItemProps {
 // Static assets and constants
 const AppIcon = require('../../assets/images/icon.png');
 const GITHUB_URL = "https://github.com/serene-brew/kaizen-app";
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.1.1";
 const DEFAULT_AVATAR_ICON = 'account-circle';
 
 /**
