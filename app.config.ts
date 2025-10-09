@@ -24,6 +24,7 @@ export default {
     },
     android: {
       package: 'com.serenebrew.kaizen',
+      googleServicesFile: './android/app/google-services.json',
       adaptiveIcon: {
         foregroundImage: './assets/images/adaptive-icon.png',
         backgroundColor: '#161622'
@@ -82,6 +83,9 @@ export default {
           icon: './assets/images/icon.png',
           color: '#161622',
           sounds: [],
+          android: {
+            useNextNotificationsApi: true,
+          }
         }
       ]
     ],
@@ -89,12 +93,13 @@ export default {
       appwriteProjectId: process.env.APPWRITE_PROJECT_ID,
       appwriteEndpoint: process.env.APPWRITE_ENDPOINT,
       appwriteGoogleVerifyFunctionId: process.env.APPWRITE_GOOGLE_VERIFY_FUNCTION_ID,
+      appwriteProviderId: process.env.APPWRITE_PROVIDER_ID,
       googleClientIdWeb: process.env.GOOGLE_CLIENT_ID_WEB,
       googleClientIdAndroid: process.env.GOOGLE_CLIENT_ID_ANDROID,
       googleClientIdIos: process.env.GOOGLE_CLIENT_ID_IOS,
-      appwriteDatabaseId: process.env.APPWRITE_DATABASE_ID, // Added database ID
-      appwriteWatchlistCollectionId: process.env.APPWRITE_WATCHLIST_COLLECTION_ID, // Added watchlist collection ID
-      appwriteWatchHistoryCollectionId: process.env.APPWRITE_WATCHHISTORY_COLLECTION_ID, // Added watch history collection ID
+      appwriteDatabaseId: process.env.APPWRITE_DATABASE_ID,
+      appwriteWatchlistCollectionId: process.env.APPWRITE_WATCHLIST_COLLECTION_ID,
+      appwriteWatchHistoryCollectionId: process.env.APPWRITE_WATCHHISTORY_COLLECTION_ID,
       eas: {
         projectId: process.env.EAS_PROJECT_ID
       },
