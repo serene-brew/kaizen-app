@@ -24,7 +24,7 @@ export default {
     },
     android: {
       package: 'com.serenebrew.kaizen',
-      googleServicesFile: './android/app/google-services.json',
+      googleServicesFile: './google-services.json',
       adaptiveIcon: {
         foregroundImage: './assets/images/adaptive-icon.png',
         backgroundColor: '#161622'
@@ -61,6 +61,7 @@ export default {
     },
     plugins: [
       'expo-router',
+      './plugins/withGoogleServices',
       [
         'expo-system-ui',
         {
@@ -85,6 +86,7 @@ export default {
           sounds: [],
           android: {
             useNextNotificationsApi: true,
+            googleServicesFile: './google-services.json',
           }
         }
       ]
