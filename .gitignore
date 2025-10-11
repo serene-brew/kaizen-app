@@ -19,3 +19,9 @@ app-example
 /ios
 
 eas.json
+
+google-services.json
+
+build/
+
+plugins/
