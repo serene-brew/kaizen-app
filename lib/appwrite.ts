@@ -1,5 +1,5 @@
 // Appwrite SDK imports for React Native authentication and database operations
-import { Client, Account, ID, OAuthProvider, AppwriteException, Functions, Databases } from 'react-native-appwrite';
+import { Client, Account, ID, Messaging, AppwriteException, Functions, Databases } from 'react-native-appwrite';
 
 // React Native utilities for platform detection and cross-platform compatibility
 import { Platform } from 'react-native';
@@ -61,6 +61,9 @@ const functions = new Functions(client);
 
 // Initialize Databases service for data storage operations
 const databases = new Databases(client);
+
+// Initialize Messaging service for push notifications (if needed)
+const messaging = new Messaging(client);
 
 /**
  * Authentication Service
@@ -289,5 +292,157 @@ export const authService = {
 
 };
 
+/**
+ * Messaging Service
+ * 
+ * Simple push notification service using Appwrite Messaging.
+ * 
+ * **How it works:**
+ * - Registers user's device as a notification target
+ * - Notifications are sent to ALL registered device targets
+ * - No topic subscription management needed
+ * - Server-side sends notifications to all targets via Appwrite Console
+ * 
+ * **Setup Required:**
+ * 1. Install: npx expo install expo-notifications
+ * 2. Configure FCM in Firebase Console (Android) or APNS (iOS)
+ * 3. Add FCM/APNS credentials to Appwrite Messaging provider in Console
+ * 4. Get Provider ID from Appwrite Console
+ * 5. Request notification permissions in app
+ * 
+ * **Usage:**
+ * - Call registerDeviceTarget() when user logs in
+ * - Call updateDeviceTarget() when FCM token refreshes
+ * - Call removeDeviceTarget() when user logs out
+ */
+const messagingService = {
+  /**
+   * Register Device Target
+   * 
+   * Registers the user's device to receive push notifications:
+   * - Creates a target in Appwrite linked to the device's push token
+   * - Enables the device to receive notifications sent to all users
+   * - Should be called after user authentication and permission grant
+   * 
+   * @param userId - User ID from Appwrite authentication
+   * @param deviceToken - FCM token (Android) or APNS token (iOS) from device
+   * @param providerId - Messaging provider ID from Appwrite Console
+   * @returns Promise<any> - Created target details
+   */
+  async registerDeviceTarget(
+    userId: string,
+    deviceToken: string,
+    providerId: string
+  ) {
+    const callId = Math.random().toString(36).substr(2, 9);
+    try {
+      console.log(`[Messaging ${callId}] === STARTING DEVICE REGISTRATION ===`);
+      console.log(`[Messaging ${callId}] Registering device target for user:`, userId);
+      console.log(`[Messaging ${callId}] Device token:`, deviceToken.substring(0, 20) + '...');
+      console.log(`[Messaging ${callId}] Provider ID:`, providerId);
+      
+      // Use Appwrite's ID.unique() to generate a valid ID
+      const targetId = ID.unique();
+      console.log(`[Messaging ${callId}] Generated target ID with ID.unique():`, targetId);
+      console.log(`[Messaging ${callId}] Target ID length:`, targetId.length);
+      console.log(`[Messaging ${callId}] About to call account.createPushTarget...`);
+      
+      try {
+        // Use the Account API to create push target instead of messaging.createSubscriber
+        const target = await account.createPushTarget(
+          targetId,
+          deviceToken,
+          providerId
+        );
+        
+        console.log(`[Messaging ${callId}] === SUCCESS - Device target registered ===`, target.$id || target);
+        return target;
+      } catch (createError: any) {
+        // If target already exists, that's actually fine - it means notifications are set up
+        if (createError.type === 'user_target_already_exists') {
+          console.log(`[Messaging ${callId}] === TARGET ALREADY EXISTS - Push notifications already configured ===`);
+          console.log(`[Messaging ${callId}] This is expected behavior if the user has logged in before.`);
+          // Return a success response since the target exists
+          return { 
+            $id: targetId, 
+            status: 'exists',
+            message: 'Push target already configured for this user'
+          };
+        } else {
+          throw createError;
+        }
+      }
+    } catch (error) {
+      console.error(`[Messaging ${callId}] === ERROR in registerDeviceTarget ===`);
+      console.error(`[Messaging ${callId}] Error registering device target:`, error);
+      console.error(`[Messaging ${callId}] Error type:`, typeof error);
+      console.error(`[Messaging ${callId}] Error details:`, JSON.stringify(error, null, 2));
+      throw error;
+    }
+  },
+
+  /**
+   * Update Device Target
+   * 
+   * Updates an existing target's device token:
+   * - Used when FCM/APNS token refreshes
+   * - Maintains continuous notification delivery
+   * - Prevents notification delivery failures
+   * 
+   * @param targetId - Existing target ID to update
+   * @param deviceToken - New FCM/APNS token from device
+   * @param providerId - Messaging provider ID from Appwrite Console
+   * @returns Promise<any> - Updated target details
+   */
+  async updateDeviceTarget(
+    targetId: string,
+    deviceToken: string,
+    providerId: string
+  ) {
+    try {
+      console.log('[Messaging] Updating device target:', targetId);
+      
+      // Note: If SDK doesn't have update method, delete and recreate
+      // This is a common pattern for target management
+      await messaging.deleteSubscriber(providerId, targetId);
+      
+      const newTarget = await messaging.createSubscriber(
+        providerId,
+        targetId,
+        deviceToken
+      );
+      
+      console.log('[Messaging] Device target updated successfully');
+      return newTarget;
+    } catch (error) {
+      console.error('[Messaging] Error updating device target:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Remove Device Target
+   * 
+   * Removes the device from receiving push notifications:
+   * - Unregisters device from notification system
+   * - Should be called when user logs out
+   * - Prevents sending notifications to inactive/logged-out devices
+   * 
+   * @param providerId - Messaging provider ID from Appwrite Console
+   * @param targetId - Target ID to remove
+   * @returns Promise<void>
+   */
+  async removeDeviceTarget(providerId: string, targetId: string) {
+    try {
+      console.log('[Messaging] Removing device target:', targetId);
+      await messaging.deleteSubscriber(providerId, targetId);
+      console.log('[Messaging] Device target removed successfully');
+    } catch (error) {
+      console.error('[Messaging] Error removing device target:', error);
+      throw error;
+    }
+  },
+};
+
 // Export configured services for use throughout the application
-export { client, account, databases }; // Export account, databases and client
+export { client, account, databases, messaging, messagingService };
