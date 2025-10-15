@@ -14,6 +14,9 @@ import Constants from 'expo-constants'; // Import Constants
 // Custom alert components for dark-themed alerts
 import { showErrorAlert } from '../components/CustomAlert';
 
+// Notification service for push notifications
+import { notificationService } from '../lib/notificationService';
+
 // Application contexts for data synchronization
 import { useWatchlist } from '../contexts/WatchlistContext';
 import { useWatchHistory } from '../contexts/WatchHistoryContext';
@@ -255,6 +258,11 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
               setIsLogged(true);
               console.log('GlobalProvider: setIsLogged(true) called. isLogged should now be true.');
               
+              // Register device for notifications
+              notificationService.registerDevice(appwriteUser.$id).catch(err => {
+                console.error('Failed to register device for notifications:', err);
+              });
+              
               // Manually sync data after Google sign-in
               console.log('Manually syncing data after Google sign-in');
               try {
@@ -324,6 +332,11 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
         setUser(user);
         setIsLogged(true);
         console.log('GlobalProvider: Authentication complete, user is logged in');
+        
+        // Register device for notifications
+        notificationService.registerDevice(user.$id).catch(err => {
+          console.error('Failed to register device for notifications:', err);
+        });
       } else {
         console.log('Authentication invalid or no user');
         setUser(null);
@@ -464,6 +477,11 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
       // Then update authentication state to trigger dependent effects just once
       console.log('OTP verification successful, updating authentication state');
       setIsLogged(true);
+      
+      // Register device for notifications
+      notificationService.registerDevice(user.$id).catch(err => {
+        console.error('Failed to register device for notifications:', err);
+      });
       
       // Manually sync data after successful verification
       console.log('Manually syncing data after OTP verification');
