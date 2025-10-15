@@ -58,6 +58,9 @@ import SyncManager from '../context/SyncManager';
 // Version service for automatic update checking
 import { checkForUpdates } from '../lib/versionService';
 
+// Notification service for push notifications
+import { notificationService } from '../lib/notificationService';
+
 // Custom alert component for dark-themed alerts
 import { CustomAlert, showErrorAlert } from '../components';
 
@@ -127,6 +130,9 @@ export default function RootLayout() {
         setTimeout(() => {
           checkForUpdates();
         }, 1000); // Delay to ensure app is fully loaded
+
+        // Setup notification listeners on app start
+        notificationService.setupNotificationListeners();
         
         // Add artificial delay to improve initial rendering
         await new Promise(resolve => setTimeout(resolve, 300));
