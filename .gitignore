@@ -25,3 +25,5 @@ google-services.json
 build/
 
 plugins/
+
+.eslintrc.js
