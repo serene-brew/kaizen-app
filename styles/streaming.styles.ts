@@ -40,6 +40,11 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: 8,
   },
+  episodeCounter: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
   videoContainer: {
     flex: 1,
     backgroundColor: '#000',
@@ -111,21 +116,28 @@ export const styles = StyleSheet.create({
   },
   controlsOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     zIndex: 10, // Higher than buffering overlay to ensure controls are always clickable
   },
   topControlsBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 8,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   topButton: {
-    padding: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
+    padding: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
   videoTitle: {
     flex: 1,
@@ -136,21 +148,34 @@ export const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   centerControlsContainer: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: height > 700 ? 20 : 16,
+    width: '100%', // Ensure full width for proper centering
+    alignSelf: 'center', // Center the container itself
   },
-  centerControlButton: {
-    padding: 12,
+  // Single row for all controls with generous landscape spacing
+  allControlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10, // Reduced side padding to help centering
+    width: '100%', // Ensure full width for proper centering
   },
-  centerButton: {
-    alignSelf: 'center',
-    padding: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 50,
+  // Clean control icons without backgrounds (like the +10/-10 buttons)
+  controlIcon: {
+    paddingHorizontal: width > 600 ? 50 : 24, // Increased spacing for both modes
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  centerButtonSpacer: {
-    width: 20,
+  // Play/pause button - slightly larger but no background circle
+  playPauseIcon: {
+    paddingHorizontal: width > 600 ? 56 : 28, // Increased spacing for both modes
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bottomControlsBar: {
     width: '100%',
@@ -183,7 +208,8 @@ export const styles = StyleSheet.create({
   },
   buttonLabel: {
     color: 'white',
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: '500',
     marginLeft: 4,
   },
   infoContainer: {
@@ -280,5 +306,15 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 5, // Above video but below controls overlay (which should be higher)
+  },
+  // Episode navigation button styles - clean without backgrounds
+  episodeNavButton: {
+    paddingHorizontal: width > 600 ? 50 : 24, // Consistent with other controls
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disabledButton: {
+    opacity: 0.9,
   },
 });
