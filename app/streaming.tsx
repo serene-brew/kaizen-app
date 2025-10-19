@@ -77,6 +77,10 @@ interface StreamingResponse {
   quality?: {                   // Available quality options
     [key: string]: string;      // Quality label mapped to URL
   };
+  episodes?: {                  // Available episodes from API
+    sub: string[];              // Available sub episodes
+    dub: string[];              // Available dub episodes
+  };
   error?: string;               // Error message if request failed
 }
 
@@ -100,6 +104,10 @@ export default function StreamingPage() {
   const params = useLocalSearchParams();
   const { id, audioType, episode, title, thumbnail } = params;
   const router = useRouter();
+  
+  // Episode navigation state management
+  const [episodes, setEpisodes] = useState<string[]>([]); // Available episodes list
+  const [currentEpisodeIndex, setCurrentEpisodeIndex] = useState<number>(0); // Current episode position in list
   
   // Core streaming state management
   const [loading, setLoading] = useState(true); // Loading state for stream URL fetch
@@ -207,6 +215,77 @@ export default function StreamingPage() {
   };
 
   /**
+   * Episode Navigation Functions
+   * 
+   * Handle previous and next episode navigation with boundary checking.
+   * Saves current progress before switching episodes and navigates to new episode.
+   */
+
+  /**
+   * Navigate to Previous Episode
+   * 
+   * Switches to the previous episode in the episode list.
+   * Saves current progress before navigation and includes boundary checking.
+   */
+  const goToPreviousEpisode = async () => {
+    if (currentEpisodeIndex > 0 && episodes.length > 1) {
+      // Save current progress before switching episodes
+      await savePlaybackPosition(true);
+      
+      const previousEpisode = episodes[currentEpisodeIndex - 1];
+      
+      // Show feedback to user
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(`Fetching Episode ${previousEpisode}`, ToastAndroid.SHORT);
+      }
+      
+      // Navigate to previous episode
+      router.replace({
+        pathname: '/streaming',
+        params: {
+          id: id,
+          audioType: audioType,
+          episode: previousEpisode,
+          title: title,
+          thumbnail: thumbnail
+        }
+      });
+    }
+  };
+
+  /**
+   * Navigate to Next Episode
+   * 
+   * Switches to the next episode in the episode list.
+   * Saves current progress before navigation and includes boundary checking.
+   */
+  const goToNextEpisode = async () => {
+    if (currentEpisodeIndex < episodes.length - 1 && episodes.length > 1) {
+      // Save current progress before switching episodes
+      await savePlaybackPosition(true);
+      
+      const nextEpisode = episodes[currentEpisodeIndex + 1];
+      
+      // Show feedback to user
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(`Fetching Episode ${nextEpisode}`, ToastAndroid.SHORT);
+      }
+      
+      // Navigate to next episode
+      router.replace({
+        pathname: '/streaming',
+        params: {
+          id: id,
+          audioType: audioType,
+          episode: nextEpisode,
+          title: title,
+          thumbnail: thumbnail
+        }
+      });
+    }
+  };
+
+  /**
    * Smart Buffering Handler
    * 
    * Implements delayed buffering indication to prevent flickering.
@@ -298,11 +377,11 @@ export default function StreamingPage() {
   /**
    * Streaming URL Fetch Effect
    * 
-   * Fetches video streaming URL and quality options from API on component mount.
-   * Handles parameter validation, API error responses, and quality option setup.
+   * Fetches video streaming URL, episode list, and quality options from API on component mount.
+   * Handles parameter validation, API error responses, episode list setup, and quality option setup.
    * Automatically loads saved playback position after successful URL fetch.
    */
-  // Fetch the streaming URL and quality options when component mounts
+  // Fetch the streaming URL, episodes, and quality options when component mounts
   useEffect(() => {
     // Reset initial entry flag and lock for new episode
     setHasCreatedInitialEntry(false);
@@ -333,6 +412,23 @@ export default function StreamingPage() {
 
         console.log('Streaming URL fetched successfully');
         setStreamingUrl(data.direct);
+        
+        // Process episode list from API response
+        if (data.episodes && data.episodes[audioType as 'sub' | 'dub']) {
+          const apiEpisodes = data.episodes[audioType as 'sub' | 'dub'];
+          setEpisodes(apiEpisodes);
+          
+          // Find current episode index
+          const currentIndex = apiEpisodes.findIndex(ep => ep === episode);
+          setCurrentEpisodeIndex(currentIndex >= 0 ? currentIndex : 0);
+          
+          console.log(`Loaded ${apiEpisodes.length} episodes from API for ${audioType}`);
+        } else {
+          // Fallback: single episode if no episode list in API response
+          setEpisodes([episode as string]);
+          setCurrentEpisodeIndex(0);
+          console.log('No episode list in API response, using single episode');
+        }
         
         // Set initial buffering state when starting to load video
         setIsBuffering(true);
@@ -940,6 +1036,9 @@ export default function StreamingPage() {
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>
             {title ? `${title}` : 'Episode'} {episode}
+            {episodes.length > 1 && (
+              <Text style={styles.episodeCounter}> ({currentEpisodeIndex + 1}/{episodes.length})</Text>
+            )}
           </Text>
           <TouchableOpacity style={styles.shareButton} onPress={shareVideo}>
             <MaterialCommunityIcons name="share-variant" size={24} color={Colors.dark.text} />
@@ -1028,49 +1127,81 @@ export default function StreamingPage() {
                       )}
                     </View>
                     
-                    {/* Center controls for better player experience */}
+                    {/* Restructured center controls - single row for better landscape experience */}
                     <View style={styles.centerControlsContainer}>
-                      {/* Backward 10s button */}
-                      <TouchableOpacity 
-                        style={styles.centerControlButton} 
-                        onPress={skipBackward}
-                      >
-                        <MaterialCommunityIcons 
-                          name="rewind-10" 
-                          size={36} 
-                          color="white" 
-                        />
-                      </TouchableOpacity>
-                      
-                      <View style={styles.centerButtonSpacer} />
-                      <View style={styles.centerButtonSpacer} />
-                      
-                      {/* Center play/pause button */}
-                      <TouchableOpacity 
-                        style={styles.centerButton} 
-                        onPress={togglePlayPause}
-                      >
-                        <MaterialCommunityIcons 
-                          name={status.isPlaying ? "pause" : "play"} 
-                          size={50} 
-                          color="white" 
-                        />
-                      </TouchableOpacity>
-                      
-                      <View style={styles.centerButtonSpacer} />
-                      <View style={styles.centerButtonSpacer} />
-                      
-                      {/* Forward 10s button */}
-                      <TouchableOpacity 
-                        style={styles.centerControlButton} 
-                        onPress={skipForward}
-                      >
-                        <MaterialCommunityIcons 
-                          name="fast-forward-10" 
-                          size={36} 
-                          color="white" 
-                        />
-                      </TouchableOpacity>
+                      <View style={styles.allControlsRow}>
+                        {/* Previous Episode button - only show if available */}
+                        {episodes.length > 1 && (
+                          <TouchableOpacity 
+                            style={[
+                              styles.controlIcon,
+                              currentEpisodeIndex <= 0 && styles.disabledButton
+                            ]}
+                            onPress={goToPreviousEpisode}
+                            disabled={currentEpisodeIndex <= 0}
+                          >
+                            <MaterialCommunityIcons 
+                              name="skip-previous" 
+                              size={28} 
+                              color={currentEpisodeIndex <= 0 ? "rgba(255, 255, 255, 0.3)" : "white"}
+                            />
+                          </TouchableOpacity>
+                        )}
+                        
+                        {/* Backward 10s button */}
+                        <TouchableOpacity 
+                          style={styles.controlIcon} 
+                          onPress={skipBackward}
+                        >
+                          <MaterialCommunityIcons 
+                            name="rewind-10" 
+                            size={28} 
+                            color="white" 
+                          />
+                        </TouchableOpacity>
+                        
+                        {/* Center play/pause button */}
+                        <TouchableOpacity 
+                          style={styles.playPauseIcon} 
+                          onPress={togglePlayPause}
+                        >
+                          <MaterialCommunityIcons 
+                            name={status.isPlaying ? "pause" : "play"} 
+                            size={42} 
+                            color="white" 
+                          />
+                        </TouchableOpacity>
+                        
+                        {/* Forward 10s button */}
+                        <TouchableOpacity 
+                          style={styles.controlIcon} 
+                          onPress={skipForward}
+                        >
+                          <MaterialCommunityIcons 
+                            name="fast-forward-10" 
+                            size={28} 
+                            color="white" 
+                          />
+                        </TouchableOpacity>
+                        
+                        {/* Next Episode button - only show if available */}
+                        {episodes.length > 1 && (
+                          <TouchableOpacity 
+                            style={[
+                              styles.controlIcon,
+                              currentEpisodeIndex >= episodes.length - 1 && styles.disabledButton
+                            ]}
+                            onPress={goToNextEpisode}
+                            disabled={currentEpisodeIndex >= episodes.length - 1}
+                          >
+                            <MaterialCommunityIcons 
+                              name="skip-next" 
+                              size={28} 
+                              color={currentEpisodeIndex >= episodes.length - 1 ? "rgba(255, 255, 255, 0.3)" : "white"}
+                            />
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                     
                     {/* Bottom controls bar with progress and action buttons */}
