@@ -21,9 +21,9 @@ app-example
 eas.json
 
 google-services.json
+plugins/
 
 build/
 
-plugins/
 
 .eslintrc.js
