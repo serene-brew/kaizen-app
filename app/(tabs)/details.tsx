@@ -25,6 +25,7 @@ import { AnimeItem } from "../../types/anime";
 // Context hooks for watchlist and watch history management
 import { useWatchlist } from '../../contexts/WatchlistContext';
 import { useWatchHistory } from '../../contexts/WatchHistoryContext';
+import type { WatchHistoryItem } from '../../contexts/WatchHistoryContext';
 
 // AsyncStorage for local data persistence
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -81,7 +82,10 @@ export default function DetailsPage() {
   const [loading, setLoading] = useState(true); // Data loading state
   const [error, setError] = useState<string | null>(null); // Error state for API failures
   const [animeData, setAnimeData] = useState<AnimeDetailsResponse['result'] | null>(null); // Main anime data
-  const [watchedEpisode, setWatchedEpisode] = useState<string>(''); // Most recently watched episode
+  const [mostRecentEpisodeByAudio, setMostRecentEpisodeByAudio] = useState<Record<'sub' | 'dub', string>>(() => ({
+    sub: '',
+    dub: '',
+  }));
 
   // Context hooks for watchlist and watch history functionality
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
@@ -166,7 +170,10 @@ export default function DetailsPage() {
   const { getWatchedEpisodes } = useWatchHistory();
   
   // State for tracking all watched episodes (used for UI indicators)
-  const [watchedEpisodes, setWatchedEpisodes] = useState<Set<string>>(new Set());
+  const [watchedEpisodesByAudio, setWatchedEpisodesByAudio] = useState<Record<'sub' | 'dub', Set<string>>>(() => ({
+    sub: new Set<string>(),
+    dub: new Set<string>(),
+  }));
   
   /**
    * Watch History Loading Effect
@@ -183,23 +190,46 @@ export default function DetailsPage() {
         try {
           // Get all watched episodes for this anime
           const historyEpisodes = getWatchedEpisodes(id as string);
-          
+
           if (historyEpisodes.length > 0) {
-            // Create a set of all watched episode numbers
-            const episodeSet = new Set(historyEpisodes.map(ep => ep.episodeNumber));
-            setWatchedEpisodes(episodeSet);
-            
-            // Find the most recently watched episode for the main indicator
-            const mostRecentEpisode = historyEpisodes.reduce((latest, current) => 
-              current.watchedAt > latest.watchedAt ? current : latest
-            );
-            
-            // Set the most recently watched episode
-            setWatchedEpisode(mostRecentEpisode.episodeNumber);
+            const subEpisodes = new Set<string>();
+            const dubEpisodes = new Set<string>();
+            const latestByAudio: Record<'sub' | 'dub', WatchHistoryItem | null> = {
+              sub: null,
+              dub: null,
+            };
+
+            historyEpisodes.forEach((entry) => {
+              const entryAudioType: 'sub' | 'dub' = entry.audioType || 'sub';
+
+              if (entryAudioType === 'sub') {
+                subEpisodes.add(entry.episodeNumber);
+              } else if (entryAudioType === 'dub') {
+                dubEpisodes.add(entry.episodeNumber);
+              }
+
+              const currentLatest = latestByAudio[entryAudioType];
+              if (!currentLatest || entry.watchedAt > currentLatest.watchedAt) {
+                latestByAudio[entryAudioType] = entry;
+              }
+            });
+
+            setWatchedEpisodesByAudio({
+              sub: subEpisodes,
+              dub: dubEpisodes,
+            });
+
+            setMostRecentEpisodeByAudio({
+              sub: latestByAudio.sub?.episodeNumber || '',
+              dub: latestByAudio.dub?.episodeNumber || '',
+            });
           } else {
             // Clear the states if no history
-            setWatchedEpisodes(new Set());
-            setWatchedEpisode('');
+            setWatchedEpisodesByAudio({
+              sub: new Set<string>(),
+              dub: new Set<string>(),
+            });
+            setMostRecentEpisodeByAudio({ sub: '', dub: '' });
           }
         } catch (err) {
           console.error('Error loading watched episode data:', err);
@@ -321,6 +351,9 @@ export default function DetailsPage() {
 
   // Check watchlist status using context for real-time updates
   const isInWatchlistCache = isInWatchlist(animeData.id);
+
+  const watchedEpisodesForAudio = watchedEpisodesByAudio[audioType];
+  const mostRecentEpisodeForAudio = mostRecentEpisodeByAudio[audioType];
 
   /**
    * Main Details Page Render
@@ -496,8 +529,8 @@ export default function DetailsPage() {
                 key={`episode-${episode}`}
                 style={[
                   styles.episodeBox,
-                  watchedEpisodes.has(episode) && styles.watchedEpisodeBox, // Watched episode styling
-                  episode === watchedEpisode && styles.currentEpisodeBox // Most recent episode styling
+                  watchedEpisodesForAudio.has(episode) && styles.watchedEpisodeBox, // Watched episode styling
+                  episode === mostRecentEpisodeForAudio && styles.currentEpisodeBox // Most recent episode styling
                 ]}
                 onPress={() => router.push({
                   pathname: "/streaming",
@@ -513,10 +546,10 @@ export default function DetailsPage() {
                 {/* Episode number */}
                 <Text style={[
                   styles.episodeNumber,
-                  watchedEpisodes.has(episode) && styles.watchedEpisodeText
+                  watchedEpisodesForAudio.has(episode) && styles.watchedEpisodeText
                 ]}>{episode}</Text>
                 {/* Watched indicator checkmark */}
-                {watchedEpisodes.has(episode) && (
+                {watchedEpisodesForAudio.has(episode) && (
                   <View style={styles.watchedIndicator}>
                     <MaterialCommunityIcons name="check" size={10} color="#fff" />
                   </View>
