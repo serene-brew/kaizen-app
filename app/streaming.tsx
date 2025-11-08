@@ -1,82 +1,44 @@
-// React hooks for state management, lifecycle, and refs
-import { useEffect, useState, useRef } from 'react';
+// React hooks for state management, lifecycle, reducers, and refs
+import { useEffect, useState, useRef, useReducer } from 'react';
 
 // React Native core components for UI rendering and device interaction
-import { 
-  View, 
+import {
+  View,
   Text,
-  TouchableOpacity, 
-  ActivityIndicator, 
-  BackHandler, 
+  TouchableOpacity,
+  ActivityIndicator,
+  BackHandler,
   Image,
-  Platform, 
+  Platform,
   Modal,
-  ScrollView,
   ToastAndroid,
   Share,
-  Linking
+  Linking,
+  useWindowDimensions
 } from 'react-native';
 
-// Material Community Icons for visual elements and controls
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-
-// Expo Router hooks for navigation and parameter access
-import { useLocalSearchParams, useRouter } from 'expo-router';
-
-// Expo AV for video playback functionality
 import { Video, ResizeMode } from 'expo-av';
-
-// Status bar component for controlling appearance
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-
-// Custom alert components for dark-themed alerts
 import { showCustomAlert, showErrorAlert, showConfirmAlert, showSuccessAlert } from '../components/CustomAlert';
-
-// Application color constants for consistent theming
 import Colors from '../constants/Colors';
-
-// Screen orientation utilities for fullscreen support
 import * as ScreenOrientation from 'expo-screen-orientation';
-
-// Slider component for video progress control
 import Slider from '@react-native-community/slider';
-
-// File system utilities for download operations
-import * as FileSystem from 'expo-file-system';
-
-// Media library access for saved downloads
-import * as MediaLibrary from 'expo-media-library';
-
-// Downloads context for managing offline content
 import { useDownloads } from '../contexts/DownloadsContext';
-
-// Watch history context for tracking viewing progress
 import { useWatchHistory } from '../contexts/WatchHistoryContext';
-
-// Appwrite ID generation for unique download identifiers
 import { ID } from 'appwrite';
-
-// Component-specific styles
 import { styles } from '../styles/streaming.styles';
 
 /**
  * TypeScript Interfaces
  * 
- * Type definitions for video quality options and API responses
+ * Type definitions for streaming API responses
  * to ensure type safety throughout the streaming component.
  */
-// Type definition for video quality options
-type QualityOption = {
-  label: string; // Display name (e.g., "720p", "1080p", "Auto")
-  url: string;   // Streaming URL for this quality
-};
-
 // Interface for streaming API response structure
 interface StreamingResponse {
   direct?: string;              // Direct streaming URL
-  quality?: {                   // Available quality options
-    [key: string]: string;      // Quality label mapped to URL
-  };
   episodes?: {                  // Available episodes from API
     sub: string[];              // Available sub episodes
     dub: string[];              // Available dub episodes
@@ -84,12 +46,40 @@ interface StreamingResponse {
   error?: string;               // Error message if request failed
 }
 
+type PlayerUiState = {
+  showControls: boolean;
+  isFullscreen: boolean;
+  showBufferingLoader: boolean;
+  seeking: boolean;
+  showSpeedModal: boolean;
+};
+
+type StreamState = {
+  episodes: string[];
+  currentEpisodeIndex: number;
+  loading: boolean;
+  error: string | null;
+  streamingUrl: string | null;
+};
+
+const PLAYBACK_SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0] as const;
+type PlaybackSpeed = typeof PLAYBACK_SPEEDS[number];
+
+interface StreamingResponse {
+  direct?: string;
+  episodes?: {
+    sub: string[];
+    dub: string[];
+  };
+  error?: string;
+}
+
 /**
  * StreamingPage Component
  * 
  * Comprehensive video streaming interface that provides:
  * - High-quality video playback with custom controls
- * - Multiple quality options and playback speeds
+ * - Custom playback speeds with persistent settings
  * - Fullscreen support with orientation handling
  * - Progress tracking and automatic resume functionality
  * - Download capability for offline viewing
@@ -105,51 +95,56 @@ export default function StreamingPage() {
   const { id, audioType, episode, title, thumbnail } = params;
   const router = useRouter();
   
-  // Episode navigation state management
-  const [episodes, setEpisodes] = useState<string[]>([]); // Available episodes list
-  const [currentEpisodeIndex, setCurrentEpisodeIndex] = useState<number>(0); // Current episode position in list
-  
-  // Core streaming state management
-  const [loading, setLoading] = useState(true); // Loading state for stream URL fetch
-  const [error, setError] = useState<string | null>(null); // Error state for failed requests
-  const [streamingUrl, setStreamingUrl] = useState<string | null>(null); // Current video URL
+  const [streamState, patchStreamState] = useReducer(
+    (state: StreamState, action: Partial<StreamState>) => ({ ...state, ...action }),
+    {
+      episodes: [],
+      currentEpisodeIndex: 0,
+      loading: true,
+      error: null,
+      streamingUrl: null
+    }
+  );
+
+  const { episodes, currentEpisodeIndex, loading, error, streamingUrl } = streamState;
   
   // Video player state management
   const videoRef = useRef<Video | null>(null); // Reference to video player component
   const [status, setStatus] = useState<any>({}); // Current playback status from Expo AV
-  const [showControls, setShowControls] = useState(true); // Control overlay visibility
-  const [isFullscreen, setIsFullscreen] = useState(false); // Fullscreen mode state
   const [currentTime, setCurrentTime] = useState(0); // Current playback position (milliseconds)
   const [duration, setDuration] = useState(0); // Total video duration (milliseconds)
-  const [seeking, setSeeking] = useState(false); // Whether user is actively seeking
-  const [isBuffering, setIsBuffering] = useState(false); // Whether video is currently buffering
-  const [showBufferingLoader, setShowBufferingLoader] = useState(false); // Whether to show buffering UI
+
+  const [selectedSpeed, setSelectedSpeed] = useState<PlaybackSpeed>(1.0); // Currently selected playback speed
+
+  const [playerUi, patchPlayerUi] = useReducer(
+    (state: PlayerUiState, action: Partial<PlayerUiState>) => ({ ...state, ...action }),
+    {
+      showControls: true,
+      isFullscreen: false,
+      showBufferingLoader: false,
+      seeking: false,
+      showSpeedModal: false
+    }
+  );
+
+  const { showControls, isFullscreen, showBufferingLoader, seeking, showSpeedModal } = playerUi;
+
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+
   const bufferingTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Timeout for buffering delay
-  const [hasCreatedInitialEntry, setHasCreatedInitialEntry] = useState(false); // Whether initial watch entry was created
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Timeout for auto-hiding controls
+  const hasCreatedInitialEntryRef = useRef(false); // Whether initial watch entry was created
   const isCreatingInitialEntryRef = useRef(false); // Lock to prevent concurrent initial entry creation
-  
-  // Quality selection state management
-  const [qualityOptions, setQualityOptions] = useState<QualityOption[]>([]); // Available quality options
-  const [selectedQuality, setSelectedQuality] = useState<string>('Auto'); // Currently selected quality
-  const [showQualityModal, setShowQualityModal] = useState(false); // Quality selection modal visibility
-  
-  // Playback speed state management
-  const [playbackSpeeds] = useState([0.5, 0.75, 1.0, 1.25, 1.5, 2.0]); // Available speed options
-  const [selectedSpeed, setSelectedSpeed] = useState(1.0); // Currently selected playback speed
-  const [showSpeedModal, setShowSpeedModal] = useState(false); // Speed selection modal visibility
 
   // Context integrations for downloads and watch history
   const { 
     startDownload, 
     downloadPermissionGranted, 
-    requestDownloadPermissions, 
-    getDownloadsByAnimeId 
+    requestDownloadPermissions
   } = useDownloads();
   
   const { addToHistory, cleanupDuplicateDocuments } = useWatchHistory();
-  
-  // Ref for managing control auto-hide timeout
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Ref for throttling save operations to prevent spam
   const lastSaveTimeRef = useRef<number>(0);
@@ -168,7 +163,7 @@ export default function StreamingPage() {
   const skipBackward = async () => {
     if (videoRef.current && status.isLoaded) {
       const newPosition = Math.max(0, currentTime - 10000);
-      setShowBufferingLoader(true); // Show buffering immediately for user actions
+      patchPlayerUi({ showBufferingLoader: true }); // Show buffering immediately for user actions
       await videoRef.current.setPositionAsync(newPosition);
     }
   };
@@ -184,7 +179,7 @@ export default function StreamingPage() {
   const skipForward = async () => {
     if (videoRef.current && status.isLoaded) {
       const newPosition = Math.min(duration, currentTime + 10000);
-      setShowBufferingLoader(true); // Show buffering immediately for user actions
+      patchPlayerUi({ showBufferingLoader: true }); // Show buffering immediately for user actions
       await videoRef.current.setPositionAsync(newPosition);
     }
   };
@@ -304,15 +299,12 @@ export default function StreamingPage() {
     if (isCurrentlyBuffering) {
       // Start a timer - only show buffering UI after 300ms delay
       bufferingTimeoutRef.current = setTimeout(() => {
-        setShowBufferingLoader(true);
+        patchPlayerUi({ showBufferingLoader: true });
       }, 300); // 300ms delay before showing buffer loader
     } else {
       // Immediately hide buffering UI when not buffering
-      setShowBufferingLoader(false);
+      patchPlayerUi({ showBufferingLoader: false });
     }
-    
-    // Always update the raw buffering state for internal use
-    setIsBuffering(isCurrentlyBuffering);
   };
 
   /**
@@ -324,7 +316,7 @@ export default function StreamingPage() {
    */
   // Auto-hide controls after inactivity
   useEffect(() => {
-    if (showControls && !showQualityModal && !showSpeedModal) {
+    if (showControls && !showSpeedModal) {
       // Clear any existing timeout
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current);
@@ -332,7 +324,7 @@ export default function StreamingPage() {
       
       // Set a new timeout
       controlsTimeoutRef.current = setTimeout(() => {
-        setShowControls(false);
+        patchPlayerUi({ showControls: false });
       }, 5000);
       
       return () => {
@@ -341,7 +333,7 @@ export default function StreamingPage() {
         }
       };
     }
-  }, [showControls, showQualityModal, showSpeedModal]);
+  }, [showControls, showSpeedModal]);
 
   /**
    * Fullscreen Toggle Function
@@ -354,10 +346,10 @@ export default function StreamingPage() {
   const toggleFullscreen = async () => {
     if (isFullscreen) {
       await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
-      setIsFullscreen(false);
+      patchPlayerUi({ isFullscreen: false });
     } else {
       await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-      setIsFullscreen(true);
+      patchPlayerUi({ isFullscreen: true });
     }
   };
 
@@ -377,20 +369,23 @@ export default function StreamingPage() {
   /**
    * Streaming URL Fetch Effect
    * 
-   * Fetches video streaming URL, episode list, and quality options from API on component mount.
-   * Handles parameter validation, API error responses, episode list setup, and quality option setup.
+  * Fetches video streaming URL and episode list from API on component mount.
+  * Handles parameter validation, API error responses, and episode list setup.
    * Automatically loads saved playback position after successful URL fetch.
    */
-  // Fetch the streaming URL, episodes, and quality options when component mounts
+  // Fetch the streaming URL and episodes when component mounts
   useEffect(() => {
     // Reset initial entry flag and lock for new episode
-    setHasCreatedInitialEntry(false);
+  hasCreatedInitialEntryRef.current = false;
     isCreatingInitialEntryRef.current = false;
+    patchStreamState({ loading: true, error: null, streamingUrl: null });
     
     const fetchStreamingUrl = async () => {
       if (!id || !audioType || !episode) {
-        setError('Missing required parameters');
-        setLoading(false);
+        patchStreamState({
+          error: 'Missing required parameters',
+          loading: false
+        });
         return;
       }
 
@@ -411,36 +406,26 @@ export default function StreamingPage() {
         }
 
         console.log('Streaming URL fetched successfully');
-        setStreamingUrl(data.direct);
+        patchStreamState({ streamingUrl: data.direct });
         
         // Process episode list from API response
         if (data.episodes && data.episodes[audioType as 'sub' | 'dub']) {
           const apiEpisodes = data.episodes[audioType as 'sub' | 'dub'];
-          setEpisodes(apiEpisodes);
+          patchStreamState({ episodes: apiEpisodes });
           
           // Find current episode index
-          const currentIndex = apiEpisodes.findIndex(ep => ep === episode);
-          setCurrentEpisodeIndex(currentIndex >= 0 ? currentIndex : 0);
+          const currentIndex = apiEpisodes.findIndex((ep: string) => ep === episode);
+          patchStreamState({ currentEpisodeIndex: currentIndex >= 0 ? currentIndex : 0 });
           
           console.log(`Loaded ${apiEpisodes.length} episodes from API for ${audioType}`);
         } else {
           // Fallback: single episode if no episode list in API response
-          setEpisodes([episode as string]);
-          setCurrentEpisodeIndex(0);
+          patchStreamState({ episodes: [episode as string], currentEpisodeIndex: 0 });
           console.log('No episode list in API response, using single episode');
         }
         
         // Set initial buffering state when starting to load video
-        setIsBuffering(true);
-        
-        // Set quality options if available
-        const qualityOpts: QualityOption[] = [{ label: 'Auto', url: data.direct }];
-        if (data.quality) {
-          Object.keys(data.quality).forEach(key => {
-            qualityOpts.push({ label: key, url: data.quality![key] });
-          });
-        }
-        setQualityOptions(qualityOpts);
+        handleBufferingState(true);
         
         // Clean up any duplicate documents for this episode before starting
         cleanupDuplicateDocuments(id as string, episode as string, audioType as 'sub' | 'dub');
@@ -450,9 +435,9 @@ export default function StreamingPage() {
         
       } catch (err) {
         console.error('Error fetching streaming URL:', err);
-        setError('Failed to load streaming URL. Please try again.');
+        patchStreamState({ error: 'Failed to load streaming URL. Please try again.' });
       } finally {
-        setLoading(false);
+        patchStreamState({ loading: false });
       }
     };
 
@@ -541,7 +526,7 @@ export default function StreamingPage() {
     try {
       // Check if we have this episode in watch history
       const watchedEpisodes = getWatchedEpisodes(id as string);
-      const watchedEpisode = watchedEpisodes.find(ep => 
+  const watchedEpisode = watchedEpisodes.find((ep) => 
         ep.episodeNumber === episode && 
         ep.audioType === (audioType as 'sub' | 'dub')
       );
@@ -637,7 +622,7 @@ export default function StreamingPage() {
    */
   const createInitialWatchEntry = async () => {
     // Prevent concurrent executions with ref-based lock
-    if (hasCreatedInitialEntry || isCreatingInitialEntryRef.current || !duration || !id || !episode) return;
+  if (hasCreatedInitialEntryRef.current || isCreatingInitialEntryRef.current || !duration || !id || !episode) return;
     
     // Set lock immediately to prevent race conditions
     isCreatingInitialEntryRef.current = true;
@@ -655,7 +640,7 @@ export default function StreamingPage() {
         duration: Math.floor(duration)
       });
       
-      setHasCreatedInitialEntry(true);
+  hasCreatedInitialEntryRef.current = true;
       lastSavedPositionRef.current = currentTime;
       
       console.log(`Initial watch history entry created: ${id}, ep ${episode}`);
@@ -702,7 +687,7 @@ export default function StreamingPage() {
       }
       
       // Create initial watch history entry when playback starts and duration is available
-      if (status.durationMillis > 0 && !hasCreatedInitialEntry) {
+  if (status.durationMillis > 0 && !hasCreatedInitialEntryRef.current) {
         createInitialWatchEntry();
       }
       
@@ -764,14 +749,13 @@ export default function StreamingPage() {
   // Handle video seeking
   const handleSeek = async (value: number) => {
     if (videoRef.current) {
-      setSeeking(true);
-      setShowBufferingLoader(true); // Show buffering immediately for user actions
+      patchPlayerUi({ seeking: true, showBufferingLoader: true }); // Show buffering immediately for user actions
       try {
         await videoRef.current.setPositionAsync(value);
       } catch (err) {
         console.error('Error seeking video:', err);
       } finally {
-        setSeeking(false);
+        patchPlayerUi({ seeking: false });
         // Note: buffering state will be updated by onPlaybackStatusUpdate
       }
     }
@@ -792,61 +776,6 @@ export default function StreamingPage() {
   };
 
   /**
-   * Quality Change Function
-   * 
-   * Changes video quality by switching streaming URL.
-   * Preserves playback position and playing state during quality change.
-   * Handles URL update and automatic seeking to previous position.
-   * 
-   * @param quality - Selected quality option with label and URL
-   */
-  /**
-   * Quality Change Handler
-   * 
-   * Switches video quality while preserving playback position and state.
-   * Handles smooth quality transitions with buffering indication.
-   * Automatically seeks to previous position after quality change.
-   * 
-   * @param quality - Target quality option with label and URL
-   */
-  // Change video quality
-  const changeQuality = async (quality: QualityOption) => {
-    try {
-      if (videoRef.current && quality.url !== streamingUrl) {
-        // Remember the current position and playing state
-        const currentPosition = status.positionMillis;
-        const wasPlaying = status.isPlaying;
-        
-        // Show buffering indicator during quality change
-        setIsBuffering(true);
-        
-        // Update the streaming URL
-        setStreamingUrl(quality.url);
-        setSelectedQuality(quality.label);
-        
-        // The video will reload automatically since the source is changing
-        // Once loaded, we'll seek to the previous position
-        const waitForLoad = () => {
-          if (videoRef.current) {
-            videoRef.current.setPositionAsync(currentPosition)
-              .then(() => {
-                if (wasPlaying) {
-                  videoRef.current?.playAsync();
-                }
-              });
-          }
-        };
-        
-        // Give a small delay to ensure the video has loaded with the new source
-        setTimeout(waitForLoad, 1000);
-      }
-    } catch (err) {
-      console.error('Error changing quality:', err);
-      showErrorAlert('Error', 'Failed to change video quality');
-    } finally {
-      setShowQualityModal(false);
-    }
-  };  /**
    * Playback Speed Change Function
    * 
    * Changes video playback speed using Expo AV's rate control.
@@ -855,12 +784,12 @@ export default function StreamingPage() {
    * @param speed - Target playback speed multiplier
    */
   // Change playback speed
-  const changePlaybackSpeed = async (speed: number) => {
+  const changePlaybackSpeed = async (speed: PlaybackSpeed) => {
     try {
       if (videoRef.current) {
         await videoRef.current.setRateAsync(speed, true);
         setSelectedSpeed(speed);
-        setShowSpeedModal(false);
+        patchPlayerUi({ showSpeedModal: false });
       }
     } catch (err) {
       console.error('Error changing playback speed:', err);
@@ -1021,6 +950,53 @@ export default function StreamingPage() {
     }
   };
 
+  /**
+   * Render Playback Speed Grid
+   *
+   * Compact, orientation-aware speed selector that mirrors native video players.
+   */
+  const renderSpeedGrid = () => {
+    const optionWidthStyle = isLandscape ? styles.speedChipLandscape : styles.speedChipPortrait;
+    const containerStyle = [
+      styles.speedGridContainer,
+      isLandscape && styles.speedGridContainerLandscape
+    ];
+
+    return (
+      <View style={containerStyle}>
+        {PLAYBACK_SPEEDS.map((speed) => {
+          const isSelected = selectedSpeed === speed;
+          return (
+            <TouchableOpacity
+              key={speed}
+              style={[
+                styles.speedChip,
+                optionWidthStyle,
+                isSelected && styles.selectedSpeedGridItem
+              ]}
+              onPress={() => changePlaybackSpeed(speed)}
+            >
+              <Text style={[
+                styles.speedChipText,
+                isSelected && styles.selectedSpeedGridItemText
+              ]}>
+                {speed}x
+              </Text>
+              {isSelected && (
+                <MaterialCommunityIcons
+                  name="check"
+                  size={16}
+                  color={Colors.dark.buttonBackground}
+                  style={styles.speedChipIcon}
+                />
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
+
   return (
     <View style={[
       styles.container, 
@@ -1050,7 +1026,7 @@ export default function StreamingPage() {
       <TouchableOpacity 
         activeOpacity={1}
         style={styles.videoContainer}
-        onPress={() => setShowControls(!showControls)}
+        onPress={() => patchPlayerUi({ showControls: !showControls })}
       >
         {loading ? (
           // Loading state with spinner and message
@@ -1208,7 +1184,7 @@ export default function StreamingPage() {
                     <View style={styles.bottomControlsBar}>
                       {/* Progress slider and timestamps */}
                       <View style={styles.progressContainer}>
-                        <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+                        <Text style={[styles.timeText, styles.timeLabel]}>{formatTime(currentTime)}</Text>
                         <Slider
                           style={styles.progressSlider}
                           minimumValue={0}
@@ -1220,7 +1196,7 @@ export default function StreamingPage() {
                           maximumTrackTintColor="rgba(255, 255, 255, 0.3)"
                           thumbTintColor={Colors.dark.buttonBackground}
                         />
-                        <Text style={styles.timeText}>{formatTime(duration)}</Text>
+                        <Text style={[styles.timeText, styles.timeLabel, styles.timeLabelRight]}>{formatTime(duration)}</Text>
                       </View>
                       
                       {/* Bottom buttons row with all video controls */}
@@ -1240,22 +1216,11 @@ export default function StreamingPage() {
                         {/* Playback speed button */}
                         <TouchableOpacity 
                           style={styles.controlButton} 
-                          onPress={() => setShowSpeedModal(true)}
+                          onPress={() => patchPlayerUi({ showSpeedModal: true })}
                         >
                           <MaterialCommunityIcons name="fast-forward" size={24} color="white" />
                           <Text style={styles.buttonLabel}>{selectedSpeed}x</Text>
                         </TouchableOpacity>
-                        
-                        {/* Quality selection button - conditional on available options */}
-                        {qualityOptions.length > 1 && (
-                          <TouchableOpacity 
-                            style={styles.controlButton} 
-                            onPress={() => setShowQualityModal(true)}
-                          >
-                            <MaterialCommunityIcons name="quality-high" size={24} color="white" />
-                            <Text style={styles.buttonLabel}>{selectedQuality}</Text>
-                          </TouchableOpacity>
-                        )}
                         
                         {/* Download button */}
                         <TouchableOpacity 
@@ -1302,91 +1267,23 @@ export default function StreamingPage() {
         )}
       </TouchableOpacity>
 
-      {/* Quality selection modal with scrollable options */}
-      <Modal
-        visible={showQualityModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowQualityModal(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1}
-          onPress={() => setShowQualityModal(false)}
-        >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <Text style={styles.modalTitle}>Select Quality</Text>
-            <ScrollView style={styles.modalScrollView}>
-              {qualityOptions.map((quality, index) => (
-                <TouchableOpacity 
-                  key={index} 
-                  style={[
-                    styles.modalItem,
-                    selectedQuality === quality.label && styles.selectedModalItem
-                  ]}
-                  onPress={() => changeQuality(quality)}
-                >
-                  <Text style={[
-                    styles.modalItemText,
-                    selectedQuality === quality.label && styles.selectedModalItemText
-                  ]}>
-                    {quality.label}
-                  </Text>
-                  {selectedQuality === quality.label && (
-                    <MaterialCommunityIcons name="check" size={20} color={Colors.dark.buttonBackground} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity 
-              style={styles.modalCloseButton}
-              onPress={() => setShowQualityModal(false)}
-            >
-              <Text style={styles.modalCloseButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
       {/* Speed selection modal with predefined speed options */}
       <Modal
         visible={showSpeedModal}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setShowSpeedModal(false)}
+        onRequestClose={() => patchPlayerUi({ showSpeedModal: false })}
       >
         <TouchableOpacity 
           style={styles.modalOverlay} 
           activeOpacity={1}
-          onPress={() => setShowSpeedModal(false)}
+          onPress={() => patchPlayerUi({ showSpeedModal: false })}
         >
           <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <Text style={styles.modalTitle}>Playback Speed</Text>
-            <ScrollView style={styles.modalScrollView}>
-              {playbackSpeeds.map((speed, index) => (
-                <TouchableOpacity 
-                  key={index} 
-                  style={[
-                    styles.modalItem,
-                    selectedSpeed === speed && styles.selectedModalItem
-                  ]}
-                  onPress={() => changePlaybackSpeed(speed)}
-                >
-                  <Text style={[
-                    styles.modalItemText,
-                    selectedSpeed === speed && styles.selectedModalItemText
-                  ]}>
-                    {speed}x
-                  </Text>
-                  {selectedSpeed === speed && (
-                    <MaterialCommunityIcons name="check" size={20} color={Colors.dark.buttonBackground} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            {renderSpeedGrid()}
             <TouchableOpacity 
               style={styles.modalCloseButton}
-              onPress={() => setShowSpeedModal(false)}
+              onPress={() => patchPlayerUi({ showSpeedModal: false })}
             >
               <Text style={styles.modalCloseButtonText}>Cancel</Text>
             </TouchableOpacity>
