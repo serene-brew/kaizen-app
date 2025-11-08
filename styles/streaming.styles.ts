@@ -195,6 +195,13 @@ export const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
   },
+  timeLabel: {
+    width: 45,
+    textAlign: 'left',
+  },
+  timeLabelRight: {
+    textAlign: 'right',
+  },
   bottomButtonsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -243,35 +250,96 @@ export const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
   },
   modalContent: {
-    width: '80%',
-    maxWidth: 300,
     backgroundColor: Colors.dark.secondaryBackground,
     borderRadius: 16,
-    padding: 16,
-    maxHeight: '70%',
+    marginHorizontal: 24,
+    maxWidth: width > height ? Math.min(width - 48, 600) : Dimensions.get('window').width - 48, // Responsive width
+    minWidth: 320, // Increased for single row layout
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 16,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   modalTitle: {
-    color: Colors.dark.text,
     fontSize: 18,
     fontWeight: '600',
+    color: Colors.dark.text,
     textAlign: 'center',
-    marginBottom: 16,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
   },
   modalScrollView: {
-    maxHeight: 200,
+    maxHeight: 240,
+  },
+  // Grid container for speed controls
+  speedGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  speedGridContainerLandscape: {
+    justifyContent: 'center',
+  },
+  speedChip: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 88,
+  },
+  speedChipPortrait: {
+    width: '30%',
+    minWidth: 90,
+  },
+  speedChipLandscape: {
+    width: '18%',
+    minWidth: 100,
+    marginHorizontal: 6,
+  },
+  selectedSpeedGridItem: {
+    backgroundColor: 'rgba(133, 98, 237, 0.25)',
+    borderColor: Colors.dark.buttonBackground,
+  },
+  speedChipText: {
+    color: Colors.dark.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  selectedSpeedGridItemText: {
+    color: Colors.dark.buttonBackground,
+    fontWeight: '700',
+  },
+  speedChipIcon: {
+    marginLeft: 8,
   },
   modalItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   selectedModalItem: {
     backgroundColor: 'rgba(133, 98, 237, 0.1)',
@@ -279,25 +347,27 @@ export const styles = StyleSheet.create({
   modalItemText: {
     color: Colors.dark.text,
     fontSize: 16,
+    fontWeight: '500',
   },
   selectedModalItemText: {
     color: Colors.dark.buttonBackground,
     fontWeight: '600',
   },
   modalCloseButton: {
-    backgroundColor: Colors.dark.buttonBackground,
-    borderRadius: 8,
-    padding: 12,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 16,
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderTopWidth: 1,
+    borderTopColor: Colors.dark.border,
   },
   cancelButton: {
     backgroundColor: '#D32F2F',
   },
   modalCloseButtonText: {
-    color: 'white',
+    color: Colors.dark.buttonBackground,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   // Buffering overlay styles for integrated video player loader
   bufferingOverlay: {
