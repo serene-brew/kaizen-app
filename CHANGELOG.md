@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2025-11-08
+
+### Added
+- Next and previous episode controls directly inside the streaming player for quicker navigation
+- Appwrite-driven push notifications with device-targeted FCM delivery
+
+### Changed
+- Playback speed selector redesigned into a compact chip-based interface optimized for portrait and landscape
+- Streaming screen state management overhauled to rely on reducers and leaner hooks for smoother performance
+
+### Fixed
+- Watched episode markers now honor Appwrite watch history `audioType`, keeping SUB and DUB progress separate
+- Decoupled the time counter from the seeker so progress updates no longer cause layout shifts
+
 ## [1.1.1] - 2025-09-17
 
 ### Changed
