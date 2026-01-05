@@ -7,5 +7,5 @@
 5. ✅ Secondary background theme color changed, looks more soothing now
 6. ✅ Manga on explore page
 7. ✅ Manga reader with custom zooming and panning
-8. Readlist appwrite integration
-9. Readhistory appwrite integration
+8. ✅ Readlist appwrite integration
+9. ✅ Readhistory appwrite integration
