@@ -102,6 +102,8 @@ export default {
       appwriteDatabaseId: process.env.APPWRITE_DATABASE_ID,
       appwriteWatchlistCollectionId: process.env.APPWRITE_WATCHLIST_COLLECTION_ID,
       appwriteWatchHistoryCollectionId: process.env.APPWRITE_WATCHHISTORY_COLLECTION_ID,
+      appwriteReadHistoryCollectionId: process.env.APPWRITE_READHISTORY_COLLECTION_ID,
+      appwriteReadlistCollectionId: process.env.APPWRITE_READLIST_COLLECTION_ID,
       eas: {
         projectId: process.env.EAS_PROJECT_ID
       },
