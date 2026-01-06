@@ -1,9 +1,9 @@
 # TODO (Next update)
 
-1. Initial registry of stream which not loaded yet might register a redundant 1/1 in watch history table
-2. FCM old device registry may exist as a target even after expiring
-3. New Manga Implementation goes brrrrrrr
-4. Pagination type implementation on details page for better UX
+1. ✅ Initial registry of stream which not loaded yet might register a redundant 1/1 in watch history table
+2. FCM old device registry may exist as a target even after expiring (Wont fix, direct firebase console is better for our usecase anyway so we will only use that instead of appwrite messaging, tho appwrite messaging is still using FCM but whatever, as long as our usecase fulfills, idc anymore)
+3. ✅ New Manga Implementation goes brrrrrrr
+4. ✅ Pagination type implementation on details page for better UX
 5. ✅ Secondary background theme color changed, looks more soothing now
 6. ✅ Manga on explore page
 7. ✅ Manga reader with custom zooming and panning
