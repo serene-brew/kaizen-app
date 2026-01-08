@@ -114,7 +114,7 @@ export default function TabLayout() {
           headerShown: false, // Hide header for custom layout
           tabBarIcon: ({ focused, color }) => (
             <MaterialCommunityIcons 
-              name={focused ? "compass" : "compass-outline"} 
+              name={focused ? "compass-outline" : "compass-outline"} 
               size={28} 
               color={color} 
             />
@@ -122,6 +122,21 @@ export default function TabLayout() {
         }}
       />
       
+      {/* Readlist Tab - User's saved manga */}
+      <Tabs.Screen
+        name="readlist"
+        options={{
+          headerShown: false,
+          tabBarIcon: ({ focused, color }) => (
+            <MaterialCommunityIcons
+              name="book-outline"
+              size={28}
+              color={color}
+            />
+          ),
+        }}
+      />
+
       {/* Search Tab - Anime search functionality */}
       <Tabs.Screen
         name="search"
@@ -144,7 +159,7 @@ export default function TabLayout() {
           headerShown: false,
           tabBarIcon: ({ focused, color }) => (
             <MaterialCommunityIcons 
-              name={focused ? "bookmark" : "bookmark-outline"} 
+              name={focused ? "bookmark-outline" : "bookmark-outline"} 
               size={28} 
               color={color} 
             />
@@ -186,6 +201,25 @@ export default function TabLayout() {
           headerTitle: "Trending Now",
         }}
       />
+
+      {/* Hidden Screen: Manga Catalog - Full manga discovery list */}
+      <Tabs.Screen
+        name="manga"
+        options={{
+          href: null,
+          headerShown: true,
+          headerTitle: "Popular Manga",
+        }}
+      />
+
+      {/* Hidden Screen: Manga Details - Individual manga information */}
+      <Tabs.Screen
+        name="manga-details"
+        options={{
+          href: null,
+          headerShown: false,
+        }}
+      />
       
       {/* Hidden Screen: Anime Details - Individual anime information */}
       <Tabs.Screen
@@ -204,6 +238,17 @@ export default function TabLayout() {
           headerShown: true,
           headerTitle: "Watch History",
           headerLeft: () => null, // Remove the default back button
+        }}
+      />
+
+      {/* Hidden Screen: Read History - Manga reading history */}
+      <Tabs.Screen
+        name="read-history"
+        options={{
+          href: null,
+          headerShown: true,
+          headerTitle: "Read History",
+          headerLeft: () => null,
         }}
       />
     </Tabs>
