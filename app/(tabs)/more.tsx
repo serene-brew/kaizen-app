@@ -28,6 +28,7 @@ import Constants from 'expo-constants';
 // Context hooks for downloads and watch history management
 import { useDownloads } from '../../contexts/DownloadsContext';
 import { useWatchHistory } from '../../contexts/WatchHistoryContext';
+import { useReadHistory } from '../../contexts/ReadHistoryContext';
 
 // Version service for manual update checking
 import { checkForUpdatesManually, versionService } from '../../lib/versionService';
@@ -190,6 +191,9 @@ export default function More() {
     getLastWatchedEpisode
   } = useWatchHistory();
 
+  // Extract read history data
+  const { history: readHistory } = useReadHistory();
+
   /**
    * Watch History Statistics
    * 
@@ -207,6 +211,23 @@ export default function More() {
     };
   }, [history]);
 
+  const readHistoryStats = useMemo(() => {
+    const recentItems = readHistory.slice(0, 3);
+    const totalRead = readHistory.length;
+    const uniqueManga = new Set(readHistory.map(item => item.id)).size;
+
+    return {
+      recentItems,
+      totalRead,
+      uniqueManga,
+    };
+  }, [readHistory]);
+
+  const getSafeReadPage = (page?: number, totalPages?: number): number | null => {
+    if (!totalPages || totalPages <= 0) return null;
+    return Math.min(Math.max(typeof page === 'number' ? Math.round(page) : 1, 1), totalPages);
+  };
+
   /**
    * Clear Watch History Handler
    * 
@@ -221,6 +242,7 @@ export default function More() {
       undefined // onCancel (default behavior)
     );
   }, [clearWatchHistory]);
+
   
   /**
    * Profile Edit Handler
@@ -424,6 +446,108 @@ export default function More() {
                 color={Colors.dark.secondaryText}
               />
               <Text style={styles.emptyText}>Start watching to track your progress</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Read History Hero Section */}
+      <View style={styles.heroSection}>
+        <TouchableOpacity 
+          style={styles.watchHistoryHero}
+          onPress={() => router.push('/(tabs)/read-history')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.heroHeader}>
+            <View style={styles.heroTitleSection}>
+              <MaterialCommunityIcons
+                name="book-clock"
+                size={32}
+                color={Colors.dark.buttonBackground}
+              />
+              <View style={styles.heroTitleContainer}>
+                <Text style={styles.heroTitle}>Read History</Text>
+                <Text style={styles.heroSubtitle}>Resume your manga chapters</Text>
+              </View>
+            </View>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={28}
+              color={Colors.dark.buttonBackground}
+            />
+          </View>
+          
+          {/* Show last read manga if available */}
+          {readHistoryStats.recentItems.length > 0 && (
+            <View style={styles.lastWatchedSection}>
+              <Text style={styles.lastWatchedLabel}>Last Read</Text>
+              <TouchableOpacity 
+                style={styles.lastWatchedItem}
+                onPress={() => router.push({
+                  pathname: '/manga-reader',
+                  params: {
+                    mangaId: readHistoryStats.recentItems[0].id,
+                    chapter: readHistoryStats.recentItems[0].chapter,
+                    title: readHistoryStats.recentItems[0].title,
+                    returnTo: 'read-history',
+                    source: 'read-history',
+                  }
+                })}
+                activeOpacity={0.8}
+              >
+                <Image
+                  source={{ uri: readHistoryStats.recentItems[0].thumbnailUrl }}
+                  style={styles.lastWatchedThumbnail}
+                  resizeMode="cover"
+                />
+                <View style={styles.lastWatchedContent}>
+                  <Text style={styles.lastWatchedAnime} numberOfLines={2}>
+                    {readHistoryStats.recentItems[0].title}
+                  </Text>
+                  <Text style={styles.lastWatchedEpisode}>
+                    Chapter {readHistoryStats.recentItems[0].chapter}
+                  </Text>
+                  {readHistoryStats.recentItems[0].totalPages ? (
+                    <View style={styles.progressContainer}>
+                      <View style={styles.progressBackground}>
+                        <View 
+                          style={[
+                            styles.progressFill,
+                            { 
+                              width: `${Math.min(
+                                ((getSafeReadPage(readHistoryStats.recentItems[0].page, readHistoryStats.recentItems[0].totalPages) ?? 0) / readHistoryStats.recentItems[0].totalPages!) * 100,
+                                100
+                              )}%`
+                            }
+                          ]} 
+                        />
+                      </View>
+                      <Text style={styles.progressText}>
+                        {`${getSafeReadPage(readHistoryStats.recentItems[0].page, readHistoryStats.recentItems[0].totalPages) ?? 1} / ${readHistoryStats.recentItems[0].totalPages} pages`}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.progressText}>Tap to continue reading</Text>
+                  )}
+                </View>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={20}
+                  color={Colors.dark.secondaryText}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+          
+          {/* Empty State */}
+          {readHistoryStats.totalRead === 0 && (
+            <View style={styles.emptyState}>
+              <MaterialCommunityIcons
+                name="book-open-variant"
+                size={48}
+                color={Colors.dark.secondaryText}
+              />
+              <Text style={styles.emptyText}>Start reading to track your progress</Text>
             </View>
           )}
         </TouchableOpacity>
