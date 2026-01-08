@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 
 // React Native core components for UI rendering and device interaction
-import { View, Text, ScrollView, Dimensions, TouchableOpacity, Image, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Dimensions, TouchableOpacity, Image, ActivityIndicator } from "react-native";
 
 // Icon libraries for visual elements
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -23,13 +23,15 @@ import Colors from "../../constants/Colors";
 import { styles } from "../../styles/explore.styles";
 
 // API utilities for fetching anime data
-import { animeApi } from "../../lib/api";
+import { animeApi, mangaApi } from "../../lib/api";
 
 // TypeScript interfaces for type safety
 import { AnimeItem } from "../../types/anime";
+import { MangaItem } from "../../types/manga";
 
 // Watchlist context for managing user's saved anime
 import { useWatchlist } from '../../contexts/WatchlistContext';
+import { useReadlist } from '../../contexts/ReadlistContext';
 
 // Get device screen width for responsive carousel sizing
 const { width } = Dimensions.get('window');
@@ -58,6 +60,28 @@ const mapAnimeData = (item: any): AnimeItem => {
   };
 };
 
+interface DisplayMangaItem {
+  id: string;
+  title: string;
+  englishName: string;
+  thumbnail: string;
+  displayName: string;
+}
+
+const mapMangaData = (item: MangaItem): DisplayMangaItem => {
+  const englishName = item.englishName?.trim();
+  const title = item.title?.trim();
+  const displayName = englishName || title || 'Unknown Manga';
+
+  return {
+    id: item.id?.toString() || String(Math.random()),
+    title: title || displayName,
+    englishName: englishName || title || 'Unknown Manga',
+    thumbnail: item.thumbnail || '',
+    displayName,
+  };
+};
+
 /**
  * Explore Component
  * 
@@ -79,14 +103,18 @@ export default function Explore() {
   const [topAnime, setTopAnime] = useState<AnimeItem[]>([]);
   const [trendingAnime, setTrendingAnime] = useState<AnimeItem[]>([]);
   const [carouselAnime, setCarouselAnime] = useState<AnimeItem[]>([]);
+  const [mangaList, setMangaList] = useState<DisplayMangaItem[]>([]);
   
   // Loading and error states for different sections
   const [loading, setLoading] = useState(true); // General loading for trending/top sections
   const [carouselLoading, setCarouselLoading] = useState(true); // Specific loading for carousel
   const [error, setError] = useState<string | null>(null);
+  const [mangaLoading, setMangaLoading] = useState(true);
+  const [mangaError, setMangaError] = useState<string | null>(null);
 
   // Extract watchlist functionality from context
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
+  const { isInReadlist, toggleReadlist: toggleReadlistItem } = useReadlist();
 
   // Create infinite carousel data by duplicating items
   const infiniteCarouselData = useMemo(() => {
@@ -131,7 +159,7 @@ export default function Explore() {
         } else {
           console.log(`Received ${topData.length} top anime items from API`);
           const mappedTopData = topData.map(mapAnimeData);
-          setTopAnime(mappedTopData.slice(0, 5)); // Only take the first 5 for the explore page
+          setTopAnime(mappedTopData.slice(0, 10)); // Only take the first 10 for the explore page
         }
         
         // Process trending anime data
@@ -140,7 +168,7 @@ export default function Explore() {
         } else {
           console.log(`Received ${trendingData.length} trending anime items from API`);
           const mappedTrendingData = trendingData.map(mapAnimeData);
-          setTrendingAnime(mappedTrendingData.slice(0, 5)); // Only take the first 5 for the explore page
+          setTrendingAnime(mappedTrendingData.slice(0, 10)); // Only take the first 10 for the explore page
         }
         
         // Process carousel anime data
@@ -164,6 +192,32 @@ export default function Explore() {
     };
 
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    const fetchManga = async () => {
+      setMangaLoading(true);
+      setMangaError(null);
+
+      try {
+        const popular = await mangaApi.fetchPopularManga();
+        if (!popular || popular.length === 0) {
+          console.warn('Received empty manga data from API');
+          setMangaList([]);
+          return;
+        }
+
+        const mapped = popular.map(mapMangaData);
+        setMangaList(mapped.slice(0, 10));
+      } catch (err) {
+        console.error('Error fetching manga data:', err);
+        setMangaError('Failed to load manga data');
+      } finally {
+        setMangaLoading(false);
+      }
+    };
+
+    fetchManga();
   }, []);
 
   /**
@@ -271,6 +325,13 @@ export default function Explore() {
     });
   };
 
+  const handlePressManga = (item: DisplayMangaItem) => {
+    router.push({
+      pathname: "/(tabs)/manga-details",
+      params: { id: item.id, title: item.displayName, source: 'explore' }
+    });
+  };
+
   /**
    * Renders individual anime cards for trending and top sections
    * 
@@ -326,11 +387,51 @@ export default function Explore() {
     </TouchableOpacity>
   );
 
+  const renderMangaCard = (item: DisplayMangaItem, index: number, array: DisplayMangaItem[]) => (
+    <TouchableOpacity
+      key={`manga-${item.id}`}
+      style={[styles.card, index === array.length - 1 ? styles.lastCard : null]}
+      onPress={() => handlePressManga(item)}
+    >
+      <View style={styles.posterPlaceholder}>
+        {item.thumbnail ? (
+          <Image
+            source={{ uri: item.thumbnail }}
+            style={styles.posterImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <MaterialCommunityIcons name="image" size={40} color={Colors.dark.secondaryText} />
+        )}
+        <TouchableOpacity
+          style={styles.watchlistIcon}
+          onPress={(e) => {
+            e.stopPropagation();
+            toggleReadlistItem({
+              id: item.id,
+              title: item.displayName,
+              thumbnail: item.thumbnail,
+            });
+          }}
+        >
+          <MaterialCommunityIcons
+            name={isInReadlist(item.id) ? 'book' : 'book-outline'}
+            size={24}
+            color={isInReadlist(item.id) ? Colors.dark.buttonBackground : Colors.dark.text}
+          />
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.cardTitle} numberOfLines={2}>
+        {item.displayName}
+      </Text>
+    </TouchableOpacity>
+  );
+
   /**
    * Renders loading placeholder cards during data fetch
    * Maintains consistent layout while content is loading
    */
-  const renderLoadingCard = (index: number, type: 'trending' | 'top', isLast: boolean = false) => (
+  const renderLoadingCard = (index: number, type: 'trending' | 'top' | 'manga', isLast: boolean = false) => (
     <View 
       key={`${type}-loading-${index}`} 
       style={[styles.card, isLast ? styles.lastCard : null]}
@@ -489,44 +590,83 @@ export default function Explore() {
         )}
       </View>
 
-      {/* Trending Anime Section */}
+      {/* Manga Section */}
       <View style={styles.section}>
-        {/* Section header with navigation to full trending page */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Trending</Text>
-          <TouchableOpacity 
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>Manga</Text>
+            <View style={styles.sectionTag}>
+              <Text style={styles.sectionTagText}>NEW</Text>
+            </View>
+          </View>
+          <TouchableOpacity
             style={styles.moreButton}
-            onPress={() => router.push("/(tabs)/trending")}
+            onPress={() => router.push("/(tabs)/manga")}
           >
             <Text style={styles.moreButtonText}>More</Text>
-            <MaterialCommunityIcons 
-              name="chevron-right" 
-              size={20} 
-              color={Colors.dark.buttonBackground} 
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={20}
+              color={Colors.dark.buttonBackground}
             />
           </TouchableOpacity>
         </View>
-        
-        {/* Horizontal scrolling anime cards */}
-        <ScrollView 
-          horizontal 
+
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.scrollContainer}
           contentContainerStyle={styles.scrollContentContainer}
         >
-          {loading ? 
-            /* Loading placeholders */
+          {mangaLoading ?
+            Array(5).fill(0).map((_, index) => renderLoadingCard(index, 'manga', index === 4)) :
+            mangaList.length > 0 ?
+              mangaList.map((item, index, array) => renderMangaCard(item, index, array)) :
+              mangaError ? (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{mangaError}</Text>
+                </View>
+              ) : (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>No manga available</Text>
+                </View>
+              )
+          }
+        </ScrollView>
+      </View>
+
+      {/* Trending Anime Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Trending</Text>
+          <TouchableOpacity
+            style={styles.moreButton}
+            onPress={() => router.push("/(tabs)/trending")}
+          >
+            <Text style={styles.moreButtonText}>More</Text>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={20}
+              color={Colors.dark.buttonBackground}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContentContainer}
+        >
+          {loading ?
             Array(5).fill(0).map((_, index) => renderLoadingCard(index, 'trending', index === 4)) :
-            trendingAnime.length > 0 ? 
-              /* Actual trending anime cards */
+            trendingAnime.length > 0 ?
               trendingAnime.map((item, index, array) => renderCard(item, 'trending', index, array)) :
               error ? (
-                /* Error state */
                 <View style={styles.errorContainer}>
                   <Text style={styles.errorText}>{error}</Text>
                 </View>
               ) : (
-                /* No data state */
                 <View style={styles.errorContainer}>
                   <Text style={styles.errorText}>No trending anime available</Text>
                 </View>
@@ -537,42 +677,36 @@ export default function Explore() {
 
       {/* Top Anime Section */}
       <View style={styles.section}>
-        {/* Section header with navigation to full top anime page */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Top</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.moreButton}
             onPress={() => router.push("/(tabs)/top")}
           >
             <Text style={styles.moreButtonText}>More</Text>
-            <MaterialCommunityIcons 
-              name="chevron-right" 
-              size={20} 
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={20}
               color={Colors.dark.buttonBackground}
             />
           </TouchableOpacity>
         </View>
-        
-        {/* Horizontal scrolling anime cards */}
-        <ScrollView 
-          horizontal 
+
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.scrollContainer}
           contentContainerStyle={styles.scrollContentContainer}
         >
-          {loading ? 
-            /* Loading placeholders */
+          {loading ?
             Array(5).fill(0).map((_, index) => renderLoadingCard(index, 'top', index === 4)) :
-            topAnime.length > 0 ? 
-              /* Actual top anime cards */
+            topAnime.length > 0 ?
               topAnime.map((item, index, array) => renderCard(item, 'top', index, array)) :
               error ? (
-                /* Error state */
                 <View style={styles.errorContainer}>
                   <Text style={styles.errorText}>{error}</Text>
                 </View>
               ) : (
-                /* No data state */
                 <View style={styles.errorContainer}>
                   <Text style={styles.errorText}>No top anime available</Text>
                 </View>
