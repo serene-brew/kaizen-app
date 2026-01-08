@@ -1,5 +1,6 @@
 // TypeScript interfaces for anime data structures and API responses
 import { AnimeItem, AnimeResponse } from '../types/anime';
+import { MangaItem, MangaListResponse, MangaDetails, MangaDetailsResponse, MangaChapter } from '../types/manga';
 
 /**
  * API Configuration
@@ -309,6 +310,181 @@ export const animeApi = {
       return data.result || [];
     } catch (error) {
       console.error('Error searching anime by query and filters:', error);
+      throw error;
+    }
+  }
+};
+
+/**
+ * Manga API Service
+ *
+ * Provides discovery and detail endpoints for manga content. The service mirrors the
+ * anime API structure so screens can consume consistent data sources while we
+ * gradually expand manga-specific experiences.
+ */
+export const mangaApi = {
+  /**
+   * Fetch Popular Manga List
+   *
+   * Retrieves trending manga from the discovery service. Optionally trims the
+   * results client-side to limit payloads for preview sections.
+   */
+  async fetchPopularManga(limit?: number): Promise<MangaItem[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/manga/popular`);
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const rawData = await response.text();
+      const data: MangaListResponse = JSON.parse(rawData);
+      const items = data.result || [];
+
+      if (typeof limit === 'number') {
+        return items.slice(0, Math.max(limit, 0));
+      }
+
+      return items;
+    } catch (error) {
+      console.error('Error fetching popular manga:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch Detailed Manga Information
+   *
+   * Loads extended metadata including synopsis, chapter lists, and origin data.
+   */
+  async fetchMangaDetails(id: string): Promise<MangaDetails | null> {
+    try {
+      const response = await fetch(`${SEARCH_API_URL}/manga/id/${id}`);
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const rawData = await response.text();
+      const data: MangaDetailsResponse = JSON.parse(rawData);
+
+      return data.result || null;
+    } catch (error) {
+      console.error(`Error fetching manga details for ${id}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch Manga Chapter Pages
+   *
+   * Loads the pages for a specific translated chapter of a manga.
+   * Returns an array of image URLs to display in the reader.
+   *
+   * @param id - Manga identifier
+   * @param chapter - Chapter number to read
+   * @returns Promise<MangaChapter> - Chapter data including page URLs
+   */
+  async fetchMangaChapter(id: string, chapter: string): Promise<MangaChapter> {
+    try {
+      const response = await fetch(`${SEARCH_API_URL}/manga/read/${id}/sub/${chapter}`);
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data: MangaChapter = await response.json();
+
+      return data;
+    } catch (error) {
+      console.error(`Error fetching manga chapter ${chapter} for ${id}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Search Manga by Query
+   * 
+   * Text-based manga search using user's query string.
+   * Performs a direct search against manga titles and metadata.
+   * 
+   * @param query - User's search query string
+   * @returns Promise<MangaItem[]> - Array of search results matching the query
+   * @throws Error on network issues or API failures
+   */
+  async searchMangaByQuery(query: string): Promise<MangaItem[]> {
+    try {
+      const formattedQuery = query.trim().replace(/\s+/g, '+');
+      
+      const response = await fetch(`${SEARCH_API_URL}/manga/search/${formattedQuery}`);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data: MangaListResponse = await response.json();
+      
+      return data.result || [];
+    } catch (error) {
+      console.error('Error searching manga by query:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Search Manga by Genre Filters
+   * 
+   * Genre-based filtering for manga content discovery.
+   * 
+   * @param genres - Array of genre strings to filter by
+   * @returns Promise<MangaItem[]> - Array of manga matching the selected genres
+   * @throws Error on network issues or API failures
+   */
+  async searchMangaByFilters(genres: string[]): Promise<MangaItem[]> {
+    try {
+      const formattedGenres = genres.join(',');
+      
+      const response = await fetch(`${SEARCH_API_URL}/manga/filters/${formattedGenres}`);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data: MangaListResponse = await response.json();
+      
+      return data.result || [];
+    } catch (error) {
+      console.error('Error searching manga by filters:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Search Manga by Query and Filters Combined
+   * 
+   * Advanced manga search combining text search with genre filtering.
+   * 
+   * @param query - User's search query string
+   * @param genres - Array of genre strings to filter by
+   * @returns Promise<MangaItem[]> - Array of manga matching both query and genres
+   * @throws Error on network issues or API failures
+   */
+  async searchMangaByQueryAndFilters(query: string, genres: string[]): Promise<MangaItem[]> {
+    try {
+      const formattedQuery = query.trim().replace(/\s+/g, '+');
+      const formattedGenres = genres.join(',');
+      
+      const response = await fetch(`${SEARCH_API_URL}/manga/filters/${formattedGenres}/${formattedQuery}`);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data: MangaListResponse = await response.json();
+      
+      return data.result || [];
+    } catch (error) {
+      console.error('Error searching manga by query and filters:', error);
       throw error;
     }
   }
