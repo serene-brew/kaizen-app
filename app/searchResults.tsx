@@ -13,8 +13,8 @@ import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 // Application color constants for consistent theming
 import Colors from "../constants/Colors";
 
-// API utilities for fetching anime search data
-import { animeApi } from "../lib/api";
+// API utilities for fetching anime and manga search data
+import { animeApi, mangaApi } from "../lib/api";
 
 // TypeScript interfaces for type safety
 import { AnimeItem } from "../types/anime";
@@ -39,10 +39,11 @@ import { useWatchlist } from "../contexts/WatchlistContext";
  * - Offline search result viewing
  * - Reduced API calls for repeated searches
  * - Improved user experience with faster navigation
+ * Separate keys for anime and manga to prevent cache conflicts
  */
-// Constants for AsyncStorage
-const SEARCH_RESULTS_STORAGE_KEY = 'search_results_cache';
-const SEARCH_PARAMS_STORAGE_KEY = 'search_params_cache';
+// Constants for AsyncStorage (separate for anime and manga)
+const getSearchResultsStorageKey = (type: 'anime' | 'manga') => `search_results_cache_${type}`;
+const getSearchParamsStorageKey = (type: 'anime' | 'manga') => `search_params_cache_${type}`;
 
 /**
  * SearchResults Component
@@ -62,9 +63,10 @@ export default function SearchResults() {
   const params = useLocalSearchParams();
   const queryParam = params.query as string || '';
   const genresParam = params.genres ? (params.genres as string).split(',') : [];
+  const searchType = (params.type as 'anime' | 'manga') || 'anime';
   
   // State variables for search results and UI
-  const [results, setResults] = useState<AnimeItem[]>([]); // Search result anime list
+  const [results, setResults] = useState<any[]>([]); // Search result list (anime or manga)
   const [loading, setLoading] = useState(true); // Loading state for API calls
   const [error, setError] = useState<string | null>(null); // Error state for failed requests
   const [watchlist, setWatchlist] = useState<string[]>([]); // Legacy local watchlist state for compatibility
@@ -93,8 +95,8 @@ export default function SearchResults() {
   // Save search results to AsyncStorage
   const saveSearchResults = async (searchResults: AnimeItem[], query: string, genres: string[]) => {
     try {
-      await AsyncStorage.setItem(SEARCH_RESULTS_STORAGE_KEY, JSON.stringify(searchResults));
-      await AsyncStorage.setItem(SEARCH_PARAMS_STORAGE_KEY, JSON.stringify({ query, genres }));
+      await AsyncStorage.setItem(getSearchResultsStorageKey(searchType), JSON.stringify(searchResults));
+      await AsyncStorage.setItem(getSearchParamsStorageKey(searchType), JSON.stringify({ query, genres }));
       console.log('Successfully saved search results to AsyncStorage');
     } catch (error) {
       console.error('Error saving search results:', error);
@@ -115,8 +117,8 @@ export default function SearchResults() {
   const loadSearchResults = async () => {
     try {
       console.log('Attempting to load search results from AsyncStorage...');
-      const resultsJson = await AsyncStorage.getItem(SEARCH_RESULTS_STORAGE_KEY);
-      const paramsJson = await AsyncStorage.getItem(SEARCH_PARAMS_STORAGE_KEY);
+      const resultsJson = await AsyncStorage.getItem(getSearchResultsStorageKey(searchType));
+      const paramsJson = await AsyncStorage.getItem(getSearchParamsStorageKey(searchType));
       
       if (resultsJson && paramsJson) {
         const savedResults = JSON.parse(resultsJson) as AnimeItem[];
@@ -194,18 +196,26 @@ export default function SearchResults() {
         return;
       }
       
-      let searchResults: AnimeItem[] = [];
+      let searchResults: any[] = [];
       
-      // Determine which API endpoint to use based on search parameters
-      if (queryParam && genresParam.length > 0) {
-        // Both query and filters
-        searchResults = await animeApi.searchAnimeByQueryAndFilters(queryParam, genresParam);
-      } else if (genresParam.length > 0) {
-        // Only filters
-        searchResults = await animeApi.searchAnimeByFilters(genresParam);
-      } else if (queryParam) {
-        // Only query
-        searchResults = await animeApi.searchAnimeByQuery(queryParam);
+      // Determine which API endpoint to use based on search type and parameters
+      if (searchType === 'manga') {
+        if (queryParam && genresParam.length > 0) {
+          searchResults = await mangaApi.searchMangaByQueryAndFilters(queryParam, genresParam);
+        } else if (genresParam.length > 0) {
+          searchResults = await mangaApi.searchMangaByFilters(genresParam);
+        } else if (queryParam) {
+          searchResults = await mangaApi.searchMangaByQuery(queryParam);
+        }
+      } else {
+        // Anime search
+        if (queryParam && genresParam.length > 0) {
+          searchResults = await animeApi.searchAnimeByQueryAndFilters(queryParam, genresParam);
+        } else if (genresParam.length > 0) {
+          searchResults = await animeApi.searchAnimeByFilters(genresParam);
+        } else if (queryParam) {
+          searchResults = await animeApi.searchAnimeByQuery(queryParam);
+        }
       }
       
       if (!searchResults || searchResults.length === 0) {
@@ -228,7 +238,7 @@ export default function SearchResults() {
       setLoading(false);
       setHasSearched(true);
     }
-  }, [queryParam, genresParam]);
+  }, [queryParam, genresParam, searchType]);
 
   /**
    * Initial Search Effect
@@ -336,31 +346,52 @@ export default function SearchResults() {
    * Provides consistent navigation back to search page.
    * Maintains proper app flow and user expectations.
    */
-  // Modified back button handler to ensure we always go back to the search page
+  // Back button handler: always return to the search tab with the current search type
   const handleGoBack = () => {
-    router.push('/(tabs)/search');
+    router.replace({
+      pathname: '/(tabs)/search',
+      params: { type: searchType }
+    });
     return true;
   };
 
   /**
-   * Anime Card Press Handler
+   * Card Press Handler
    * 
-   * Navigates to anime details with comprehensive data passing:
-   * - Passes anime ID and title for API calls
+   * Navigates to details page (anime or manga) with comprehensive data passing:
+   * - Passes ID and title for API calls
    * - Includes source tracking for analytics
-   * - Encodes complete anime data for immediate display
+   * - Encodes complete data for immediate display
    * - Optimizes detail page loading experience
    */
-  const handlePressCard = (item: AnimeItem) => {
-    router.push({
-      pathname: "/(tabs)/details",
-      params: { 
-        id: item.id, 
-        title: item.englishName || item.title,
-        source: 'search',
-        completeData: encodeURIComponent(JSON.stringify(item))
-      }
-    });
+  const handlePressCard = (item: any) => {
+    const sharedParams: Record<string, string> = { type: searchType };
+    if (queryParam) sharedParams.query = queryParam;
+    if (genresParam.length > 0) sharedParams.genres = genresParam.join(',');
+
+    if (searchType === 'manga') {
+      router.push({
+        pathname: "/(tabs)/manga-details",
+        params: { 
+          id: item.id, 
+          title: item.englishName || item.title,
+          source: 'search',
+          ...sharedParams,
+          completeData: encodeURIComponent(JSON.stringify(item))
+        }
+      });
+    } else {
+      router.push({
+        pathname: "/(tabs)/details",
+        params: { 
+          id: item.id, 
+          title: item.englishName || item.title,
+          source: 'search',
+          ...sharedParams,
+          completeData: encodeURIComponent(JSON.stringify(item))
+        }
+      });
+    }
   };
 
   /**
@@ -499,7 +530,9 @@ export default function SearchResults() {
         
         <View style={styles.emptyContainer}>
           <MaterialCommunityIcons name="magnify" size={64} color={Colors.dark.secondaryText} />
-          <Text style={styles.emptyText}>Use search or filters to find anime</Text>
+          <Text style={styles.emptyText}>
+            Use search or filters to find {searchType === 'manga' ? 'manga' : 'anime'}
+          </Text>
         </View>
       </View>
     );
@@ -544,7 +577,9 @@ export default function SearchResults() {
       ) : (
         <>
           {/* Results count and list */}
-          <Text style={styles.resultsCount}>{results.length} anime found</Text>
+          <Text style={styles.resultsCount}>
+            {results.length} {searchType === 'manga' ? 'manga' : 'anime'} found
+          </Text>
           <FlatList
             data={results}
             keyExtractor={(item) => item.id}
