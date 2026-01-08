@@ -21,7 +21,8 @@ export const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingTop: 55,
+    paddingBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -35,27 +36,23 @@ export const styles = StyleSheet.create({
   },
   headerButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
-  headerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 22,
     backgroundColor: Colors.dark.secondaryBackground,
-    gap: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerButtonText: {
-    color: Colors.dark.text,
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  clearButton: {
-    backgroundColor: 'rgba(255, 59, 48, 0.2)',
+  dangerButton: {
+    backgroundColor: 'rgba(255, 59, 48, 0.15)',
   },
   disabledButton: {
-    opacity: 0.5,
+    backgroundColor: Colors.dark.background,
+    borderWidth: 1,
+    borderColor: Colors.dark.secondaryBackground,
   },
   listContent: {
     paddingBottom: 40,
@@ -189,8 +186,5 @@ export const styles = StyleSheet.create({
   watchDate: {
     fontSize: 10,
     color: Colors.dark.secondaryText,
-  },
-  centerButtonSpacer: {
-    width: 150,
   },
 });
