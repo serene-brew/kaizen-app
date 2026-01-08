@@ -257,8 +257,13 @@ export const WatchlistProvider: React.FC<{ children: React.ReactNode }> = ({ chi
    */
   // Public function to refresh watchlist data
   const refreshWatchlist = async () => {
+    const wasEmpty = watchlist.length === 0;
     try {
-      setIsLoading(true);
+      if (wasEmpty) {
+        setIsLoading(true);
+      } else {
+        setIsSyncing(true);
+      }
       console.log("Refreshing watchlist data...");
       
       // Explicitly check auth status from Appwrite to ensure we have the latest info
@@ -299,7 +304,10 @@ export const WatchlistProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch (error) {
       console.error('Error refreshing watchlist:', error);
     } finally {
-      setIsLoading(false);
+      if (wasEmpty) {
+        setIsLoading(false);
+      }
+      setIsSyncing(false);
     }
   };
 
