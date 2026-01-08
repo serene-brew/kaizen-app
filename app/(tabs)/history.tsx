@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, memo } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Image, ActivityIndicator, Dimensions, BackHandler } from 'react-native';
 
 // Expo Router for navigation
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 
 // Material Community Icons for visual elements
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -230,25 +230,24 @@ const AnimeGroup = memo(({ animeId, animeItems, onNavigateToDetails, onNavigateT
 // Header Component
 const Header = memo(({ onSync, onClear, isAuthenticated, isSyncing }: HeaderProps) => (
   <View style={styles.header}>
+    <Text style={styles.headerTitle}>Watch History</Text>
     <View style={styles.headerButtons}>
-      {/* Cloud sync button - disabled if not authenticated or syncing */}
       <TouchableOpacity 
-        style={[styles.headerButton, (!isAuthenticated || isSyncing) && styles.disabledButton]} 
+        style={[styles.iconButton, (!isAuthenticated || isSyncing) && styles.disabledButton]} 
         onPress={onSync}
         disabled={!isAuthenticated || isSyncing}
       >
-        <MaterialCommunityIcons name="cloud-sync" size={18} color={isAuthenticated && !isSyncing ? Colors.dark.text : Colors.dark.secondaryText} />
-        <Text style={styles.headerButtonText}>Sync</Text>
+        {isSyncing ? (
+          <ActivityIndicator size="small" color={Colors.dark.text} />
+        ) : (
+          <MaterialCommunityIcons name="cloud-sync-outline" size={20} color={isAuthenticated ? Colors.dark.text : Colors.dark.secondaryText} />
+        )}
       </TouchableOpacity>
-      {/* Spacer for button alignment */}
-      <View style={styles.centerButtonSpacer} />
-      {/* Clear all history button */}
       <TouchableOpacity 
-        style={[styles.headerButton, styles.clearButton]} 
+        style={[styles.iconButton, styles.dangerButton]} 
         onPress={onClear}
       >
-        <MaterialCommunityIcons name="trash-can-outline" size={18} color={Colors.dark.text} />
-        <Text style={styles.headerButtonText}>Clear All</Text>
+        <MaterialCommunityIcons name="trash-can-outline" size={20} color={Colors.dark.text} />
       </TouchableOpacity>
     </View>
   </View>
@@ -282,7 +281,7 @@ export default function HistoryPage() {
    */
   // Handle back button to return to the More tab
   const handleGoBack = () => {
-    router.navigate('/(tabs)/more');
+    router.replace('/(tabs)/more');
   };
 
   /**
@@ -433,28 +432,14 @@ export default function HistoryPage() {
    * Loading State Render
    * Displays loading spinner while history data is being fetched
    */
-  // Show loading state
-  if (isLoading) {
+  // Show full-screen loading only on initial load with no data
+  if (isLoading && history.length === 0) {
     return (
       <View style={[styles.container, styles.centerContent]}>
+        <Stack.Screen options={{ headerShown: false }} />
         <StatusBar style="light" />
         <ActivityIndicator size="large" color={Colors.dark.buttonBackground} />
         <Text style={styles.loadingText}>Loading watch history...</Text>
-      </View>
-    );
-  }
-  
-  /**
-   * Syncing State Render
-   * Displays syncing indicator during cloud sync operations
-   */
-  // Show syncing indicator
-  if (isSyncing) {
-    return (
-      <View style={[styles.container, styles.centerContent]}>
-        <StatusBar style="light" />
-        <ActivityIndicator size="large" color={Colors.dark.buttonBackground} />
-        <Text style={styles.loadingText}>Refreshing watch history data...</Text>
       </View>
     );
   }
@@ -467,6 +452,7 @@ export default function HistoryPage() {
   if (history.length === 0) {
     return (
       <View style={[styles.container, styles.centerContent]}>
+        <Stack.Screen options={{ headerShown: false }} />
         <StatusBar style="light" />
         <Header 
           onSync={handleSyncHistory}
@@ -495,6 +481,7 @@ export default function HistoryPage() {
    */
   return (
     <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
       <StatusBar style="light" />
       {/* Main history list grouped by anime */}
       <FlatList
