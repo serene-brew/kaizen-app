@@ -7,6 +7,7 @@ import { useGlobalContext } from './GlobalProvider';
 // Feature-specific contexts for data synchronization
 import { useWatchlist } from '../contexts/WatchlistContext';
 import { useWatchHistory } from '../contexts/WatchHistoryContext';
+import { useReadHistory } from '../contexts/ReadHistoryContext';
 
 /**
  * SyncManager Component
@@ -42,7 +43,8 @@ export const SyncManager: React.FC = () => {
   
   // Extract data refresh functions from feature contexts
   const { refreshWatchlist } = useWatchlist();
-  const { refreshWatchHistory } = useWatchHistory();
+  const { refreshWatchHistory, cleanupAllUserDuplicates: cleanupWatchDuplicates } = useWatchHistory();
+  const { refreshHistory: refreshReadHistory, cleanupAllUserDuplicates: cleanupReadDuplicates } = useReadHistory();
   
   // Ref to track if sync has been attempted for current session
   // Prevents redundant sync operations during the same authentication session
@@ -51,6 +53,9 @@ export const SyncManager: React.FC = () => {
   // Ref to track if a sync operation is currently in progress
   // Prevents concurrent sync operations that could cause race conditions
   const syncInProgress = useRef(false);
+  
+  // Ref to track if cleanup has been performed
+  const cleanupPerformed = useRef(false);
   
   /**
    * Data Synchronization Function
@@ -69,22 +74,39 @@ export const SyncManager: React.FC = () => {
     if (syncInProgress.current) return;
     
     try {
-      // Set sync flag to prevent concurrent operations
+      // Set sync flag to true
       syncInProgress.current = true;
-      console.log('SyncManager: Starting data synchronization...');
-      
-      // Execute watchlist and watch history refresh in parallel for optimal performance
-      // Using Promise.all ensures both operations complete before proceeding
-      console.log('SyncManager: Refreshing watchlist and watch history in parallel...');
-      const [watchlistResult, watchHistoryResult] = await Promise.all([
+
+      // Run watchlist, watch history, and read history refresh in parallel for optimal performance
+      // Using Promise.all ensures all operations complete before proceeding
+      console.log('SyncManager: Refreshing watchlist, watch history, and read history in parallel...');
+      await Promise.all([
         refreshWatchlist().then(() => {
           console.log('SyncManager: Watchlist refresh complete');
         }),
         refreshWatchHistory().then(() => {
           console.log('SyncManager: Watch history refresh complete');
+        }),
+        refreshReadHistory().then(() => {
+          console.log('SyncManager: Read history refresh complete');
         })
       ]);
-      console.log('SyncManager: Both watchlist and watch history refresh complete');
+      console.log('SyncManager: All data refresh complete');
+      
+      // Perform duplicate cleanup once after initial sync
+      if (!cleanupPerformed.current) {
+        console.log('SyncManager: Starting duplicate cleanup for watch and read history...');
+        await Promise.all([
+          cleanupWatchDuplicates().then(() => {
+            console.log('SyncManager: Watch history duplicate cleanup complete');
+          }),
+          cleanupReadDuplicates().then(() => {
+            console.log('SyncManager: Read history duplicate cleanup complete');
+          })
+        ]);
+        cleanupPerformed.current = true;
+        console.log('SyncManager: All duplicate cleanup complete');
+      }
       
       console.log('SyncManager: All data synchronization complete');
       
@@ -134,7 +156,8 @@ export const SyncManager: React.FC = () => {
    * 
    * **Login Events:**
    * - Detects when user successfully authenticates
-   * - Triggers data synchronization if not already performed
+   * - TcleanupPerformed.current = false;
+        riggers data synchronization if not already performed
    * - Uses delay to ensure context initialization
    * 
    * **Logout Events:**
