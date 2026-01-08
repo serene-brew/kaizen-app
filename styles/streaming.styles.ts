@@ -9,7 +9,7 @@ export const styles = StyleSheet.create({
     backgroundColor: Colors.dark.background,
   },
   fullscreenContainer: {
-    backgroundColor: 'black',
+    backgroundColor: '#0A0A0F',
   },
   header: {
     flexDirection: 'row',
@@ -25,12 +25,12 @@ export const styles = StyleSheet.create({
   backButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(22, 22, 34, 0.6)',
   },
   shareButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(22, 22, 34, 0.6)',
   },
   headerTitle: {
     flex: 1,
@@ -116,7 +116,7 @@ export const styles = StyleSheet.create({
   },
   controlsOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(22, 22, 34, 0.5)',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -131,11 +131,11 @@ export const styles = StyleSheet.create({
   },
   topButton: {
     padding: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(22, 22, 34, 0.8)',
     borderRadius: 22,
-    shadowColor: '#000',
+    shadowColor: '#161622',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.4,
     shadowRadius: 2,
     elevation: 3,
   },
@@ -250,7 +250,7 @@ export const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(22, 22, 34, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -260,12 +260,12 @@ export const styles = StyleSheet.create({
     marginHorizontal: 24,
     maxWidth: width > height ? Math.min(width - 48, 600) : Dimensions.get('window').width - 48, // Responsive width
     minWidth: 320, // Increased for single row layout
-    shadowColor: '#000',
+    shadowColor: '#161622',
     shadowOffset: {
       width: 0,
       height: 8,
     },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.5,
     shadowRadius: 12,
     elevation: 16,
     borderWidth: 1,
