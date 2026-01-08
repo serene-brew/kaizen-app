@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.1] - 2026-01-08
+
+### Added
+- Comprehensive manga reading experience with custom zoom and pan controls
+- Manga section on explore page with dedicated discovery interface
+- Pagination system for episodes and chapters (50 items per page) with range selector cards
+- Sort order toggle (ascending/descending) for episode and chapter lists
+- Readlist functionality with Appwrite cloud sync for manga tracking
+- Read history tracking with Appwrite integration and duplicate prevention
+
+### Changed
+- Secondary background theme color updated for more soothing visual experience
+- Episode and chapter lists now paginated by default to improve performance with large content catalogs
+
+### Improved
+- Mobile cache management with FileSystem.cacheDirectory for proper Android/iOS handling
+- Watch history reliability with 1000ms minimum duration validation to prevent invalid entries
+- Read history sync optimization with 30-second throttling and automatic duplicate cleanup
+- Better UX for content with hundreds of episodes/chapters through intelligent pagination
+- Image cache cleanup with age-based (24h) and size-based (300MB) strategies
+
+### Fixed
+- Invalid 1ms/1ms watch history entries being saved before video loads
+- Navigation stack issues with proper router.replace() usage throughout the app
+- Cache directory access on mobile devices using correct FileSystem API
+- Storage bloat from manga page caching with automatic cleanup integration
+
 ## [2.0.0] - 2025-11-08
 
 ### Added
