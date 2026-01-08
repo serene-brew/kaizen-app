@@ -120,7 +120,7 @@ export const styles = StyleSheet.create({
   bookmarkButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.25)', // Reduced opacity from 0.5 to 0.3
+    backgroundColor: 'rgba(22, 22, 34, 0.5)',
     paddingVertical: 8,
     paddingHorizontal: 8,
     borderRadius: 20, // Increased radius for a more circular look
@@ -157,10 +157,29 @@ export const styles = StyleSheet.create({
     paddingHorizontal: CONTENT_PADDING,
     marginBottom: 12,
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: Colors.dark.text,
+  },
+  sectionTag: {
+    marginLeft: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: 'rgba(194, 59, 34, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(194, 59, 34, 0.32)',
+  },
+  sectionTagText: {
+    color: Colors.dark.buttonBackground,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   moreButton: {
     flexDirection: 'row',
@@ -211,7 +230,7 @@ export const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(22, 22, 34, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
