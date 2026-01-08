@@ -582,7 +582,9 @@ export default function StreamingPage() {
         return;
       }
       
-      if (currentTime > 0 && duration > 0) {
+      // Validate that video has actually loaded with real duration (not 1ms placeholder)
+      // Minimum threshold of 1000ms (1 second) ensures video data is valid
+      if (currentTime > 0 && duration > 1000) {
         // Update timestamp for all successful saves
         lastSaveTimeRef.current = now;
         // Update the watch history in cloud storage
@@ -622,7 +624,8 @@ export default function StreamingPage() {
    */
   const createInitialWatchEntry = async () => {
     // Prevent concurrent executions with ref-based lock
-  if (hasCreatedInitialEntryRef.current || isCreatingInitialEntryRef.current || !duration || !id || !episode) return;
+    // Also validate that video has actually loaded with real duration (not 1ms placeholder)
+    if (hasCreatedInitialEntryRef.current || isCreatingInitialEntryRef.current || !duration || duration <= 1000 || !id || !episode) return;
     
     // Set lock immediately to prevent race conditions
     isCreatingInitialEntryRef.current = true;
