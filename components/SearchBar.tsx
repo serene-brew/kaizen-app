@@ -19,6 +19,7 @@ interface SearchBarProps {
   value: string;                    // Current search query (controlled component)
   onChangeText: (text: string) => void; // Handler for text input changes
   onSubmit: () => void;            // Handler for search submission (Enter key)
+  placeholder?: string;            // Optional placeholder text
 }
 
 /**
@@ -39,7 +40,7 @@ interface SearchBarProps {
  * - Quick access to content discovery features
  * - User-driven content exploration interface
  */
-const SearchBar = ({ value, onChangeText, onSubmit }: SearchBarProps) => {
+const SearchBar = ({ value, onChangeText, onSubmit, placeholder = "Search anime..." }: SearchBarProps) => {
   return (
     <View style={styles.inputContainer}>
       {/* Main search input with keyboard optimization */}
@@ -47,7 +48,7 @@ const SearchBar = ({ value, onChangeText, onSubmit }: SearchBarProps) => {
         style={styles.input}
         value={value}
         onChangeText={onChangeText}
-        placeholder="Search anime..."
+        placeholder={placeholder}
         placeholderTextColor={Colors.dark.secondaryText}
         returnKeyType="search"       // Shows "Search" button on keyboard
         onSubmitEditing={onSubmit}   // Trigger search when user presses enter/search
@@ -90,7 +91,7 @@ const styles = StyleSheet.create({
   // Search bar container with background and layout
   inputContainer: {
     height: 48,                                      // Compact but touch-friendly height
-    backgroundColor: Colors.dark.secondaryBackground, // Subtle background differentiation
+    backgroundColor: Colors.dark.inputBackground,    // Input-specific background for better visibility
     borderRadius: 12,                                // Rounded corners for modern look
     flexDirection: 'row',                            // Horizontal layout for input + icon
     alignItems: 'center',                            // Vertical centering of content
