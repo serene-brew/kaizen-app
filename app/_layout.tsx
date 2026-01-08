@@ -43,6 +43,12 @@ import GlobalProvider from '../context/GlobalProvider';
 // Watchlist context for managing user's saved anime
 import { WatchlistProvider } from '../contexts/WatchlistContext';
 
+// Readlist context for managing saved manga
+import { ReadlistProvider } from '../contexts/ReadlistContext';
+
+// Read history context for tracking manga reading progress
+import { ReadHistoryProvider } from '../contexts/ReadHistoryContext';
+
 // Downloads context for managing offline content
 import DownloadsProvider from '../contexts/DownloadsContext';
 
@@ -222,31 +228,35 @@ export default function RootLayout() {
   return (
     <DownloadsProvider>
       <WatchlistProvider>
-        <WatchHistoryProvider>
-          <GlobalProvider>
-            {/* Include both sync services for redundancy */}
-            <AuthSyncService />
-            <SyncManager />
-            <ThemeProvider value={DarkTheme}>
-              <StatusBar style="light" backgroundColor="#161622" />
-              {/* Root navigation stack with dark theme configuration */}
-              <Stack
-                screenOptions={{
-                  headerShown: false, // Hide headers by default for custom navigation
-                  headerStyle: {
-                    backgroundColor: '#000000', // Dark header background
-                  },
-                  headerTintColor: '#FFFFFF', // White header text
-                  contentStyle: {
-                    backgroundColor: '#000000', // Dark screen background
-                  },
-                }}
-              />
-              {/* Custom Alert Component for dark-themed alerts */}
-              <CustomAlert />
-            </ThemeProvider>
-          </GlobalProvider>
-        </WatchHistoryProvider>
+        <ReadlistProvider>
+          <WatchHistoryProvider>
+            <ReadHistoryProvider>
+            <GlobalProvider>
+              {/* Include both sync services for redundancy */}
+              <AuthSyncService />
+              <SyncManager />
+              <ThemeProvider value={DarkTheme}>
+                <StatusBar style="light" backgroundColor="#161622" />
+                {/* Root navigation stack with dark theme configuration */}
+                <Stack
+                  screenOptions={{
+                    headerShown: false, // Hide headers by default for custom navigation
+                    headerStyle: {
+                      backgroundColor: '#161622', // Dark header background
+                    },
+                    headerTintColor: '#FFFFFF', // White header text
+                    contentStyle: {
+                      backgroundColor: '#161622', // Dark screen background
+                    },
+                  }}
+                />
+                {/* Custom Alert Component for dark-themed alerts */}
+                <CustomAlert />
+              </ThemeProvider>
+            </GlobalProvider>
+            </ReadHistoryProvider>
+          </WatchHistoryProvider>
+        </ReadlistProvider>
       </WatchlistProvider>
     </DownloadsProvider>
   );
