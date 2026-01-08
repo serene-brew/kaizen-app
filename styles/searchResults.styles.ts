@@ -124,7 +124,7 @@ export const styles = StyleSheet.create({
   scoreContainer: {
     flexDirection: 'column',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(22, 22, 34, 0.4)',
     paddingHorizontal: 6,
     paddingVertical: 4,
     borderRadius: 4,
