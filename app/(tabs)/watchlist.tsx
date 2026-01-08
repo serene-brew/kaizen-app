@@ -92,26 +92,12 @@ export default function Watchlist() {
    * Loading State Render
    * Displays loading spinner and text while fetching watchlist data
    */
-  // Show loading indicator while fetching watchlist data
-  if (isLoading) {
+  // Show full-screen loader only on initial load with no data
+  if (isLoading && watchlist.length === 0) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.dark.buttonBackground} />
         <Text style={styles.loadingText}>Loading watchlist...</Text>
-      </View>
-    );
-  }
-
-  /**
-   * Syncing State Render
-   * Displays syncing indicator during cloud sync operations
-   */
-  // Show syncing indicator
-  if (isSyncing) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.dark.buttonBackground} />
-        <Text style={styles.loadingText}>Refreshing watchlist data...</Text>
       </View>
     );
   }
