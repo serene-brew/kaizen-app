@@ -8,10 +8,10 @@ import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import Colors from "../../constants/Colors";
 
 // Expo Router hooks for navigation and parameter handling
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 
 // React hooks for state management and side effects
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 // Component-specific styles
 import { styles } from "../../styles/details.styles";
@@ -73,7 +73,11 @@ interface AnimeDetailsResponse {
 export default function DetailsPage() {
   // Extract route parameters for anime identification and navigation context
   const params = useLocalSearchParams();
-  const { id, title, source } = params;
+  const { id, title } = params;
+  const source = typeof params.source === 'string' ? params.source : undefined;
+  const searchTypeParam = typeof params.type === 'string' ? params.type : undefined;
+  const searchQueryParam = typeof params.query === 'string' ? params.query : undefined;
+  const searchGenresParam = typeof params.genres === 'string' ? params.genres : undefined;
   const router = useRouter();
   
   // Local component state management
@@ -86,6 +90,8 @@ export default function DetailsPage() {
     sub: '',
     dub: '',
   }));
+  const [selectedRange, setSelectedRange] = useState(0); // Currently selected episode range index
+  const [sortDescending, setSortDescending] = useState(false); // Sort order for episodes
 
   // Context hooks for watchlist and watch history functionality
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
@@ -247,21 +253,6 @@ export default function DetailsPage() {
   }, [id, getWatchedEpisodes, router]);
 
   /**
-   * Hardware Back Button Handling Effect
-   * 
-   * Handles Android hardware back button press to ensure proper navigation
-   * Prevents default back behavior and uses custom navigation logic
-   */
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      handleGoBack();
-      return true; // Prevent default back behavior
-    });
-
-    return () => backHandler.remove();
-  }, []);
-
-  /**
    * Custom Back Navigation Handler
    * 
    * Navigates back to the appropriate screen based on source parameter:
@@ -269,22 +260,38 @@ export default function DetailsPage() {
    * - Provides smooth user experience by returning to correct screen
    */
   const handleGoBack = useCallback(() => {
-    // Use the source param to determine where to go back to
     if (source === 'search') {
-      router.push('/searchResults');
-    } else if (source === 'trending') {
-      router.push('/(tabs)/trending');
-    } else if (source === 'top') {
-      router.push('/(tabs)/top');
-    } else if (source === 'watchlist') {
-      router.push('/(tabs)/watchlist');
+      router.replace({
+        pathname: '/searchResults',
+        params: {
+          type: searchTypeParam || 'anime',
+          ...(searchQueryParam ? { query: searchQueryParam } : {}),
+          ...(searchGenresParam ? { genres: searchGenresParam } : {}),
+        },
+      });
     } else if (source === 'history') {
-      router.push('/(tabs)/history');
+      router.replace('/(tabs)/history');
     } else {
-      // Default to going back to explore page
-      router.push('/(tabs)/explore');
+      router.back();
     }
-  }, [router, source]);
+  }, [router, source, searchTypeParam, searchQueryParam, searchGenresParam]);
+
+  /**
+   * Hardware Back Button Handling Effect
+   * 
+   * Handles Android hardware back button press to ensure proper navigation
+   * Prevents default back behavior and uses custom navigation logic
+   */
+  useFocusEffect(
+    useCallback(() => {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        handleGoBack();
+        return true; // Prevent default back behavior
+      });
+
+      return () => backHandler.remove();
+    }, [handleGoBack])
+  );
 
   /**
    * Watchlist Toggle Handler
@@ -305,6 +312,54 @@ export default function DetailsPage() {
   // Determine availability of SUB/DUB episodes for UI display
   const hasSubEpisodes = animeData?.episodes?.sub && animeData.episodes.sub.length > 0;
   const hasDubEpisodes = animeData?.episodes?.dub && animeData.episodes.dub.length > 0;
+
+  // Pagination logic for episodes
+  const EPISODES_PER_PAGE = 50;
+  const currentEpisodes = animeData?.episodes?.[audioType] || [];
+  
+  // Create episode ranges using actual episode numbers
+  const episodeRanges = useMemo(() => {
+    const ranges: { start: number; end: number; label: string }[] = [];
+    const total = currentEpisodes.length;
+    
+    for (let i = 0; i < total; i += EPISODES_PER_PAGE) {
+      const start = i + 1;
+      const end = Math.min(i + EPISODES_PER_PAGE, total);
+      const firstEpisode = currentEpisodes[i];
+      const lastEpisode = currentEpisodes[Math.min(i + EPISODES_PER_PAGE - 1, total - 1)];
+      ranges.push({
+        start,
+        end,
+        label: `${firstEpisode}-${lastEpisode}`
+      });
+    }
+    
+    return ranges;
+  }, [currentEpisodes]);
+
+  // Get paginated episodes for current range
+  const paginatedEpisodes = useMemo(() => {
+    if (episodeRanges.length === 0) return [];
+    
+    const range = episodeRanges[selectedRange];
+    if (!range) return [];
+    
+    const start = range.start - 1;
+    const end = range.end;
+    let episodes = currentEpisodes.slice(start, end);
+    
+    // Apply sort order
+    if (sortDescending) {
+      episodes = [...episodes].reverse();
+    }
+    
+    return episodes;
+  }, [currentEpisodes, selectedRange, episodeRanges, sortDescending]);
+
+  // Reset to first range when audio type changes
+  useEffect(() => {
+    setSelectedRange(0);
+  }, [audioType]);
   
   /**
    * Audio Type Auto-Selection Effect
@@ -521,16 +576,61 @@ export default function DetailsPage() {
       {/* Episodes section - only show if episodes exist for selected audio type */}
       {animeData.episodes && animeData.episodes[audioType] && animeData.episodes[audioType]?.length > 0 && (
         <View style={styles.episodesSection}>
-          <Text style={styles.sectionTitle}>Episodes</Text>
+          <View style={styles.episodesHeader}>
+            <Text style={styles.sectionTitle}>Episodes ({currentEpisodes.length})</Text>
+            {/* Sort order toggle button */}
+            <TouchableOpacity
+              style={styles.sortButton}
+              onPress={() => setSortDescending(!sortDescending)}
+            >
+              <MaterialCommunityIcons 
+                name={sortDescending ? "sort-descending" : "sort-ascending"} 
+                size={20} 
+                color={Colors.dark.buttonBackground} 
+              />
+              <Text style={styles.sortButtonText}>
+                {sortDescending ? "Desc" : "Asc"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Episode range selector - only show if more than 50 episodes */}
+          {episodeRanges.length > 1 && (
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.rangeSelector}
+              contentContainerStyle={styles.rangeSelectorContent}
+            >
+              {episodeRanges.map((range, index) => (
+                <TouchableOpacity
+                  key={`range-${index}`}
+                  style={[
+                    styles.rangeCard,
+                    selectedRange === index && styles.rangeCardActive
+                  ]}
+                  onPress={() => setSelectedRange(index)}
+                >
+                  <Text style={[
+                    styles.rangeCardText,
+                    selectedRange === index && styles.rangeCardTextActive
+                  ]}>
+                    {range.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+
           {/* Episode grid with watch status indicators */}
           <View style={styles.episodeGrid}>
-            {animeData.episodes[audioType]?.map((episode, index) => (
+            {paginatedEpisodes.map((episode, index) => (
               <TouchableOpacity 
-                key={`episode-${episode}`}
+                key={`episode-${episode}-${index}`}
                 style={[
                   styles.episodeBox,
-                  watchedEpisodesForAudio.has(episode) && styles.watchedEpisodeBox, // Watched episode styling
-                  episode === mostRecentEpisodeForAudio && styles.currentEpisodeBox // Most recent episode styling
+                  watchedEpisodesForAudio.has(episode) && styles.watchedEpisodeBox,
+                  episode === mostRecentEpisodeForAudio && styles.currentEpisodeBox
                 ]}
                 onPress={() => router.push({
                   pathname: "/streaming",
@@ -543,12 +643,10 @@ export default function DetailsPage() {
                   }
                 })}
               >
-                {/* Episode number */}
                 <Text style={[
                   styles.episodeNumber,
                   watchedEpisodesForAudio.has(episode) && styles.watchedEpisodeText
                 ]}>{episode}</Text>
-                {/* Watched indicator checkmark */}
                 {watchedEpisodesForAudio.has(episode) && (
                   <View style={styles.watchedIndicator}>
                     <MaterialCommunityIcons name="check" size={10} color="#fff" />
