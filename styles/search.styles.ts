@@ -25,6 +25,32 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.dark.text,
   },
+  tabContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: Colors.dark.secondaryBackground,
+    borderRadius: 12,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  tabActive: {
+    backgroundColor: Colors.dark.buttonBackground,
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.dark.secondaryText,
+  },
+  tabTextActive: {
+    color: Colors.dark.text,
+  },
   searchContainer: {
     paddingHorizontal: 16,
     paddingBottom: 16,
