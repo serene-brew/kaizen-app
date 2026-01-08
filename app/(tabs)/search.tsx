@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { View, SafeAreaView, Text, TouchableOpacity, ScrollView } from "react-native";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import Colors from "../../constants/Colors";
 import { SearchBar } from "../../components";
 import { styles } from "../../styles/search.styles";
@@ -17,8 +17,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
  * - label: Human-readable display name
  * - icon: MaterialCommunityIcons name for visual representation
  */
-// Define genre data with icons and labels based on the provided image
-const genres = [
+// Anime genres
+const animeGenres = [
   { id: "action", label: "Action", icon: "sword" },
   { id: "adventure", label: "Adventure", icon: "hiking" },
   { id: "comedy", label: "Comedy", icon: "emoticon-happy" },
@@ -65,8 +65,74 @@ const genres = [
   { id: "unknown", label: "Unknown", icon: "help-circle" }
 ];
 
-// Storage key for recent searches persistence
-const RECENT_SEARCHES_KEY = 'recent_searches';
+// Manga genres
+const mangaGenres = [
+  { id: "action", label: "Action", icon: "sword" },
+  { id: "adventure", label: "Adventure", icon: "hiking" },
+  { id: "comedy", label: "Comedy", icon: "emoticon-happy" },
+  { id: "drama", label: "Drama", icon: "drama-masks" },
+  { id: "fantasy", label: "Fantasy", icon: "auto-fix" },
+  { id: "horror", label: "Horror", icon: "ghost" },
+  { id: "isekai", label: "Isekai", icon: "transit-transfer" },
+  { id: "romance", label: "Romance", icon: "heart" },
+  { id: "psychological", label: "Psychological", icon: "brain" },
+  { id: "mystery", label: "Mystery", icon: "magnify" },
+  { id: "thriller", label: "Thriller", icon: "timer-sand" },
+  { id: "shounen", label: "Shounen", icon: "human-male" },
+  { id: "shoujo", label: "Shoujo", icon: "human-female" },
+  { id: "seinen", label: "Seinen", icon: "human-male" },
+  { id: "josei", label: "Josei", icon: "human-female" },
+  { id: "slice-of-life", label: "Slice of Life", icon: "food-apple" },
+  { id: "school", label: "School", icon: "school" },
+  { id: "supernatural", label: "Supernatural", icon: "ghost-outline" },
+  { id: "martial-arts", label: "Martial Arts", icon: "karate" },
+  { id: "historical", label: "Historical", icon: "book-open-page-variant" },
+  { id: "sci-fi", label: "Sci-Fi", icon: "rocket" },
+  { id: "mecha", label: "Mecha", icon: "robot" },
+  { id: "magic", label: "Magic", icon: "magic-staff" },
+  { id: "sports", label: "Sports", icon: "basketball" },
+  { id: "super-power", label: "Super Power", icon: "flash" },
+  { id: "game", label: "Game", icon: "gamepad-variant" },
+  { id: "harem", label: "Harem", icon: "account-multiple" },
+  { id: "ecchi", label: "Ecchi", icon: "heart-flash" },
+  { id: "vampire", label: "Vampire", icon: "needle" },
+  { id: "yaoi", label: "Yaoi", icon: "account-multiple" },
+  { id: "yuri", label: "Yuri", icon: "account-heart-outline" },
+  { id: "shounen-ai", label: "Shounen Ai", icon: "account-heart" },
+  { id: "manhwa", label: "Manhwa", icon: "book-open-page-variant" },
+  { id: "manhua", label: "Manhua", icon: "book-open-page-variant-outline" },
+  { id: "webtoons", label: "Webtoons", icon: "web" },
+  { id: "reincarnation", label: "Reincarnation", icon: "refresh" },
+  { id: "post-apocalyptic", label: "Post Apocalyptic", icon: "city-variant-outline" },
+  { id: "gender-bender", label: "Gender Bender", icon: "gender-male-female" },
+  { id: "cooking", label: "Cooking", icon: "food" },
+  { id: "medical", label: "Medical", icon: "medical-bag" },
+  { id: "military", label: "Military", icon: "shield" },
+  { id: "music", label: "Music", icon: "music" },
+  { id: "parody", label: "Parody", icon: "theater" },
+  { id: "police", label: "Police", icon: "police-badge" },
+  { id: "samurai", label: "Samurai", icon: "knife-military" },
+  { id: "4-koma", label: "4 Koma", icon: "grid" },
+  { id: "doujinshi", label: "Doujinshi", icon: "book-open" },
+  { id: "one-shot", label: "One Shot", icon: "numeric-1-circle" },
+  { id: "mature", label: "Mature", icon: "alert-circle" },
+  { id: "tragedy", label: "Tragedy", icon: "emoticon-sad" },
+  { id: "suspense", label: "Suspense", icon: "timer-sand" },
+  { id: "zombies", label: "Zombies", icon: "skull" },
+  { id: "monster-girls", label: "Monster Girls", icon: "ghost" },
+  { id: "youkai", label: "Youkai", icon: "ghost-outline" },
+  { id: "demons", label: "Demons", icon: "ghost" },
+  { id: "crossdressing", label: "Crossdressing", icon: "hanger" },
+  { id: "gyanu", label: "Gyanu", icon: "account-question" },
+  { id: "cars", label: "Cars", icon: "car" },
+  { id: "space", label: "Space", icon: "rocket-launch" },
+  { id: "dementia", label: "Dementia", icon: "brain" },
+  { id: "unknown", label: "Unknown", icon: "help-circle" }
+];
+
+// Storage keys for recent searches persistence (separate for anime and manga)
+const RECENT_ANIME_SEARCHES_KEY = 'recent_anime_searches';
+const RECENT_MANGA_SEARCHES_KEY = 'recent_manga_searches';
 
 /**
  * Search Component
@@ -79,10 +145,14 @@ const RECENT_SEARCHES_KEY = 'recent_searches';
  * - Navigation to search results with proper parameter passing
  */
 export default function Search() {
+  const params = useLocalSearchParams<{ type?: string }>();
+  const initialSearchType = (params.type === 'manga' ? 'manga' : 'anime') as 'anime' | 'manga';
+  
   // State for search input and filters
   const [searchQuery, setSearchQuery] = useState(""); // Current search text input
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]); // Selected genre filters
   const [recentSearches, setRecentSearches] = useState<string[]>([]); // Persisted recent search history
+  const [searchType, setSearchType] = useState<'anime' | 'manga'>(initialSearchType); // Toggle between anime and manga search
 
   /**
    * Recent Searches Loading Effect
@@ -90,13 +160,16 @@ export default function Search() {
    * Loads previously saved search history from AsyncStorage on component mount.
    * Provides persistence across app sessions for better user experience.
    */
-  // Load recent searches from AsyncStorage on component mount
+  // Load recent searches from AsyncStorage based on search type
   useEffect(() => {
     const loadRecentSearches = async () => {
       try {
-        const storedSearches = await AsyncStorage.getItem(RECENT_SEARCHES_KEY);
+        const storageKey = searchType === 'anime' ? RECENT_ANIME_SEARCHES_KEY : RECENT_MANGA_SEARCHES_KEY;
+        const storedSearches = await AsyncStorage.getItem(storageKey);
         if (storedSearches) {
           setRecentSearches(JSON.parse(storedSearches));
+        } else {
+          setRecentSearches([]);
         }
       } catch (error) {
         console.error('Error loading recent searches:', error);
@@ -104,26 +177,29 @@ export default function Search() {
     };
 
     loadRecentSearches();
-  }, []);
+    // Clear selected genres when switching search type
+    setSelectedGenres([]);
+  }, [searchType]);
 
   /**
    * Recent Searches Persistence Effect
    * 
    * Automatically saves recent searches to AsyncStorage whenever the list changes.
-   * Ensures search history is preserved across app sessions.
+   * Ensures search history is preserved across app sessions (separate for anime/manga).
    */
   // Save recent searches to AsyncStorage whenever they change
   useEffect(() => {
     const saveRecentSearches = async () => {
       try {
-        await AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recentSearches));
+        const storageKey = searchType === 'anime' ? RECENT_ANIME_SEARCHES_KEY : RECENT_MANGA_SEARCHES_KEY;
+        await AsyncStorage.setItem(storageKey, JSON.stringify(recentSearches));
       } catch (error) {
         console.error('Error saving recent searches:', error);
       }
     };
 
     saveRecentSearches();
-  }, [recentSearches]);
+  }, [recentSearches, searchType]);
 
   /**
    * Primary Search Handler
@@ -154,15 +230,20 @@ export default function Search() {
       
       // Add genre filters parameter if any genres selected
       if (selectedGenres.length > 0) {
+        // Get the appropriate genre list based on search type
+        const genreList = searchType === 'anime' ? animeGenres : mangaGenres;
         // Format selected genres as comma-separated list
         const formattedGenres = selectedGenres.map(genreId => {
           // Convert genre IDs to labels for the API
-          const genre = genres.find(g => g.id === genreId);
+          const genre = genreList.find(g => g.id === genreId);
           return genre ? genre.label : genreId;
         }).join(',');
         
         params.genres = formattedGenres;
       }
+      
+      // Add search type parameter
+      params.type = searchType;
       
       // Navigate to search results with formatted parameters
       router.push({
@@ -243,7 +324,8 @@ export default function Search() {
       router.push({
         pathname: "/searchResults",
         params: {
-          query: search.trim()
+          query: search.trim(),
+          type: searchType
         }
       });
     }
@@ -263,6 +345,26 @@ export default function Search() {
         <View style={styles.titleContainer}>
           <Text style={styles.pageTitle}>Search</Text>
         </View>
+
+        {/* Tab toggle for Anime/Manga */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity 
+            style={[styles.tab, searchType === 'anime' && styles.tabActive]}
+            onPress={() => setSearchType('anime')}
+          >
+            <Text style={[styles.tabText, searchType === 'anime' && styles.tabTextActive]}>
+              Anime
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.tab, searchType === 'manga' && styles.tabActive]}
+            onPress={() => setSearchType('manga')}
+          >
+            <Text style={[styles.tabText, searchType === 'manga' && styles.tabTextActive]}>
+              Manga
+            </Text>
+          </TouchableOpacity>
+        </View>
         
         {/* Search input and button container */}
         <View style={styles.searchContainer}>
@@ -271,6 +373,7 @@ export default function Search() {
             value={searchQuery}
             onChangeText={setSearchQuery}
             onSubmit={handleSearch}
+            placeholder={searchType === 'anime' ? 'Search anime...' : 'Search manga...'}
           />
           {/* Search action button with conditional styling */}
           <TouchableOpacity 
@@ -304,8 +407,8 @@ export default function Search() {
             showsHorizontalScrollIndicator={false} 
             contentContainerStyle={styles.genresScrollContent}
           >
-            {/* Render genre selection boxes */}
-            {genres.map(genre => (
+            {/* Render genre selection boxes based on search type */}
+            {(searchType === 'anime' ? animeGenres : mangaGenres).map(genre => (
               <TouchableOpacity 
                 key={genre.id}
                 style={[
