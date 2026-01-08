@@ -46,7 +46,7 @@ export const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(22, 22, 34, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
@@ -191,11 +191,59 @@ export const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.dark.border,
   },
+  episodesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   sectionTitle: {
     color: Colors.dark.text,
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 12,
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.dark.secondaryBackground,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    gap: 4,
+  },
+  sortButtonText: {
+    color: Colors.dark.buttonBackground,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  rangeSelector: {
+    marginBottom: 12,
+    maxHeight: 40,
+  },
+  rangeSelectorContent: {
+    gap: 8,
+  },
+  rangeCard: {
+    backgroundColor: Colors.dark.secondaryBackground,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  rangeCardActive: {
+    backgroundColor: Colors.dark.buttonBackground,
+    borderColor: Colors.dark.buttonBackground,
+  },
+  rangeCardText: {
+    color: Colors.dark.secondaryText,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  rangeCardTextActive: {
+    color: Colors.dark.text,
+    fontWeight: '700',
   },
   episodeGrid: {
     flexDirection: 'row',
@@ -211,14 +259,15 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.dark.secondaryBackground,
   },
   watchedEpisodeBox: {
-    backgroundColor: Colors.dark.buttonBackground + '80', // Adding transparency
+    backgroundColor: Colors.dark.buttonBackground + '50', // subtle tint
     borderColor: Colors.dark.buttonBackground,
-    borderWidth: 1,
   },
   currentEpisodeBox: {
-    backgroundColor: Colors.dark.buttonBackground, // Solid color for current episode
+    backgroundColor: Colors.dark.buttonBackground,
     borderColor: Colors.dark.buttonBackground,
     borderWidth: 2,
   },
@@ -237,7 +286,7 @@ export const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(22, 22, 34, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
