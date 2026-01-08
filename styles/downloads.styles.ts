@@ -23,7 +23,7 @@ export const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(22, 22, 34, 0.6)',
   },
   clearButton: {
     width: 40,
@@ -31,7 +31,7 @@ export const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(22, 22, 34, 0.6)',
   },
   headerTitle: {
     color: Colors.dark.text,
@@ -137,7 +137,7 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(22, 22, 34, 0.85)',
     borderTopRightRadius: 8,
     borderBottomLeftRadius: 8,
     paddingHorizontal: 8,
@@ -158,7 +158,7 @@ export const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(22, 22, 34, 0.6)',
   },
   downloadInfo: {
     flex: 1,
@@ -230,7 +230,7 @@ export const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(22, 22, 34, 0.85)',
     alignItems: 'center',
   },
   queueInfoText: {
