@@ -5,9 +5,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { account } from '../lib/appwrite';
 import { Models } from 'appwrite';
 
-// Feature-specific contexts for data synchronization
-import { useWatchlist } from './WatchlistContext';
-import { useWatchHistory } from './WatchHistoryContext';
+// Sync engine for local-first architecture
+import syncEngine from '../lib/syncEngine';
 
 // AsyncStorage for local cache management
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -54,10 +53,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<Models.User<Models.Preferences> | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
-  
-  // Access data contexts for synchronization after authentication
-  const { refreshWatchlist } = useWatchlist();
-  const { refreshWatchHistory } = useWatchHistory();
+
+  // Data sync is handled automatically by SyncManager, no direct context refreshes needed
 
   /**
    * Initial Authentication Check Effect
@@ -79,9 +76,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(currentUser);
         setIsAuthenticated(true);
         
-        // Refresh watchlist and watch history when user logs in
-        // Execute in parallel for optimal performance
-        await Promise.all([refreshWatchlist(), refreshWatchHistory()]);
+        // Data sync is handled by SyncManager automatically
+        console.log('AuthContext: User authenticated, SyncManager will handle data sync');
       } catch (error) {
         // No valid session found - reset to unauthenticated state
         setUser(null);
@@ -93,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     fetchUser();
-  }, [refreshWatchlist, refreshWatchHistory]);
+  }, []);
 
   /**
    * Logout Handler Function
@@ -116,12 +112,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await account.deleteSession('current');
       setUser(null);
 
-      // Clear search-related caches from AsyncStorage
-      await clearSearchCache();
-
-      // Refresh the watchlist and watch history to clear them (since we only use cloud storage now)
-      // Execute in parallel for optimal performance
-      await Promise.all([refreshWatchlist(), refreshWatchHistory()]);
+      // Clear local user data and search caches
+      await Promise.all([
+        syncEngine.clearOnLogout(),
+        clearSearchCache(),
+      ]);
       
       // Update authentication state
       setIsAuthenticated(false);
