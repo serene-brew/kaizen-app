@@ -138,7 +138,7 @@ export default function TrendingPage() {
     // Find the anime item to get complete information for watchlist
     const animeItem = trendingAnime.find(item => item.id === id);
     if (animeItem) {
-      // Use the context function to update the watchlist in Appwrite
+      // Use the context function to update the watchlist locally
       toggleWatchlist(
         id,
         animeItem.englishName || animeItem.title || 'Unknown Anime',
