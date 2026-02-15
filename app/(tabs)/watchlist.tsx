@@ -36,7 +36,7 @@ const CARD_WIDTH = (width - PADDING * 2 - GAP) / 2; // Calculate card width for 
  * Displays user's saved anime in a responsive grid layout with management features.
  * Features:
  * - Responsive 2-column grid layout matching trending and top pages
- * - Cloud sync functionality always accessible (even when empty)
+ * - Sync functionality always accessible (even when empty)
  * - Sorting options by recent addition or alphabetical name
  * - Individual item removal with visual feedback
  * - Enhanced empty state with sync hint and manual sync option
@@ -114,7 +114,7 @@ export default function Watchlist() {
         <View style={styles.header}>
           <Text style={styles.title}>My Watchlist</Text>
           <View style={styles.headerButtons}>
-            {/* Cloud sync button - available even when empty for manual sync */}
+            {/* Sync button - available even when empty for manual sync */}
             <TouchableOpacity 
               style={[styles.iconButton, !isAuthenticated && styles.disabledButton]} 
               onPress={refreshWatchlist}
@@ -175,7 +175,7 @@ export default function Watchlist() {
       <View style={styles.header}>
         <Text style={styles.title}>My Watchlist</Text>
         <View style={styles.headerButtons}>
-          {/* Cloud sync button - disabled if not authenticated */}
+          {/* Sync button - disabled if not authenticated */}
           <TouchableOpacity 
             style={[styles.iconButton, !isAuthenticated && styles.disabledButton]} 
             onPress={refreshWatchlist}
