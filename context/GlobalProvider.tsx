@@ -18,11 +18,13 @@ import { showErrorAlert } from '../components/CustomAlert';
 import { notificationService } from '../lib/notificationService';
 
 // Application contexts for data synchronization
-import { useWatchlist } from '../contexts/WatchlistContext';
-import { useWatchHistory } from '../contexts/WatchHistoryContext';
+
 
 // AsyncStorage for local cache management
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Sync engine for local-first architecture
+import syncEngine from '../lib/syncEngine';
 
 /**
  * TypeScript Interfaces
@@ -121,12 +123,7 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
   const [loading, setLoading] = useState(true);           // Global loading state
   const [otpInfo, setOtpInfo] = useState<OTPInfo | null>(null); // OTP session data
   
-  // Access contexts for data synchronization after authentication
-  const watchlistContext = useWatchlist();
-  const watchHistoryContext = useWatchHistory();
-  
-  // Note: Data sync is handled through manual calls to prevent circular dependencies
-  // between authentication and feature contexts
+  // Note: Data sync is now handled by SyncManager, no direct context access needed
 
   /**
    * Google OAuth Configuration
@@ -181,36 +178,13 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
   /**
    * Data Synchronization Effect
    * 
-   * Monitors authentication state changes and triggers data refresh.
-   * Syncs watchlist and watch history when user successfully logs in.
-   * Prevents duplicate sync operations during auth state transitions.
+   * In the local-first architecture, data sync is handled by SyncManager.
+   * This effect only logs the state change.  No direct Appwrite calls.
    */
-  // Effect to sync data when authentication state changes
   useEffect(() => {
-    const syncDataAfterLogin = async () => {
-      if (isLogged && user && !userStateUpdateInProgress.current) {
-        console.log('GlobalProvider: User is logged in, syncing watchlist and watch history');
-        try {
-          // Refresh watchlist data
-          if (watchlistContext && watchlistContext.refreshWatchlist) {
-            console.log('GlobalProvider: Refreshing watchlist...');
-            await watchlistContext.refreshWatchlist();
-          }
-          
-          // Refresh watch history data
-          if (watchHistoryContext && watchHistoryContext.refreshWatchHistory) {
-            console.log('GlobalProvider: Refreshing watch history...');
-            await watchHistoryContext.refreshWatchHistory();
-          }
-          
-          console.log('GlobalProvider: Data sync complete');
-        } catch (error) {
-          console.error('GlobalProvider: Error syncing data:', error);
-        }
-      }
-    };
-    
-    syncDataAfterLogin();
+    if (isLogged && user && !userStateUpdateInProgress.current) {
+      console.log('GlobalProvider: User logged in, SyncManager will handle data sync');
+    }
   }, [isLogged, user]);
 
   /**
@@ -263,18 +237,8 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
                 console.error('Failed to register device for notifications:', err);
               });
               
-              // Manually sync data after Google sign-in
-              console.log('Manually syncing data after Google sign-in');
-              try {
-                if (watchlistContext && watchlistContext.refreshWatchlist) {
-                  await watchlistContext.refreshWatchlist();
-                }
-                if (watchHistoryContext && watchHistoryContext.refreshWatchHistory) {
-                  await watchHistoryContext.refreshWatchHistory();
-                }
-              } catch (syncError) {
-                console.error('Error syncing data after Google sign-in:', syncError);
-              }
+              // Data sync is handled by SyncManager automatically on auth state change
+              console.log('Google sign-in complete, SyncManager will handle data sync');
             } else {
                throw new Error('Appwrite session created, but failed to get user data.');
             }
@@ -483,18 +447,8 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
         console.error('Failed to register device for notifications:', err);
       });
       
-      // Manually sync data after successful verification
-      console.log('Manually syncing data after OTP verification');
-      try {
-        if (watchlistContext && watchlistContext.refreshWatchlist) {
-          await watchlistContext.refreshWatchlist();
-        }
-        if (watchHistoryContext && watchHistoryContext.refreshWatchHistory) {
-          await watchHistoryContext.refreshWatchHistory();
-        }
-      } catch (syncError) {
-        console.error('Error syncing data after OTP verification:', syncError);
-      }
+      // Data sync is handled by SyncManager automatically on auth state change
+      console.log('OTP verification complete, SyncManager will handle data sync');
       
       // Clear OTP info now that it's been used
       setOtpInfo(null);
@@ -596,26 +550,13 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
       setUser(null);
       setIsLogged(false);
       
-      // 2. Start cache clearing immediately, in parallel with Appwrite logout
+      // 2. Clear local user data, app cache, and Appwrite session in parallel
+      const syncClearPromise = syncEngine.clearOnLogout();
       const cacheClearPromise = clearAppCache();
-      
-      // 3. Perform Appwrite logout
-      console.log('Calling Appwrite logout...');
       const logoutPromise = authService.logout();
       
-      // 4. Wait for both operations to complete
-      await Promise.all([cacheClearPromise, logoutPromise]);
-      
-      // 5. Final cleanup: ensure watchlist and watch history are refreshed after logout
-      if (watchlistContext && watchlistContext.refreshWatchlist) {
-        console.log('Refreshing watchlist after logout to ensure clean state');
-        await watchlistContext.refreshWatchlist();
-      }
-      
-      if (watchHistoryContext && watchHistoryContext.refreshWatchHistory) {
-        console.log('Refreshing watch history after logout to ensure clean state');
-        await watchHistoryContext.refreshWatchHistory();
-      }
+      // 3. Wait for all cleanup operations to complete
+      await Promise.all([syncClearPromise, cacheClearPromise, logoutPromise]);
       
       console.log('Logout process complete');
     } catch (error) {
@@ -645,22 +586,8 @@ const GlobalProvider = ({ children }: GlobalProviderProps) => {
   const clearAppCache = async () => {
     console.log('Clearing app cache data...');
     try {
-      // First, ensure watchlist and watch history are cleared through their contexts
-      // This handles both local state and cloud data synchronization
-
-      // Clear watch history (if context is available)
-      if (watchHistoryContext && watchHistoryContext.refreshWatchHistory) {
-        console.log('Clearing watch history cache...');
-        await watchHistoryContext.refreshWatchHistory();
-      }
-      
-      // Clear watchlist (if context is available)
-      if (watchlistContext && watchlistContext.refreshWatchlist) {
-        console.log('Clearing watchlist cache...');
-        await watchlistContext.refreshWatchlist();
-      }
-      
       // Clear search-related caches from AsyncStorage
+      // Note: Local user data (watchlist, history, etc.) is cleared by syncEngine.clearOnLogout()
       const searchCacheKeys = [
         'search_results_cache',     // Search results from API
         'search_params_cache',      // Search parameters (query, genres)
