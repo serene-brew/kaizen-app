@@ -49,10 +49,10 @@ interface AnimeGroupProps {
 }
 
 interface HeaderProps {
-  onSync: () => void; // Sync history with cloud storage
+  onSync: () => void; // Sync history (local ↔ cloud)
   onClear: () => void; // Clear all watch history
   isAuthenticated: boolean; // User authentication status
-  isSyncing: boolean; // Cloud sync operation status
+  isSyncing: boolean; // Sync operation status
 }
 
 /**
@@ -224,7 +224,7 @@ const AnimeGroup = memo(({ animeId, animeItems, onNavigateToDetails, onNavigateT
  * Header Component
  * 
  * Memoized header component with sync and clear functionality.
- * Provides cloud sync for authenticated users and clear all option.
+ * Provides sync for authenticated users and clear all option.
  * Handles disabled states based on authentication and sync status.
  */
 // Header Component
@@ -411,8 +411,8 @@ export default function HistoryPage() {
   }, [router]);
 
   /**
-   * Cloud Sync Handler
-   * Handles syncing watch history with cloud storage
+   * Sync Handler
+   * Handles syncing watch history (local ↔ cloud)
    * Shows authentication warning if user not logged in
    */
   // Handle sync history with cloud
