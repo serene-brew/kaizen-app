@@ -5,6 +5,8 @@ node_modules
 expo-env.d.ts
 # @end expo-cli
 
+_backup/
+
 app-example
 
 .expo
