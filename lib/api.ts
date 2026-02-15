@@ -387,7 +387,11 @@ export const mangaApi = {
    */
   async fetchMangaChapter(id: string, chapter: string): Promise<MangaChapter> {
     try {
-      const response = await fetch(`${SEARCH_API_URL}/manga/read/${id}/sub/${chapter}`);
+      const response = await fetch(`${SEARCH_API_URL}/manga/read/${id}/sub/${chapter}`, {
+        headers: {
+          'Referer': 'https://allmanga.to/'
+        }
+      });
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);

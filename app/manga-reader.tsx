@@ -1,5 +1,5 @@
 import { useEffect, useState, memo, useMemo, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Dimensions, SafeAreaView, Image as RNImage, FlatList, ViewToken, ListRenderItem, BackHandler } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Dimensions, SafeAreaView, FlatList, ViewToken, ListRenderItem, BackHandler } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -86,39 +86,27 @@ export default function MangaReaderPage() {
     loadChapter();
   }, [mangaId, chapter]);
 
+  // Initialize with default aspect ratios, will be updated as images load
   useEffect(() => {
     if (chapterData?.pages) {
-      const dimensionUpdates: { [key: number]: { width: number; height: number } } = {};
-      let loadedCount = 0;
-      const totalPages = chapterData.pages.length;
-
-      // Batch dimension updates to prevent constant re-renders
-      chapterData.pages.forEach((pageUrl, index) => {
-        RNImage.getSize(
-          pageUrl,
-          (width: number, height: number) => {
-            dimensionUpdates[index] = { width, height };
-            loadedCount++;
-
-            // Update in batches of 5 or when all are loaded
-            if (loadedCount % 5 === 0 || loadedCount === totalPages) {
-              setImageDimensions(prev => ({ ...prev, ...dimensionUpdates }));
-              // Store aspect ratios in ref
-              Object.keys(dimensionUpdates).forEach(key => {
-                const idx = parseInt(key);
-                const dims = dimensionUpdates[idx];
-                aspectRatiosRef.current[idx] = dims.width / dims.height;
-              });
-            }
-          },
-          (error: any) => {
-            console.error(`Failed to get size for image ${index}:`, error);
-            loadedCount++;
-          }
-        );
+      // Start with a reasonable default for manga pages
+      chapterData.pages.forEach((_, index) => {
+        if (!aspectRatiosRef.current[index]) {
+          aspectRatiosRef.current[index] = 0.7;
+        }
       });
     }
   }, [chapterData]);
+
+  // Update aspect ratio when an image loads with actual dimensions
+  const handleImageLoad = useCallback((index: number, width: number, height: number) => {
+    const aspectRatio = width / height;
+    if (aspectRatio > 0 && aspectRatio !== aspectRatiosRef.current[index]) {
+      aspectRatiosRef.current[index] = aspectRatio;
+      // Trigger a re-render by updating state
+      setImageDimensions(prev => ({ ...prev, [index]: { width, height } }));
+    }
+  }, []);
 
   const handleGoBack = () => {
     if (returnTo === 'read-history') {
@@ -389,11 +377,16 @@ export default function MangaReaderPage() {
   }));
 
   // Simple page component without individual zoom
-  const PageImage = memo(({ uri, index, aspectRatio, totalPages }: { uri: string; index: number; aspectRatio: number; totalPages: number }) => {
+  const PageImage = memo(({ uri, index, aspectRatio, totalPages, onImageLoad }: { uri: string; index: number; aspectRatio: number; totalPages: number; onImageLoad: (index: number, width: number, height: number) => void }) => {
     return (
       <View style={styles.pageContainer}>
         <Image
-          source={{ uri }}
+          source={{ 
+            uri,
+            headers: {
+              'Referer': 'https://allmanga.to/'
+            }
+          }}
           style={[
             styles.pageImage,
             { aspectRatio }
@@ -403,6 +396,12 @@ export default function MangaReaderPage() {
           transition={0}
           recyclingKey={`page-${index}`}
           priority="high"
+          onLoad={(event) => {
+            const { width, height } = event.source;
+            if (width && height) {
+              onImageLoad(index, width, height);
+            }
+          }}
         />
         {/* <View style={styles.pageNumber}>
           <Text style={styles.pageNumberText}>
@@ -427,9 +426,10 @@ export default function MangaReaderPage() {
         index={item.index}
         aspectRatio={aspectRatio}
         totalPages={pageData.length}
+        onImageLoad={handleImageLoad}
       />
     );
-  }, [pageData.length]);
+  }, [pageData.length, handleImageLoad]);
 
   if (loading) {
     return (
