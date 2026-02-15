@@ -27,7 +27,6 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import Slider from '@react-native-community/slider';
 import { useDownloads } from '../contexts/DownloadsContext';
 import { useWatchHistory } from '../contexts/WatchHistoryContext';
-import { ID } from 'appwrite';
 import { styles } from '../styles/streaming.styles';
 
 /**
@@ -83,7 +82,7 @@ interface StreamingResponse {
  * - Fullscreen support with orientation handling
  * - Progress tracking and automatic resume functionality
  * - Download capability for offline viewing
- * - Watch history synchronization across devices
+ * - Watch history tracking (saved locally, synced daily)
  * - Skip forward/backward controls (10-second intervals)
  * - Auto-hiding controls with touch interaction
  * - Share functionality for episodes
@@ -144,7 +143,7 @@ export default function StreamingPage() {
     requestDownloadPermissions
   } = useDownloads();
   
-  const { addToHistory, cleanupDuplicateDocuments } = useWatchHistory();
+  const { addToHistory } = useWatchHistory();
   
   // Ref for throttling save operations to prevent spam
   const lastSaveTimeRef = useRef<number>(0);
@@ -427,9 +426,6 @@ export default function StreamingPage() {
         // Set initial buffering state when starting to load video
         handleBufferingState(true);
         
-        // Clean up any duplicate documents for this episode before starting
-        cleanupDuplicateDocuments(id as string, episode as string, audioType as 'sub' | 'dub');
-        
         // Load saved playback position
         loadPlaybackPosition();
         
@@ -448,12 +444,12 @@ export default function StreamingPage() {
    * Auto-Save and Cleanup Effect
    * 
    * Sets up automatic saving of playback position every 2 minutes.
-   * Optimized interval to reduce Appwrite usage while maintaining functionality.
+   * Saves at a fixed interval to persist progress locally.
    * Handles cleanup when component unmounts to save final position.
    */
   // Set up auto-save interval and save playback position when the component unmounts
   useEffect(() => {
-    // Save playback position every 2 minutes (120 seconds) to optimize cloud usage
+    // Save playback position every 2 minutes (120 seconds)
     const autoSaveInterval = setInterval(() => {
       // Force save for interval - this is our intended 2-minute save
       savePlaybackPosition(true);
@@ -516,12 +512,12 @@ export default function StreamingPage() {
   /**
    * Load Playback Position Function
    * 
-   * Retrieves saved watch progress from cloud history and offers resume option.
+   * Retrieves saved watch progress from local history and offers resume option.
    * Checks watch history for matching episode and audio type.
    * Shows resume dialog for significant progress (>30 seconds).
    * Automatically seeks to saved position if user chooses to resume.
    */
-  // Load saved playback position from cloud history
+  // Load saved playback position from local history
   const loadPlaybackPosition = async () => {
     try {
       // Check if we have this episode in watch history
@@ -534,7 +530,7 @@ export default function StreamingPage() {
       let position = 0;
       let foundPosition = false;
       
-      // If found in watch history (cloud or local), use that position
+      // If found in watch history, use that position
       if (watchedEpisode && watchedEpisode.position) {
         position = watchedEpisode.position;
         foundPosition = true;
@@ -563,12 +559,12 @@ export default function StreamingPage() {
   /**
    * Save Playback Position Function
    * 
-   * Saves current playback progress to cloud watch history.
+   * Saves current playback progress to local watch history.
    * Records position and duration for accurate resume functionality.
    * Uses low threshold (5%) to track progress from early viewing.
    * Handles errors gracefully to prevent streaming interruption.
    */
-  // Save current playback position to cloud watch history (with smart throttling)
+  // Save current playback position to local watch history (with smart throttling)
   const savePlaybackPosition = async (force: boolean = false) => {
     try {
       // Smart throttling: allow manual saves every 10 seconds, but forced saves bypass entirely
@@ -587,7 +583,7 @@ export default function StreamingPage() {
       if (currentTime > 0 && duration > 1000) {
         // Update timestamp for all successful saves
         lastSaveTimeRef.current = now;
-        // Update the watch history in cloud storage
+        // Update the watch history locally
         // Lower the threshold to consider watched if at least 5% of the episode is watched
         // This ensures more consistent history recording
         const watchedThreshold = duration * 0.05;
@@ -876,7 +872,7 @@ export default function StreamingPage() {
     
     try {
       // Generate a unique ID for this download
-      const downloadId = ID.unique();
+      const downloadId = `dl_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       
       await startDownload({
         id: downloadId,
