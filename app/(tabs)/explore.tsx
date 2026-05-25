@@ -32,6 +32,7 @@ import { MangaItem } from "../../types/manga";
 // Watchlist context for managing user's saved anime
 import { useWatchlist } from '../../contexts/WatchlistContext';
 import { useReadlist } from '../../contexts/ReadlistContext';
+import { getThumbnailUrl } from '../../lib/referrer';
 
 // Get device screen width for responsive carousel sizing
 const { width } = Dimensions.get('window');
@@ -354,7 +355,7 @@ export default function Explore() {
         {/* Poster image with fallback icon */}
         {item.thumbnail ? (
           <Image 
-            source={{ uri: item.thumbnail }} 
+            source={{ uri: getThumbnailUrl(item.thumbnail) }} 
             style={styles.posterImage}
             resizeMode="cover"
           />
@@ -396,7 +397,7 @@ export default function Explore() {
       <View style={styles.posterPlaceholder}>
         {item.thumbnail ? (
           <Image
-            source={{ uri: item.thumbnail }}
+            source={{ uri: getThumbnailUrl(item.thumbnail) }}
             style={styles.posterImage}
             resizeMode="cover"
           />
@@ -462,7 +463,7 @@ export default function Explore() {
       {/* Background image or placeholder */}
       {item.thumbnail ? (
         <Image 
-          source={{ uri: item.thumbnail }} 
+          source={{ uri: getThumbnailUrl(item.thumbnail) }} 
           style={styles.carouselImage}
           resizeMode="cover"
         />

@@ -37,6 +37,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 
 // Component-specific styles
 import { styles } from '../styles/downloads.styles';
+import { getThumbnailUrl } from '../lib/referrer';
 
 /**
  * Utility function to format bytes into human-readable file sizes
@@ -309,7 +310,7 @@ export default function DownloadsPage() {
           {/* Thumbnail with overlay for status */}
           <View style={styles.thumbnailContainer}>
             <Image
-              source={{ uri: item.thumbnail || 'https://via.placeholder.com/100' }}
+              source={{ uri: getThumbnailUrl(item.thumbnail) || 'https://via.placeholder.com/100' }}
               style={styles.thumbnail}
               resizeMode="cover"
             />

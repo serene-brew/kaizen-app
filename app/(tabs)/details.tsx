@@ -29,6 +29,7 @@ import type { WatchHistoryItem } from '../../contexts/WatchHistoryContext';
 
 // AsyncStorage for local data persistence
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getReferrer, getThumbnailUrl } from '../../lib/referrer';
 
 // Get device screen width for responsive poster sizing
 const { width } = Dimensions.get('window');
@@ -148,7 +149,10 @@ export default function DetailsPage() {
       // If no complete data or parsing failed, fetch from API
       try {
         console.log("Fetching anime details from API");
-        const response = await fetch(`https://heavenscape.vercel.app/api/anime/id/${id}`);
+        const referrer = await getReferrer();
+        const response = await fetch(`https://heavenscape.vercel.app/api/anime/id/${id}`, {
+          headers: { Referer: referrer }
+        });
         
         if (!response.ok) {
           throw new Error(`API error: ${response.status}`);
@@ -439,7 +443,7 @@ export default function DetailsPage() {
         <View style={styles.posterContainer}>
           {/* Anime poster image with fallback */}
           <Image 
-            source={{ uri: animeData.thumbnail || 'https://via.placeholder.com/300x450?text=No+Image' }}  // Even the placeholder image doesnot exist, it will not break the app, thats why it is added, might change it later with something like a local image of 404 not found anime edition
+            source={{ uri: getThumbnailUrl(animeData.thumbnail) || 'https://via.placeholder.com/300x450?text=No+Image' }}  // Even the placeholder image doesnot exist, it will not break the app, thats why it is added, might change it later with something like a local image of 404 not found anime edition
             style={styles.poster}
             resizeMode="cover"
           />
