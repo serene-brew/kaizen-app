@@ -1,6 +1,7 @@
 // TypeScript interfaces for anime data structures and API responses
 import { AnimeItem, AnimeResponse } from '../types/anime';
 import { MangaItem, MangaListResponse, MangaDetails, MangaDetailsResponse, MangaChapter } from '../types/manga';
+import { getReferrer } from './referrer';
 
 /**
  * API Configuration
@@ -54,7 +55,10 @@ export const animeApi = {
    */
   async fetchTopAnime(): Promise<AnimeItem[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/anime/top`);
+      const referrer = await getReferrer();
+      const response = await fetch(`${API_BASE_URL}/anime/top`, {
+        headers: { Referer: referrer }
+      });
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -86,7 +90,10 @@ export const animeApi = {
    */
   async fetchTrendingAnime(): Promise<AnimeItem[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/anime/trending`);
+      const referrer = await getReferrer();
+      const response = await fetch(`${API_BASE_URL}/anime/trending`, {
+        headers: { Referer: referrer }
+      });
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -122,7 +129,10 @@ export const animeApi = {
    */
   async fetchCarouselAnime(count: number = 5): Promise<AnimeItem[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/anime/carousel`);
+      const referrer = await getReferrer();
+      const response = await fetch(`${API_BASE_URL}/anime/carousel`, {
+        headers: { Referer: referrer }
+      });
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -224,8 +234,11 @@ export const animeApi = {
     try {
       // Sanitize and encode the query for safe URL usage
       const formattedQuery = encodeURIComponent(query.trim());
+      const referrer = await getReferrer();
       
-      const response = await fetch(`${SEARCH_API_URL}/anime/search/${formattedQuery}`);
+      const response = await fetch(`${SEARCH_API_URL}/anime/search/${formattedQuery}`, {
+        headers: { Referer: referrer }
+      });
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -259,8 +272,11 @@ export const animeApi = {
     try {
       // Join genres with comma for API endpoint format
       const formattedGenres = genres.join(',');
+      const referrer = await getReferrer();
       
-      const response = await fetch(`${SEARCH_API_URL}/anime/filters/${formattedGenres}`);
+      const response = await fetch(`${SEARCH_API_URL}/anime/filters/${formattedGenres}`, {
+        headers: { Referer: referrer }
+      });
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -298,8 +314,11 @@ export const animeApi = {
       const formattedQuery = encodeURIComponent(query.trim());
       // Join genres with comma for API endpoint format
       const formattedGenres = genres.join(',');
+      const referrer = await getReferrer();
       
-      const response = await fetch(`${SEARCH_API_URL}/anime/filters/${formattedGenres}/${formattedQuery}`);
+      const response = await fetch(`${SEARCH_API_URL}/anime/filters/${formattedGenres}/${formattedQuery}`, {
+        headers: { Referer: referrer }
+      });
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -331,7 +350,10 @@ export const mangaApi = {
    */
   async fetchPopularManga(limit?: number): Promise<MangaItem[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/manga/popular`);
+      const referrer = await getReferrer();
+      const response = await fetch(`${API_BASE_URL}/manga/popular`, {
+        headers: { Referer: referrer }
+      });
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -359,7 +381,10 @@ export const mangaApi = {
    */
   async fetchMangaDetails(id: string): Promise<MangaDetails | null> {
     try {
-      const response = await fetch(`${SEARCH_API_URL}/manga/id/${id}`);
+      const referrer = await getReferrer();
+      const response = await fetch(`${SEARCH_API_URL}/manga/id/${id}`, {
+        headers: { Referer: referrer }
+      });
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -387,9 +412,10 @@ export const mangaApi = {
    */
   async fetchMangaChapter(id: string, chapter: string): Promise<MangaChapter> {
     try {
+      const referrer = await getReferrer();
       const response = await fetch(`${SEARCH_API_URL}/manga/read/${id}/sub/${chapter}`, {
         headers: {
-          'Referer': 'https://allmanga.to/'
+          'Referer': referrer
         }
       });
 
@@ -419,8 +445,11 @@ export const mangaApi = {
   async searchMangaByQuery(query: string): Promise<MangaItem[]> {
     try {
       const formattedQuery = query.trim().replace(/\s+/g, '+');
+      const referrer = await getReferrer();
       
-      const response = await fetch(`${SEARCH_API_URL}/manga/search/${formattedQuery}`);
+      const response = await fetch(`${SEARCH_API_URL}/manga/search/${formattedQuery}`, {
+        headers: { Referer: referrer }
+      });
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -447,8 +476,11 @@ export const mangaApi = {
   async searchMangaByFilters(genres: string[]): Promise<MangaItem[]> {
     try {
       const formattedGenres = genres.join(',');
+      const referrer = await getReferrer();
       
-      const response = await fetch(`${SEARCH_API_URL}/manga/filters/${formattedGenres}`);
+      const response = await fetch(`${SEARCH_API_URL}/manga/filters/${formattedGenres}`, {
+        headers: { Referer: referrer }
+      });
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -477,8 +509,11 @@ export const mangaApi = {
     try {
       const formattedQuery = query.trim().replace(/\s+/g, '+');
       const formattedGenres = genres.join(',');
+      const referrer = await getReferrer();
       
-      const response = await fetch(`${SEARCH_API_URL}/manga/filters/${formattedGenres}/${formattedQuery}`);
+      const response = await fetch(`${SEARCH_API_URL}/manga/filters/${formattedGenres}/${formattedQuery}`, {
+        headers: { Referer: referrer }
+      });
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
