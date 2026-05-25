@@ -10,6 +10,7 @@ import { mangaApi } from '../../lib/api';
 import { MangaDetails } from '../../types/manga';
 import { useReadlist } from '../../contexts/ReadlistContext';
 import { useReadHistory } from '../../contexts/ReadHistoryContext';
+import { getThumbnailUrl } from '../../lib/referrer';
 
 export default function MangaDetailsPage() {
   const router = useRouter();
@@ -218,7 +219,7 @@ export default function MangaDetailsPage() {
       <View style={styles.header}>
         <View style={styles.posterContainer}>
           <Image
-            source={{ uri: details.thumbnail || 'https://via.placeholder.com/300x450?text=No+Image' }}
+            source={{ uri: getThumbnailUrl(details.thumbnail) || 'https://via.placeholder.com/300x450?text=No+Image' }}
             style={styles.poster}
             resizeMode="cover"
           />

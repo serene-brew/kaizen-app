@@ -9,6 +9,7 @@ import { styles } from '../../styles/manga.styles';
 import { mangaApi } from '../../lib/api';
 import { MangaItem } from '../../types/manga';
 import { useReadlist } from '../../contexts/ReadlistContext';
+import { getThumbnailUrl } from '../../lib/referrer';
 
 interface DisplayMangaItem {
   id: string;
@@ -75,7 +76,7 @@ export default function MangaPage() {
     >
       <View style={styles.cover}>
         {item.thumbnail ? (
-          <Image source={{ uri: item.thumbnail }} style={styles.coverImage} resizeMode="cover" />
+          <Image source={{ uri: getThumbnailUrl(item.thumbnail) }} style={styles.coverImage} resizeMode="cover" />
         ) : (
           <MaterialCommunityIcons name="image" size={40} color={Colors.dark.secondaryText} />
         )}
