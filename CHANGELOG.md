@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.0] - 2026-05-25
+
+### Added
+
+- Visual "Sub" and "Dub" format badges to search result thumbnails for quick identification
+- Global Referrer and image proxy handler (`getThumbnailUrl`) for comprehensive network privacy and reliability
+- Fullscreen reading mode in manga reader, hiding system notification and navigation bars on Android
+
+### Changed
+
+- Updated search results UI to route manga items to the readlist and anime items to the watchlist context
+- Refactored streaming video and manga reader components to dynamically enforce the `Referer` header on network requests
+
+### Fixed
+
+- Authentication state initialization bug preventing newly signed-up users from accessing local storage until app restart
+- Incorrect "add to watchlist" button displaying on manga search results, now correctly mapped to readlist actions
+
 ## [3.1.0] - 2026-02-15
 
 ### Major Changes - Local-First Architecture Migration
