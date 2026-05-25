@@ -24,10 +24,12 @@ import { StatusBar } from 'expo-status-bar';
 import { showCustomAlert, showErrorAlert, showConfirmAlert, showSuccessAlert } from '../components/CustomAlert';
 import Colors from '../constants/Colors';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import * as NavigationBar from 'expo-navigation-bar';
 import Slider from '@react-native-community/slider';
 import { useDownloads } from '../contexts/DownloadsContext';
 import { useWatchHistory } from '../contexts/WatchHistoryContext';
 import { styles } from '../styles/streaming.styles';
+import { getReferrer, getThumbnailUrl } from '../lib/referrer';
 
 /**
  * TypeScript Interfaces
@@ -59,6 +61,7 @@ type StreamState = {
   loading: boolean;
   error: string | null;
   streamingUrl: string | null;
+  referrerHeader: string;
 };
 
 const PLAYBACK_SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0] as const;
@@ -101,11 +104,12 @@ export default function StreamingPage() {
       currentEpisodeIndex: 0,
       loading: true,
       error: null,
-      streamingUrl: null
+      streamingUrl: null,
+      referrerHeader: ''
     }
   );
 
-  const { episodes, currentEpisodeIndex, loading, error, streamingUrl } = streamState;
+  const { episodes, currentEpisodeIndex, loading, error, streamingUrl, referrerHeader } = streamState;
   
   // Video player state management
   const videoRef = useRef<Video | null>(null); // Reference to video player component
@@ -345,9 +349,16 @@ export default function StreamingPage() {
   const toggleFullscreen = async () => {
     if (isFullscreen) {
       await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+      if (Platform.OS === 'android') {
+        await NavigationBar.setVisibilityAsync('visible');
+      }
       patchPlayerUi({ isFullscreen: false });
     } else {
       await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+      if (Platform.OS === 'android') {
+        await NavigationBar.setVisibilityAsync('hidden');
+        await NavigationBar.setBehaviorAsync('overlay-swipe');
+      }
       patchPlayerUi({ isFullscreen: true });
     }
   };
@@ -362,6 +373,9 @@ export default function StreamingPage() {
   useEffect(() => {
     return () => {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+      if (Platform.OS === 'android') {
+        NavigationBar.setVisibilityAsync('visible');
+      }
     };
   }, []);
 
@@ -390,8 +404,11 @@ export default function StreamingPage() {
 
       try {
         console.log(`Fetching streaming URL for anime ${id}, ${audioType}, episode ${episode}`);
+        const referrer = await getReferrer();
+        patchStreamState({ referrerHeader: referrer });
         const response = await fetch(
-          `https://heavenscape.vercel.app/api/anime/search/${id}/${audioType}/${episode}`
+          `https://heavenscape.vercel.app/api/anime/search/${id}/${audioType}/${episode}`,
+          { headers: { Referer: referrer } }
         );
 
         if (!response.ok) {
@@ -1050,7 +1067,10 @@ export default function StreamingPage() {
                 {/* Expo AV Video component with custom controls disabled */}
                 <Video
                   ref={videoRef}
-                  source={{ uri: streamingUrl }}
+                  source={{
+                    uri: streamingUrl,
+                    headers: referrerHeader ? { Referer: referrerHeader } : undefined
+                  }}
                   rate={selectedSpeed}
                   shouldPlay={false}
                   isLooping={false}
@@ -1067,7 +1087,7 @@ export default function StreamingPage() {
                     }
                   }}
                   useNativeControls={false}
-                  posterSource={{ uri: thumbnail as string }}
+                  posterSource={{ uri: getThumbnailUrl(thumbnail as string) }}
                   usePoster={true}
                   posterStyle={styles.poster}
                 />
@@ -1250,7 +1270,7 @@ export default function StreamingPage() {
               <View style={styles.thumbnailContainer}>
                 {thumbnail ? (
                   <Image 
-                    source={{ uri: thumbnail as string }} 
+                    source={{ uri: getThumbnailUrl(thumbnail as string) }} 
                     style={styles.thumbnail} 
                     resizeMode="cover" 
                   />

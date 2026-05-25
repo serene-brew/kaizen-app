@@ -1,8 +1,9 @@
 import { useEffect, useState, memo, useMemo, useCallback, useRef } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Dimensions, SafeAreaView, FlatList, ViewToken, ListRenderItem, BackHandler } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, Dimensions, SafeAreaView, FlatList, ViewToken, ListRenderItem, BackHandler, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as NavigationBar from 'expo-navigation-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GestureHandlerRootView, PinchGestureHandler, PinchGestureHandlerGestureEvent, TapGestureHandler, TapGestureHandlerGestureEvent, PanGestureHandler, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
 import Animated, { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
@@ -13,6 +14,7 @@ import { mangaApi } from '../lib/api';
 import { MangaChapter } from '../types/manga';
 import { useReadHistory } from '../contexts/ReadHistoryContext';
 import { smartCacheCleanup } from '../lib/imageCacheService';
+import { getReferrer } from '../lib/referrer';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -42,11 +44,29 @@ export default function MangaReaderPage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [pageData, setPageData] = useState<PageData[]>([]);
   const [isZoomed, setIsZoomed] = useState(false);
+  const [imageReferer, setImageReferer] = useState('');
   const aspectRatiosRef = useRef<{ [key: number]: number }>({});
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSentPageRef = useRef<number | null>(null);
 
   const { addToHistory } = useReadHistory();
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      NavigationBar.setVisibilityAsync('hidden');
+      NavigationBar.setBehaviorAsync('overlay-swipe');
+    }
+    return () => {
+      if (Platform.OS === 'android') {
+        NavigationBar.setVisibilityAsync('visible');
+      }
+    };
+  }, []);
+
+  // Fetch the referrer header once on mount
+  useEffect(() => {
+    getReferrer().then((ref) => setImageReferer(ref));
+  }, []);
 
   useEffect(() => {
     const loadChapter = async () => {
@@ -377,14 +397,14 @@ export default function MangaReaderPage() {
   }));
 
   // Simple page component without individual zoom
-  const PageImage = memo(({ uri, index, aspectRatio, totalPages, onImageLoad }: { uri: string; index: number; aspectRatio: number; totalPages: number; onImageLoad: (index: number, width: number, height: number) => void }) => {
+  const PageImage = memo(({ uri, index, aspectRatio, totalPages, onImageLoad, referer }: { uri: string; index: number; aspectRatio: number; totalPages: number; onImageLoad: (index: number, width: number, height: number) => void; referer: string }) => {
     return (
       <View style={styles.pageContainer}>
         <Image
           source={{ 
             uri,
             headers: {
-              'Referer': 'https://allmanga.to/'
+              'Referer': referer || ''
             }
           }}
           style={[
@@ -414,6 +434,7 @@ export default function MangaReaderPage() {
     return prevProps.uri === nextProps.uri && 
            prevProps.index === nextProps.index &&
            prevProps.totalPages === nextProps.totalPages &&
+           prevProps.referer === nextProps.referer &&
            Math.abs(prevProps.aspectRatio - nextProps.aspectRatio) < 0.01;
   });
 
@@ -427,14 +448,15 @@ export default function MangaReaderPage() {
         aspectRatio={aspectRatio}
         totalPages={pageData.length}
         onImageLoad={handleImageLoad}
+        referer={imageReferer}
       />
     );
-  }, [pageData.length, handleImageLoad]);
+  }, [pageData.length, handleImageLoad, imageReferer]);
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <StatusBar style="light" translucent />
+        <StatusBar style="light" hidden />
         <ActivityIndicator size="large" color={Colors.dark.buttonBackground} />
         <Text style={styles.loadingText}>Loading chapter...</Text>
       </View>
@@ -444,7 +466,7 @@ export default function MangaReaderPage() {
   if (error || !chapterData) {
     return (
       <View style={styles.errorContainer}>
-        <StatusBar style="light" translucent />
+        <StatusBar style="light" hidden />
         <MaterialCommunityIcons name="alert-circle-outline" size={40} color={Colors.dark.buttonBackground} />
         <Text style={styles.errorText}>{error || 'Could not load chapter'}</Text>
         <TouchableOpacity
@@ -460,7 +482,7 @@ export default function MangaReaderPage() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaView style={styles.container}>
-        <StatusBar style="light" />
+        <StatusBar style="light" hidden />
         
         {/* Header with back button and chapter info */}
         <View style={styles.header}>
