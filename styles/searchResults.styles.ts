@@ -148,4 +148,31 @@ export const styles = StyleSheet.create({
     color: Colors.dark.secondaryText,
     textAlign: 'center',
   },
+  episodesBadgeContainer: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  episodeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+  },
+  subBadge: {
+    backgroundColor: 'rgba(230, 57, 70, 0.9)',
+  },
+  dubBadge: {
+    backgroundColor: 'rgba(69, 123, 157, 0.9)',
+  },
+  episodeBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginLeft: 2,
+  },
 });

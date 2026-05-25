@@ -30,6 +30,9 @@ import { styles } from "../styles/searchResults.styles";
 
 // Watchlist context for managing user's saved anime
 import { useWatchlist } from "../contexts/WatchlistContext";
+// Readlist context for managing user's saved manga
+import { useReadlist } from "../contexts/ReadlistContext";
+import { getThumbnailUrl } from '../lib/referrer';
 
 /**
  * AsyncStorage Constants
@@ -72,8 +75,10 @@ export default function SearchResults() {
   const [watchlist, setWatchlist] = useState<string[]>([]); // Legacy local watchlist state for compatibility
   const [hasSearched, setHasSearched] = useState(false); // Flag to track if search has been performed
   
-  // Use watchlist context for global state management
+  // Use watchlist context for global state management (anime)
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
+  // Use readlist context for global state management (manga)
+  const { isInReadlist, toggleReadlist: toggleReadlistItem } = useReadlist();
   
   // Refs for component lifecycle and performance optimization
   const initialMount = useRef(true); // Track initial mount to prevent duplicate searches
@@ -403,26 +408,37 @@ export default function SearchResults() {
    * - Provides immediate UI feedback
    * - Handles missing anime data gracefully
    */
-  // Update toggleWatchlist function to use both local state and context
+  // Toggle handler — routes to readlist (manga) or watchlist (anime) based on searchType
   const handleToggleWatchlist = (id: string, event: any) => {
     event.stopPropagation();
-    
-    // Keep local state for compatibility
-    setWatchlist(prev => 
-      prev.includes(id) 
-        ? prev.filter(itemId => itemId !== id)
-        : [...prev, id]
-    );
-    
-    // Find the item to get its details
+
     const item = results.find(result => result.id === id);
-    if (item) {
-      // Use the context function to update global state
-      toggleWatchlist(
-        id, 
-        item.englishName || item.title || 'Unknown Anime', 
-        item.thumbnail || ''
+
+    if (searchType === 'manga') {
+      // Use readlist for manga
+      if (item) {
+        toggleReadlistItem({
+          id,
+          title: item.englishName || item.title || 'Unknown Manga',
+          thumbnail: item.thumbnail || '',
+        });
+      }
+    } else {
+      // Keep local state for compatibility (anime)
+      setWatchlist(prev =>
+        prev.includes(id)
+          ? prev.filter(itemId => itemId !== id)
+          : [...prev, id]
       );
+
+      // Use the watchlist context to update global state
+      if (item) {
+        toggleWatchlist(
+          id,
+          item.englishName || item.title || 'Unknown Anime',
+          item.thumbnail || ''
+        );
+      }
     }
   };
 
@@ -443,7 +459,7 @@ export default function SearchResults() {
       <View style={styles.thumbnailContainer}>
         {item.thumbnail ? (
           <Image 
-            source={{ uri: item.thumbnail }} 
+            source={{ uri: getThumbnailUrl(item.thumbnail) }} 
             style={styles.thumbnail}
             resizeMode="cover"
           />
@@ -452,6 +468,22 @@ export default function SearchResults() {
             <MaterialCommunityIcons name="image" size={40} color={Colors.dark.secondaryText} />
           </View>
         )}
+        
+        {/* Episodes Badges for Anime */}
+        {searchType === 'anime' && (!!item.subCount || !!item.dubCount) ? (
+          <View style={styles.episodesBadgeContainer}>
+            {!!item.subCount && item.subCount > 0 && (
+              <View style={[styles.episodeBadge, styles.subBadge]}>
+                <Text style={[styles.episodeBadgeText, { marginLeft: 0 }]}>Sub {item.subCount}</Text>
+              </View>
+            )}
+            {!!item.dubCount && item.dubCount > 0 && (
+              <View style={[styles.episodeBadge, styles.dubBadge]}>
+                <Text style={[styles.episodeBadgeText, { marginLeft: 0 }]}>Dub {item.dubCount}</Text>
+              </View>
+            )}
+          </View>
+        ) : null}
       </View>
       
       {/* Content container with title and metadata */}
@@ -492,9 +524,17 @@ export default function SearchResults() {
           onPress={(e) => handleToggleWatchlist(item.id, e)}
         >
           <MaterialCommunityIcons 
-            name={isInWatchlist(item.id) ? "bookmark" : "bookmark-outline"}
+            name={
+              searchType === 'manga'
+                ? isInReadlist(item.id) ? "book" : "book-outline"
+                : isInWatchlist(item.id) ? "bookmark" : "bookmark-outline"
+            }
             size={24} 
-            color={isInWatchlist(item.id) ? Colors.dark.buttonBackground : Colors.dark.text}
+            color={
+              searchType === 'manga'
+                ? isInReadlist(item.id) ? Colors.dark.buttonBackground : Colors.dark.text
+                : isInWatchlist(item.id) ? Colors.dark.buttonBackground : Colors.dark.text
+            }
           />
         </TouchableOpacity>
         
