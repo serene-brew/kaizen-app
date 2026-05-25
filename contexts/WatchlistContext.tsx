@@ -172,13 +172,24 @@ export const WatchlistProvider: React.FC<{ children: React.ReactNode }> = ({ chi
    */
   const reloadFromLocal = useCallback(async () => {
     try {
+      // Re-hydrate auth state if missing (e.g. after new signup – session
+      // did not exist when the context first mounted).
+      if (!userId) {
+        try {
+          const session = await account.getSession('current');
+          setUserId(session.userId);
+          setIsAuthenticated(true);
+        } catch {
+          // Still no session – leave as unauthenticated
+        }
+      }
       const items = await localStorage.getWatchlist();
       setWatchlist(items);
       console.log(`[Watchlist] Reloaded ${items.length} items from local storage`);
     } catch (err) {
       console.error('[Watchlist] Failed to reload from local storage:', err);
     }
-  }, []);
+  }, [userId]);
 
   /**
    * refreshWatchlist – Triggers a cloud sync for this collection,

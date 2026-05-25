@@ -225,6 +225,17 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
    */
   const reloadFromLocal = useCallback(async () => {
     try {
+      // Re-hydrate auth state if missing (e.g. after new signup – session
+      // did not exist when the context first mounted).
+      if (!userId) {
+        try {
+          const session = await account.getSession('current');
+          setUserId(session.userId);
+          setIsAuthenticated(true);
+        } catch {
+          // Still no session – leave as unauthenticated
+        }
+      }
       const items = await localStorage.getWatchHistory();
       items.sort((a: WatchHistoryItem, b: WatchHistoryItem) => b.watchedAt - a.watchedAt);
       setHistory(items);
@@ -232,7 +243,7 @@ export const WatchHistoryProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } catch (err) {
       console.error('[WatchHistory] Failed to reload from local storage:', err);
     }
-  }, []);
+  }, [userId]);
 
   /**
    * refreshWatchHistory – Triggers a cloud sync for watch history,

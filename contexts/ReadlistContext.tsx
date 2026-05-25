@@ -177,13 +177,24 @@ export const ReadlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
    */
   const reloadFromLocal = useCallback(async () => {
     try {
+      // Re-hydrate auth state if missing (e.g. after new signup – session
+      // did not exist when the context first mounted).
+      if (!userId) {
+        try {
+          const session = await account.getSession('current');
+          setUserId(session.userId);
+          setIsAuthenticated(true);
+        } catch {
+          // Still no session – leave as unauthenticated
+        }
+      }
       const items = await localStorage.getReadlist();
       setReadlist(sortReadlistItems(items, 'recent'));
       console.log(`[Readlist] Reloaded ${items.length} items from local storage`);
     } catch (err) {
       console.error('[Readlist] Failed to reload from local storage:', err);
     }
-  }, []);
+  }, [userId]);
 
   const refreshReadlist = useCallback(async () => {
     if (!userId) {
