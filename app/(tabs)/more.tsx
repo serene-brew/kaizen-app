@@ -35,6 +35,7 @@ import { checkForUpdatesManually, versionService } from '../../lib/versionServic
 
 // Custom alert components for dark-themed alerts
 import { showCustomAlert, showSuccessAlert, showErrorAlert, showConfirmAlert } from '../../components/CustomAlert';
+import { getThumbnailUrl } from '../../lib/referrer';
 
 /**
  * TypeScript Interface Definitions
@@ -51,7 +52,7 @@ interface MenuItemProps {
 // Static assets and constants
 const AppIcon = require('../../assets/images/icon.png');
 const GITHUB_URL = "https://github.com/serene-brew/kaizen-app";
-const APP_VERSION = "3.1.0";
+const APP_VERSION = "3.2.0";
 const DEFAULT_AVATAR_ICON = 'account-circle';
 
 /**
@@ -398,7 +399,7 @@ export default function More() {
                 activeOpacity={0.8}
               >
                 <Image
-                  source={{ uri: watchHistoryStats.recentItems[0].thumbnailUrl }}
+                  source={{ uri: getThumbnailUrl(watchHistoryStats.recentItems[0].thumbnailUrl) }}
                   style={styles.lastWatchedThumbnail}
                   resizeMode="cover"
                 />
@@ -496,7 +497,7 @@ export default function More() {
                 activeOpacity={0.8}
               >
                 <Image
-                  source={{ uri: readHistoryStats.recentItems[0].thumbnailUrl }}
+                  source={{ uri: getThumbnailUrl(readHistoryStats.recentItems[0].thumbnailUrl) }}
                   style={styles.lastWatchedThumbnail}
                   resizeMode="cover"
                 />

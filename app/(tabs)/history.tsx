@@ -24,6 +24,7 @@ import { useWatchHistory, WatchHistoryItem } from '../../contexts/WatchHistoryCo
 
 // Component-specific styles
 import { styles } from '../../styles/history.styles';
+import { getThumbnailUrl } from '../../lib/referrer';
 
 // Get device screen width for responsive layout
 const { width } = Dimensions.get('window');
@@ -174,7 +175,7 @@ const AnimeGroup = memo(({ animeId, animeItems, onNavigateToDetails, onNavigateT
       >
         {/* Anime thumbnail image */}
         <Image 
-          source={{ uri: firstItem.thumbnailUrl}} 
+          source={{ uri: getThumbnailUrl(firstItem.thumbnailUrl)}} 
           style={styles.animeThumbnail} 
           defaultSource={require('../../assets/images/icon.png')}
         />

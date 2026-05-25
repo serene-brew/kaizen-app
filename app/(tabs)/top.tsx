@@ -23,7 +23,8 @@ import { animeApi } from "../../lib/api";
 import { useWatchlist } from "../../contexts/WatchlistContext";
 
 // TypeScript interfaces for type safety
-import { AnimeItem } from "../../types/anime";
+import { AnimeItem } from '../../types/anime';
+import { getThumbnailUrl } from '../../lib/referrer';
 
 // Get device screen width for responsive grid layout
 const { width } = Dimensions.get("window");
@@ -235,7 +236,7 @@ export default function TopPage() {
               {/* Poster image with fallback placeholder */}
               {item.thumbnail ? (
                 <Image
-                  source={{ uri: item.thumbnail }}
+                  source={{ uri: getThumbnailUrl(item.thumbnail) }}
                   style={styles.posterImage}
                   resizeMode="cover"
                 />

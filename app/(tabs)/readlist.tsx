@@ -9,6 +9,7 @@ import Colors from '../../constants/Colors';
 import { styles } from '../../styles/readlist.styles';
 import { useReadlist } from '../../contexts/ReadlistContext';
 import { showConfirmAlert } from '../../components/CustomAlert';
+import { getThumbnailUrl } from '../../lib/referrer';
 
 export default function ReadlistPage() {
   const { readlist, isLoading, isSyncing, isAuthenticated, removeFromReadlist, clearReadlist, refreshReadlist, sortReadlist } = useReadlist();
@@ -143,7 +144,7 @@ export default function ReadlistPage() {
             >
               <View style={styles.cover}>
                 {item.thumbnailUrl ? (
-                  <Image source={{ uri: item.thumbnailUrl }} style={styles.coverImage} resizeMode="cover" />
+                  <Image source={{ uri: getThumbnailUrl(item.thumbnailUrl) }} style={styles.coverImage} resizeMode="cover" />
                 ) : (
                   <MaterialCommunityIcons name="image" size={40} color={Colors.dark.secondaryText} />
                 )}

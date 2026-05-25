@@ -24,6 +24,7 @@ import { AnimeItem } from "../../types/anime";
 
 // Watchlist context for managing user's saved anime
 import { useWatchlist } from '../../contexts/WatchlistContext';
+import { getThumbnailUrl } from '../../lib/referrer';
 
 // Get device screen width for responsive grid layout
 const { width } = Dimensions.get('window');
@@ -236,7 +237,7 @@ export default function TrendingPage() {
               {/* Poster image with fallback placeholder */}
               {item.thumbnail ? (
                 <Image 
-                  source={{ uri: item.thumbnail }} 
+                  source={{ uri: getThumbnailUrl(item.thumbnail) }} 
                   style={styles.posterImage}
                   resizeMode="cover"
                 />

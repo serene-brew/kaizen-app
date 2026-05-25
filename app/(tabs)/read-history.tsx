@@ -8,6 +8,7 @@ import Colors from '../../constants/Colors';
 import { showConfirmAlert } from '../../components/CustomAlert';
 import { useReadHistory, ReadHistoryItem } from '../../contexts/ReadHistoryContext';
 import { styles } from '../../styles/readHistory.styles';
+import { getThumbnailUrl } from '../../lib/referrer';
 
 const createUniqueKey = (item: ReadHistoryItem): string => `${item.id}-${item.chapter}-${item.readAt}`;
 
@@ -77,7 +78,7 @@ const MangaGroup = memo(({ mangaId, items, onNavigateToDetails, onNavigateToRead
   return (
     <View style={styles.mangaGroup}>
       <TouchableOpacity style={styles.mangaHeader} onPress={() => onNavigateToDetails(first.id, first.title, first.thumbnailUrl)}>
-        <Image source={{ uri: first.thumbnailUrl }} style={styles.mangaThumbnail} defaultSource={require('../../assets/images/icon.png')} />
+        <Image source={{ uri: getThumbnailUrl(first.thumbnailUrl) }} style={styles.mangaThumbnail} defaultSource={require('../../assets/images/icon.png')} />
         <View style={styles.mangaInfo}>
           <Text style={styles.mangaTitle} numberOfLines={1}>{first.title}</Text>
           <Text style={styles.chapterCount}>{items.length} chapter{items.length > 1 ? 's' : ''} read</Text>

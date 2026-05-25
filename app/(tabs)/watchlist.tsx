@@ -18,6 +18,7 @@ import { styles } from "../../styles/watchlist.styles";
 
 // Watchlist context for managing user's saved anime
 import { useWatchlist } from "../../contexts/WatchlistContext";
+import { getThumbnailUrl } from '../../lib/referrer';
 
 // Date formatting utility for displaying when anime was added
 import { formatDistanceToNow } from 'date-fns';
@@ -222,7 +223,7 @@ export default function Watchlist() {
                 {/* Poster image with fallback placeholder */}
                 {item.thumbnailUrl ? (
                   <Image 
-                    source={{ uri: item.thumbnailUrl }} 
+                    source={{ uri: getThumbnailUrl(item.thumbnailUrl) }} 
                     style={styles.posterImage}
                     resizeMode="cover"
                   />
