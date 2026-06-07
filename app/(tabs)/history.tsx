@@ -1,8 +1,9 @@
 // React hooks for state management, side effects, and performance optimization
 import { useState, useEffect, useCallback, memo } from 'react';
+import Image from '../../components/RefererImage';
 
 // React Native core components for UI rendering and device interaction
-import { View, Text, TouchableOpacity, FlatList, Image, ActivityIndicator, Dimensions, BackHandler } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Dimensions, BackHandler } from 'react-native';
 
 // Expo Router for navigation
 import { Stack, useRouter } from 'expo-router';

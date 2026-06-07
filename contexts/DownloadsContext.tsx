@@ -19,6 +19,9 @@ import * as Notifications from 'expo-notifications';
 // Custom alert system for consistent UI
 import { showCustomAlert } from '../components/CustomAlert';
 
+// Utility for fetching the required referrer
+import { getReferrer } from '../lib/referrer';
+
 /**
  * Constants and Interfaces
  * 
@@ -796,10 +799,16 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const PROGRESS_UPDATE_INTERVAL = 500; // ms
         let isDownloadCompleted = false; // Flag to prevent race conditions
         
+        const referrer = await getReferrer();
+        
         const downloadResumable = FileSystem.createDownloadResumable(
           downloadItem.downloadUrl,
           filePath,
-          {},
+          {
+            headers: {
+              'Referer': referrer || ''
+            }
+          },
           (downloadProgress) => {
             // Don't update progress if download is already completed
             if (isDownloadCompleted) return;
@@ -1798,10 +1807,17 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
    */
   const startBrowserDownload = async (downloadUrl: string): Promise<boolean> => {
     try {
+      let finalUrl = downloadUrl;
+      const referrer = await getReferrer();
+      
+      if (referrer && Platform.OS === 'android') {
+         finalUrl = `intent://${finalUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(finalUrl)};S.com.android.browser.headers=${encodeURIComponent('Referer:' + referrer)};end`;
+      }
+
       // Check if URL can be opened
-      const supported = await Linking.canOpenURL(downloadUrl);
+      const supported = await Linking.canOpenURL(finalUrl);
       if (supported) {
-        await Linking.openURL(downloadUrl);
+        await Linking.openURL(finalUrl);
         console.log('Browser download started:', downloadUrl);
         return true;
       } else {

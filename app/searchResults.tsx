@@ -1,8 +1,9 @@
 // React hooks for state management, lifecycle, and performance optimization
 import { useEffect, useState, useRef, useCallback } from "react";
+import Image from '../components/RefererImage';
 
 // React Native core components for UI rendering and device interaction
-import { View, Text, FlatList, Image, TouchableOpacity, ActivityIndicator, BackHandler } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, BackHandler } from 'react-native';
 
 // Material Community Icons for visual elements
 import { MaterialCommunityIcons } from '@expo/vector-icons';

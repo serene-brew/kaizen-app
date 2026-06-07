@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, BackHandler } from 'react-native';
+import Image from '../../components/RefererImage';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, BackHandler } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -32,34 +33,38 @@ export default function MangaDetailsPage() {
   const { isInReadlist, toggleReadlist } = useReadlist();
   const { getChaptersForManga, getLastReadChapter, refreshHistory, isAuthenticated } = useReadHistory();
 
-  useEffect(() => {
-    const loadDetails = async () => {
-      if (!mangaId) {
-        setError('Missing manga identifier.');
-        setLoading(false);
+  const loadDetails = useCallback(async () => {
+    if (!mangaId) {
+      setError('Missing manga identifier.');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await mangaApi.fetchMangaDetails(mangaId);
+      if (!response) {
+        setError('Unable to find details for this manga.');
         return;
       }
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const response = await mangaApi.fetchMangaDetails(mangaId);
-        if (!response) {
-          setError('Unable to find details for this manga.');
-          return;
-        }
-        setDetails(response);
-      } catch (err) {
-        console.error('Error fetching manga details:', err);
-        setError('Failed to load manga details. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadDetails();
+      setDetails(response);
+    } catch (err) {
+      console.error('Error fetching manga details:', err);
+      setError('Failed to load manga details. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
   }, [mangaId]);
+
+  useEffect(() => {
+    loadDetails();
+  }, [loadDetails]);
+
+  const handleRefresh = useCallback(() => {
+    loadDetails();
+  }, [loadDetails]);
 
   const displayTitle = details?.englishName || details?.title || initialTitle;
 
@@ -213,6 +218,9 @@ export default function MangaDetailsPage() {
       <View style={styles.backButtonContainer}>
         <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
           <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.dark.text} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.backButton} onPress={handleRefresh}>
+          <MaterialCommunityIcons name="refresh" size={24} color={Colors.dark.text} />
         </TouchableOpacity>
       </View>
 

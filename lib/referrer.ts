@@ -25,12 +25,6 @@
 
 const REFERENCE_URL = 'https://heavenscape.vercel.app/reference.json';
 
-/**
- * CDN proxy prefix to prepend to all thumbnail paths.
- * Example result:
- *   https://wp.youtube-anime.com/aln.youtube-anime.com/mcovers/m_tbs/.../001.png
- */
-const THUMBNAIL_PROXY_PREFIX = 'https://wp.youtube-anime.com/';
 
 // ---------------------------------------------------------------------------
 // Referrer cache
@@ -102,30 +96,15 @@ export function getReferrer(): Promise<string> {
 // ---------------------------------------------------------------------------
 
 /**
- * Prepends the CDN proxy prefix to a raw thumbnail URL/path.
+ * Returns the raw thumbnail URL/path as it is received.
  *
- * Safe to call with null / undefined — returns '' in those cases.
- * Idempotent: if the URL already starts with the proxy prefix it is returned
- * unchanged so double-wrapping is never possible.
- *
- * @param rawUrl - The thumbnail string returned by the API.  May be a full
- *                 URL (https://aln.youtube-anime.com/...) or a bare path.
- * @returns A fully-qualified URL routed through the proxy layer.
+ * @param rawUrl - The thumbnail string returned by the API.
+ * @returns The original thumbnail string or an empty string.
  */
 export function getThumbnailUrl(rawUrl: string | null | undefined): string {
   if (!rawUrl) {
     return '';
   }
 
-  // Already proxied — avoid double-prefixing
-  if (rawUrl.startsWith(THUMBNAIL_PROXY_PREFIX)) {
-    return rawUrl;
-  }
-
-  // Strip leading protocol so the proxy prefix forms a valid nested path:
-  //   https://aln.youtube-anime.com/foo
-  //   → https://wp.youtube-anime.com/aln.youtube-anime.com/foo
-  const stripped = rawUrl.replace(/^https?:\/\//, '');
-
-  return `${THUMBNAIL_PROXY_PREFIX}${stripped}`;
+  return rawUrl;
 }

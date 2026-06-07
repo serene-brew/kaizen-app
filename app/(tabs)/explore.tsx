@@ -1,8 +1,9 @@
 // React hooks for state management and side effects
 import { useState, useEffect, useRef, useMemo } from "react";
+import Image from '../../components/RefererImage';
 
 // React Native core components for UI rendering and device interaction
-import { View, Text, ScrollView, Dimensions, TouchableOpacity, Image, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Dimensions, TouchableOpacity, ActivityIndicator } from 'react-native';
 
 // Icon libraries for visual elements
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';

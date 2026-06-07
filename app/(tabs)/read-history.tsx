@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, memo } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Image, ActivityIndicator, BackHandler } from 'react-native';
+import Image from '../../components/RefererImage';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, BackHandler } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
