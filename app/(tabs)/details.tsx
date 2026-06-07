@@ -1,5 +1,6 @@
 // React Native core components for UI rendering and device interaction
-import { View, Text, ScrollView, TouchableOpacity, Dimensions, Image, ActivityIndicator, BackHandler } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, BackHandler } from 'react-native';
+import Image from '../../components/RefererImage';
 
 // Icon libraries for visual elements
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -104,76 +105,89 @@ export default function DetailsPage() {
    * 1. Complete data passed via navigation params (faster, no API call)
    * 2. API fetch using anime ID (fallback or when no complete data available)
    */
-  useEffect(() => {
-    const fetchAnimeDetails = async () => {
-      if (!id) return;
-      
-      setLoading(true);
-      setError(null);
-      
-      // Check if we have complete anime data in params
-      if (params.completeData) {
-        try {
-          // Parse the stringified complete data if available
-          const completeData = JSON.parse(decodeURIComponent(params.completeData as string));
-          if (completeData && completeData.id) {
-            console.log("Using complete anime data from params");
-            
-            // Format data to match our expected structure
-            const formattedData = {
-              id: completeData.id,
-              title: completeData.title || completeData.englishName,
-              englishName: completeData.englishName,
-              description: completeData.description || null,
-              thumbnail: completeData.thumbnail || null,
-              genres: completeData.genres || null,
-              status: completeData.status || null,
-              type: completeData.format || completeData.type || null,
-              rating: completeData.rating || null,
-              score: completeData.score || null,
-              subCount: completeData.subCount || null,
-              dubCount: completeData.dubCount || null,
-              episodes: completeData.episodes || { sub: null, dub: null }
-            };
-            
-            setAnimeData(formattedData);
-            setLoading(false);
-            return;
-          }
-        } catch (err) {
-          console.error("Error parsing complete anime data:", err);
-          // Continue to fetch data if parsing failed
-        }
-      }
-      
-      // If no complete data or parsing failed, fetch from API
-      try {
-        console.log("Fetching anime details from API");
-        const referrer = await getReferrer();
-        const response = await fetch(`https://heavenscape.vercel.app/api/anime/id/${id}`, {
-          headers: { Referer: referrer }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-        
-        const data: AnimeDetailsResponse = await response.json();
-        
-        if (!data) {
-          throw new Error('Invalid data received from API');
-        }
-        
-        setAnimeData(data.result);
-      } catch (err) {
-        console.error('Error fetching anime details:', err);
-        setError('Failed to load anime details');
-      } finally {
-        setLoading(false);
-      }
-    };
+  /**
+   * Anime Details Data Fetching
+   */
+  const fetchAnimeDetailsFromAPI = async (forceRefresh = false) => {
+    if (!id) return;
     
-    fetchAnimeDetails();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log("Fetching anime details from API");
+      const referrer = await getReferrer();
+      const response = await fetch(`https://heavenscape.vercel.app/api/anime/id/${id}`, {
+        headers: { Referer: referrer }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data: AnimeDetailsResponse = await response.json();
+      
+      if (!data) {
+        throw new Error('Invalid data received from API');
+      }
+      
+      setAnimeData(data.result);
+    } catch (err) {
+      console.error('Error fetching anime details:', err);
+      setError('Failed to load anime details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadInitialData = async () => {
+    if (!id) return;
+    
+    // Check if we have complete anime data in params
+    if (params.completeData) {
+      try {
+        // Parse the stringified complete data if available
+        const completeData = JSON.parse(decodeURIComponent(params.completeData as string));
+        if (completeData && completeData.id) {
+          console.log("Using complete anime data from params");
+          
+          // Format data to match our expected structure
+          const formattedData = {
+            id: completeData.id,
+            title: completeData.title || completeData.englishName,
+            englishName: completeData.englishName,
+            description: completeData.description || null,
+            thumbnail: completeData.thumbnail || null,
+            genres: completeData.genres || null,
+            status: completeData.status || null,
+            type: completeData.format || completeData.type || null,
+            rating: completeData.rating || null,
+            score: completeData.score || null,
+            subCount: completeData.subCount || null,
+            dubCount: completeData.dubCount || null,
+            episodes: completeData.episodes || { sub: null, dub: null }
+          };
+          
+          setAnimeData(formattedData);
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Error parsing complete anime data:", err);
+        // Continue to fetch data if parsing failed
+      }
+    }
+    
+    // If no complete data or parsing failed, fetch from API
+    await fetchAnimeDetailsFromAPI();
+  };
+
+  useEffect(() => {
+    loadInitialData();
+  }, [id]);
+
+  const handleRefresh = useCallback(() => {
+    fetchAnimeDetailsFromAPI(true);
   }, [id]);
 
   // Get watch history functionality from context
@@ -428,13 +442,19 @@ export default function DetailsPage() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <StatusBar style="light" translucent />
       
-      {/* Back button at the top of the page */}
+      {/* Top Header Controls */}
       <View style={styles.backButtonContainer}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={handleGoBack}
         >
           <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.dark.text} />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={handleRefresh}
+        >
+          <MaterialCommunityIcons name="refresh" size={24} color={Colors.dark.text} />
         </TouchableOpacity>
       </View>
       
