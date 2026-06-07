@@ -1,15 +1,9 @@
 // React core for component creation and state management
 import React, { useState, useEffect } from 'react';
+import Image from '../components/RefererImage';
 
 // React Native core components for UI rendering and device interaction
-import { 
-  View, 
-  Text, 
-  FlatList, 
-  TouchableOpacity, 
-  Image, 
-  ActivityIndicator
-} from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 
 // Status bar component for controlling appearance
 import { StatusBar } from 'expo-status-bar';
