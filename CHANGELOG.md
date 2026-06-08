@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.1] - 2026-06-08
+
+### Added
+
+- Refresh button for clearing stale cache manually
+
+### Fixed
+
+- Corrected referrer handling to ensure thumbnails load properly
+- Resolved issues with the download functionality
+
 ## [3.2.0] - 2026-05-25
 
 ### Added
