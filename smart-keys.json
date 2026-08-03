@@ -1,1 +1,21 @@
-
+{
+  "fetchedAt": "2026-08-03T14:53:31.994Z",
+  "expiresAt": "2026-08-03T15:03:31.995Z",
+  "keys": {
+    "k7": {
+      "keyBase64": "9703kC8Nf8Bn2Cx6T5xS3/XxU5Vhdz044gAS0rkfRC4=",
+      "epoch": "6889",
+      "buildId": "81"
+    },
+    "k9": {
+      "keyBase64": "cRDHjLtwN0EwRgIZ4S2eMjH4BjpgWq/gu9Ejtu5GW5s=",
+      "epoch": "6889",
+      "buildId": "81"
+    },
+    "k2": {
+      "keyBase64": "xjZrRZa2hNdgKFLwuwBC2oUqSCABaGwJ82wg5TwCe4U=",
+      "epoch": "6889",
+      "buildId": "81"
+    }
+  }
+}
