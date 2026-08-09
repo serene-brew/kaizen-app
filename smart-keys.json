@@ -1,23 +1,23 @@
 {
-  "fetchedAt": "2026-08-09T02:18:07.162Z",
-  "expiresAt": "2026-08-10T03:18:07.162Z",
-  "alpha": "7yPurc3d5VjyA01m.8F7tKmHOmoqAzkkxRACxsy0b/Zvve2UGn3qH5uVoe8XmBIfjE86MfkJWELFwknG1R3CRzO3Ve9kHcQLg6UwkZGXA/EA56d6brokkFP95uSXyy/kX4z2lgibqReab248MXuTmM3rksgSfOOziGW2SqAC4IDIXhiQ0wptc3N+e/Ck=.W524ap5Biiq9SqLR67mrww==",
-  "beta": "HHkkaHnTk1hfBkjc.lHjVuL+WP1tII4sdJgQGy995dOkIF7/NqM53vk6veZK1L5EoEvaByBy39yt8PGnKxO0RHGvZ+q48SzdJrACMurCPzmV56H9//NdPPK/7HV1uafLIHddE4msOp0aqnWD4RoOkp0hY1OU+mX42lczYt+dVLZqGWbqOhr0DNHBICDxeADwr7efvTC5RkqplwZJ41NK6l662Uiird84BoRbSO7nHvPLrowJKfPzLuKVJyhfGRT4MlUhdvvfb/4HMx0yn6kAQ/aiomTSNxCp2Np/pdC3FTlT8eiddldcN1ZxSzyLfHkF27nPkYXAnwl5aPBtQ5ftm+7NFddUTVlrmG7m5z0De/8P83Ln259RAtq/1BW6FfuIXbXCJ/Y0LVG+f1DFHb/XW3ZefIh37iuTJJxrQOOxqWwO1eAcJZViG4XUWQJ3t5ayrr47YghRDfgz32lkhTH228Caya2LXJRXfXLhsPsi3fetsgjWUGRfgzKOH9k//LrWUJmi+ue/x0agszLhVbDRO0ceO2tgb3lFWMD/5e57heWrLWVpb2LL/RMT+a6QsiFFO0Hi7W0zpmbjD+J2dxSgwfMc5nscSi52h5qlx9uJsBkUgFkP7t2QVt7G3xdZErz+9ok68H2rS7NI=.mvlw3h6xoKHqjjLOy36Mkg==",
+  "fetchedAt": "2026-08-09T09:48:47.719Z",
+  "expiresAt": "2026-08-10T10:48:47.720Z",
+  "alpha": "eGcRwNwCKEIxP9vV.gBl0Q28iVqLF97WvCXoTSROqzmEypn6GbJxtEe50gpfXJcCAswU5KPS3FsPTB4uwSkdj2py1j9GvobXz+jg3lBxhh+TYZstZDtVAPLTkFVIfwfT27mu/vkADMBN7E1YwvFBDFpT3QqVoRamkpZwe2IgFKFyugO65RGQQdKN2iaY=.kwlasrFDlamIOesbn1VEMQ==",
+  "beta": "7mVed4jpXdpnf6qR.6v7lrRzxuSPaZV0/Zjjd658WEzSY/qbDtBQAlG///hRkjNpjDGc288il9gU6s5ujakTWKv9mr0SVRBt6Cf9k3SSdfvbrCByuoVu5nk8wdd2uGrOuZ1tEjg46ddwY4ZWlTf6bVBK/Gfa5iQiHQpgzxv2s5eacFtdGHMvhKPYfQ6yxzHUfp+RJg95LnnhNZKKYw+XmziR9/nuoW0wjZN8kWejGTqT9A5J/8+xUUEiWkWkgdIK9ntpbElflHGhj+F6/h2x8hXq6MAs0/cep2JUhGtAykdCCjCXT7CEr9bW0lhsWQRRuDbEQymVYnErmpoI2vPy5VTXIITJFIDnCUFqQd0GpGwBjhKSnzYSUYeVTU5+QeUG27yK52iIi9Ee3xI+dOx68HsBPrEwC38xicC7MQx1ntObEyF4vTwO6RxbiujglP2/yQy9raoQFDcR+LtFJOtPbPzpUZr6RFTyqHRkOgtpDFOjmQSRdgmqVpYMmfi8aoP40kfJ2omvkC3/9RH8E3HXZKZnkgrNNrgdm2CznFP/6+qREu0Kd/P/mEDdo85FXsNqzpVvIKG/ve7FQ93DScXjHLcqkNNns08ywL8CAGKJesySX4x3kIL14LbIeBdSjiXpFQD3DtrYM1TM=.ZVdpECHArEPjkdPklbJOxA==",
   "keys": {
     "k7": {
       "keyBase64": "aVryeCox7cLJmoshp4HVNfsOqzuFdGR/A5MdPDvtXxY=",
       "epoch": "2953",
-      "buildId": "95"
+      "buildId": "96"
     },
     "k9": {
       "keyBase64": "6BEFoxMtPpfAWpXxSE0z9T4DFquaIzh6cX+j50nGq6M=",
       "epoch": "2953",
-      "buildId": "95"
+      "buildId": "96"
     },
     "k2": {
       "keyBase64": "drBwsOkZL4XoyJAcMwA8B7Q9CUIls1AZwQVBslTLVoM=",
       "epoch": "2953",
-      "buildId": "95"
+      "buildId": "96"
     }
   }
 }
